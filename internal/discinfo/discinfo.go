@@ -175,32 +175,7 @@ func rootDir(read sectorReader) (map[string]extent, error) {
 	}
 	rec := pvd[156:]
 	root := extent{int(binary.LittleEndian.Uint32(rec[2:])), int(binary.LittleEndian.Uint32(rec[10:]))}
-	if root.size <= 0 || root.size > 1<<20 {
-		return nil, errors.New("invalid root directory")
-	}
-	out := map[string]extent{}
-	for s := 0; s*2048 < root.size; s++ {
-		b, err := read(root.lba + s)
-		if err != nil {
-			return out, nil
-		}
-		for p := 0; p < len(b); {
-			n := int(b[p])
-			if n == 0 || p+n > len(b) || n < 34 {
-				break
-			}
-			nameLen := int(b[p+32])
-			if 33+nameLen <= n {
-				name := strings.ToUpper(string(b[p+33 : p+33+nameLen]))
-				if i := strings.IndexByte(name, ';'); i >= 0 {
-					name = name[:i]
-				}
-				out[name] = extent{int(binary.LittleEndian.Uint32(b[p+2:])), int(binary.LittleEndian.Uint32(b[p+10:]))}
-			}
-			p += n
-		}
-	}
-	return out, nil
+	return listDir(read, root)
 }
 
 func readFile(read sectorReader, e extent) ([]byte, error) {

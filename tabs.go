@@ -72,6 +72,7 @@ type convItem struct {
 	kind     string // what describe resolved, e.g. "cd" or "dvd"
 	size     int64  // input size including the files a sheet refers to; 0 = the file's size
 	ok       bool
+	infoOnly bool // listed for what it is, not to convert (e.g. a CHD)
 	platform string
 	detail   fmt.Stringer
 	status   fmt.Stringer
@@ -162,7 +163,7 @@ func (t *convTab) list(u *ui, path string) {
 	t.conv.describe(it)
 	t.items = append(t.items, it)
 	t.checked[path] = it.ok
-	if !it.ok {
+	if !it.ok && !it.infoOnly {
 		u.println(lazyf("✗ %s: %s", filepath.Base(path), it.detail))
 	}
 }
@@ -372,6 +373,10 @@ func (t *convTab) refresh(u *ui) {
 	for i, it := range t.items {
 		it.id = fmt.Sprintf("c%d", i)
 		values := Values(tclList([]string{it.platform, stringOf(it.detail), stringOf(it.status)}))
+		if it.infoOnly {
+			t.tree.Insert("", "end", Id(it.id), Txt(filepath.Base(it.path)), values)
+			continue
+		}
 		if !it.ok {
 			t.tree.Insert("", "end", Id(it.id), Image(checkImage(-1)), Txt(filepath.Base(it.path)), values, Tags("unknown"))
 			continue

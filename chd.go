@@ -25,13 +25,14 @@ var chdConverter = &converter{
 	info:   "tab.chd.info",
 	button: "btn.chd",
 	tip:    "btn.chd.tip",
-	exts:   []string{".cue", ".gdi", ".iso"},
+	exts:   []string{".cue", ".gdi", ".iso", ".chd"},
 	accept: func(path string) bool { return !isISO(path) || !xiso.IsXbox(path) && !isNintendoDisc(path) },
 	types: []FileType{
-		{TypeName: "CUE/GDI/ISO", Extensions: []string{".cue", ".gdi", ".iso"}},
+		{TypeName: "CUE/GDI/ISO/CHD", Extensions: []string{".cue", ".gdi", ".iso", ".chd"}},
 		{TypeName: "CUE (CD)", Extensions: []string{".cue"}},
 		{TypeName: "GDI (Dreamcast)", Extensions: []string{".gdi"}},
 		{TypeName: "ISO", Extensions: []string{".iso"}},
+		{TypeName: "CHD", Extensions: []string{".chd"}},
 	},
 	describe: describeDisc,
 	outName: func(it *convItem) string {
@@ -95,6 +96,9 @@ var chdConverter = &converter{
 		return []Widget{m3u}
 	},
 	menu: func(u *ui, t *convTab, it *convItem) []menuEntry {
+		if isCHD(it.path) {
+			return []menuEntry{{T("btn.check_chd"), false, func() { u.startCheck(it.path) }}}
+		}
 		if !isISO(it.path) || !it.ok {
 			return nil
 		}
@@ -141,11 +145,86 @@ var chdConverter = &converter{
 
 func isISO(path string) bool { return strings.EqualFold(filepath.Ext(path), ".iso") }
 func isGDI(path string) bool { return strings.EqualFold(filepath.Ext(path), ".gdi") }
+func isCHD(path string) bool { return strings.EqualFold(filepath.Ext(path), ".chd") }
+
+// withGame puts what the disc says about the game before a detail.
+func withGame(info discinfo.Info, detail fmt.Stringer) fmt.Stringer {
+	return lazyLine(func() string {
+		if g := gameText(info); g != "" {
+			return g + " — " + stringOf(detail)
+		}
+		return stringOf(detail)
+	})
+}
+
+// gameText is the title, product code, version, regions and disc number
+// of a game, as far as the disc tells them, in the current language.
+func gameText(info discinfo.Info) string {
+	var parts []string
+	add := func(s string) {
+		if s != "" {
+			parts = append(parts, s)
+		}
+	}
+	add(info.Title)
+	add(info.Serial)
+	if info.Version != "" {
+		add("v" + info.Version)
+	}
+	var regions []string
+	for _, r := range info.Regions {
+		regions = append(regions, T("region."+r))
+	}
+	add(strings.Join(regions, ", "))
+	switch {
+	case info.Discs > 1:
+		add(T("info.disc", info.Disc, info.Discs))
+	case info.Disc > 1:
+		add(T("info.disc1", info.Disc))
+	}
+	if info.Firmware != "" {
+		add(T("file.firmware", info.Firmware))
+	}
+	return strings.Join(parts, " · ")
+}
+
+// describeCHD tells what a CHD holds; it is listed, not converted.
+func describeCHD(it *convItem) {
+	it.infoOnly = true
+	st, err := os.Stat(it.path)
+	if err != nil {
+		it.detail = lazyf("⚠ %v", err)
+		return
+	}
+	d, err := chd.OpenDisc(it.path)
+	if err != nil {
+		it.detail = lazyf("⚠ %v", err)
+		return
+	}
+	var kind fmt.Stringer
+	switch {
+	case d.DVD:
+		kind = msg("chd.kind_dvd")
+	case d.GDROM:
+		kind = msg("chd.kind_gd", len(d.Tracks))
+	default:
+		kind = msg("chd.kind_cd", len(d.Tracks))
+	}
+	d.Close()
+	info, _ := discinfo.InfoFromCHD(it.path)
+	it.platform = info.Platform
+	size := humanSize(st.Size())
+	it.detail = withGame(info, lazyLine(func() string { return T("chd.row_chd", stringOf(kind), size) }))
+}
 
 // describeDisc tells what a disc image is: its platform, and for an ISO
 // whether it becomes a CD or a DVD CHD.
 func describeDisc(it *convItem) {
 	it.ok, it.platform, it.kind = false, "", ""
+	if isCHD(it.path) {
+		describeCHD(it)
+		return
+	}
 	if !isISO(it.path) {
 		parse := chd.ParseCue
 		if isGDI(it.path) {
@@ -167,13 +246,14 @@ func describeDisc(it *convItem) {
 			}
 		}
 		it.size = size
+		info, _ := discinfo.InfoFromCue(it.path)
 		if chd.IsGDROM(tracks) {
 			it.ok, it.kind, it.platform = true, "gd", discinfo.Dreamcast
-			it.detail = msg("chd.row_gd", len(tracks), humanSize(size))
+			it.detail = withGame(info, msg("chd.row_gd", len(tracks), humanSize(size)))
 			return
 		}
-		it.platform, _ = discinfo.FromCue(it.path)
-		it.ok, it.kind, it.detail = true, "cd", msg("chd.row_cd", len(tracks), humanSize(size))
+		it.platform = info.Platform
+		it.ok, it.kind, it.detail = true, "cd", withGame(info, msg("chd.row_cd", len(tracks), humanSize(size)))
 		return
 	}
 	st, err := os.Stat(it.path)
@@ -192,13 +272,14 @@ func describeDisc(it *convItem) {
 		it.kind = it.mode
 	}
 	size, kind, chosen := humanSize(st.Size()), strings.ToUpper(it.kind), it.mode != ""
-	it.detail = lazyLine(func() string {
+	info, _ := discinfo.InfoFromISO(it.path)
+	it.detail = withGame(info, lazyLine(func() string {
 		how := T("chd.auto")
 		if chosen {
 			how = T("chd.chosen")
 		}
 		return T("chd.row_iso", size, kind, how)
-	})
+	}))
 }
 
 // openFiles asks for several files, starting in and remembering the last
