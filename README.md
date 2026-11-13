@@ -1,193 +1,194 @@
 # GameForge
 
-Aplicativo com interface gráfica (Go + Tk, via [modernc.org/tk9.0](https://gitlab.com/cznic/tk9.0)) para Windows e Linux que junta o **jogo base**, a **atualização** e as **DLCs** de um jogo de Nintendo Switch (NSP, NSZ ou XCI) em um único arquivo, por padrão **comprimido em NSZ** para ocupar menos espaço, para fazer backup dos seus jogos comprados.
+[Português (Brasil)](README.pt-BR.md)
 
-Em outras abas, o app também converte imagens de disco de outros consoles: **Discos → CHD** (PS1, PS2, Saturn, Sega CD, Dreamcast, PSP…), **Xbox → XISO** (Xbox e Xbox 360), **GameCube/Wii → RVZ** e **ISO → CSO/ZSO** (PSP e PS2).
+A desktop app (Go + Tk, via [modernc.org/tk9.0](https://gitlab.com/cznic/tk9.0)) for Windows and Linux that merges the **base game**, the **update** and the **DLCs** of a Nintendo Switch game (NSP, NSZ or XCI) into a single file, **compressed to NSZ** by default to save space, for backing up the games you own.
 
-Versão atual: **2.3.1** (as versões 1.x eram o nspmerge, só para o Switch). O botão **Sobre…**, ao lado de idioma e tema, mostra a versão, o que o app faz e as bibliotecas usadas.
+Other tabs convert disc images of other consoles: **Discs → CHD** (PS1, PS2, Saturn, Sega CD, Dreamcast, PSP…), **Xbox → XISO** (Xbox and Xbox 360), **GameCube/Wii → RVZ** and **ISO → CSO/ZSO** (PSP and PS2).
 
-## Abas
+Current version: **2.3.1** (the 1.x versions were nspmerge, for the Switch only). The **About…** button, next to language and theme, shows the version, what the app does and the libraries it uses.
 
-A janela tem uma aba por plataforma/formato: **Nintendo Switch**, **Discos → CHD**, **Xbox → XISO**, **GameCube/Wii → RVZ** e **ISO → CSO/ZSO**. Idioma, tema, pasta de saída, **Verificar após gravar**, o log, a barra de progresso e **Cancelar** valem para todas. Cada aba tem sua própria lista, com **Abrir pasta…**, **Adicionar arquivos…**, **Limpar lista** e o botão que executa a conversão; nada é convertido só por entrar na lista. A aba mostrada por último volta na próxima execução.
+## Tabs
 
-Arquivos arrastados para a janela (ou pastas, lidas recursivamente) vão para a aba aberta, se ela aceita o formato; senão, para a aba padrão do formato: `.nsp`/`.nsz`/`.xci` para Nintendo Switch, `.cue` e `.gdi` para Discos → CHD e `.iso` para Xbox → XISO quando é uma imagem de Xbox (o app procura o sistema de arquivos XDVDFS), para GameCube/Wii → RVZ quando é de GameCube ou Wii (e também `.gcm`), ou para Discos → CHD nos outros casos. Para comprimir uma `.iso` em CSO/ZSO, abra a aba ISO → CSO/ZSO antes de arrastar (ou use os botões dela). Se a aba atual não recebeu nada, o app mostra a aba que recebeu. Arquivos soltos sobre o próprio executável (ou abertos com "Abrir com") entram do mesmo jeito.
+The window has one tab per platform or format: **Nintendo Switch**, **Discs → CHD**, **Xbox → XISO**, **GameCube/Wii → RVZ** and **ISO → CSO/ZSO**. Language, theme, output folder, **Verify after writing**, the log, the progress bar and **Cancel** are shared by all of them. Each tab has its own list, with **Open folder…**, **Add files…**, **Clear list** and the button that runs the conversion; nothing is converted just by being added to the list. The last tab shown comes back on the next start.
 
-Nas abas de conversão, a lista tem as colunas **Plataforma** (detectada pelo conteúdo do disco), **Detalhes** e **Status**: ao clicar em converter, cada linha mostra "Na fila", "Convertendo 43%", "Verificando 80%" e, no fim, o tamanho do resultado e quanto diminuiu, ou o motivo de um erro ("⏭ já existe", "✗ …", "■ cancelado").
+Files dropped on the window (or folders, read recursively) go to the open tab if it accepts the format; otherwise to the default tab for that format: `.nsp`/`.nsz`/`.xci` to Nintendo Switch, `.cue` and `.gdi` to Discs → CHD, and `.iso` to Xbox → XISO when it is an Xbox image (the app looks for the XDVDFS file system), to GameCube/Wii → RVZ when it is a GameCube or Wii disc (`.gcm` too), or to Discs → CHD otherwise. To compress an `.iso` to CSO/ZSO, open the ISO → CSO/ZSO tab before dropping it (or use its buttons). If the current tab received nothing, the app switches to the tab that did. Files dropped on the executable itself (or opened with "Open with") are added the same way.
 
-Novos formatos entram no código como um "conversor" (extensões aceitas, descrição de cada arquivo, nome de saída e a conversão em si, em `tabs.go`), que ganha uma aba igual às outras.
+In the conversion tabs, the list has the columns **Platform** (detected from the disc contents), **Details** and **Status**: when you convert, each row shows "Queued", "Converting 43%", "Verifying 80%" and, at the end, the size of the result, how much smaller it is and how long it took, or why it failed ("⏭ already exists", "✗ …", "■ cancelled").
 
-## Como funciona
+New formats are added to the code as a "converter" (accepted extensions, description of each file, output name and the conversion itself, in `tabs.go`), which gets a tab like the others.
 
-Um NSP é um contêiner PFS0 com arquivos NCA, um `.cnmt.nca` (metadados), tickets (`.tik`) e certificados (`.cert`). A mesclagem copia todos esses arquivos, **sem alterá-los**, para um novo NSP com vários títulos (base + update + DLC). Arquivos com o mesmo nome (NCAs idênticas, certificados repetidos) entram só uma vez.
+## How it works
 
-O `prod.keys` é usado apenas para **ler** os metadados: o app decifra o cabeçalho e o CNMT de cada NSP para saber o Title ID, o tipo (base/atualização/DLC) e a versão exatos. Sem o `prod.keys`, esses dados são deduzidos do nome do arquivo (`Nome [0100XXXXXXXXXXXX][v65536].nsp`). O mesmo acontece com jogos lançados para um firmware mais novo que o das suas chaves: a barra de chaves mostra até qual firmware o seu `prod.keys` vai, e esses arquivos aparecem com "⚠ precisa das chaves do firmware …". Nesse caso, extraia as chaves de novo de um console atualizado.
+An NSP is a PFS0 container with NCA files, a `.cnmt.nca` (metadata), tickets (`.tik`) and certificates (`.cert`). Merging copies all of these files, **unchanged**, into a new NSP holding several titles (base + update + DLC). Files with the same name (identical NCAs, repeated certificates) are stored only once.
 
-### Compressão NSZ (padrão)
+`prod.keys` is used only to **read** the metadata: the app decrypts the header and the CNMT of each NSP to get the exact Title ID, type (base/update/DLC) and version. Without `prod.keys`, these are taken from the file name (`Name [0100XXXXXXXXXXXX][v65536].nsp`). The same happens with games released for a newer firmware than your keys: the keys bar shows up to which firmware your `prod.keys` goes, and those files show "needs keys of firmware …". In that case, dump the keys again from an updated console.
 
-Com a opção **Comprimir para NSZ** (ligada por padrão, requer o `prod.keys`), o resultado é um `.nsz` no formato do [nsz](https://github.com/nicoboss/nsz), aceito por instaladores como DBI e Tinfoil:
+### NSZ compression (default)
 
-- As NCAs de dados do jogo (tipo *Program* e *PublicData*: o grosso do jogo, da atualização e das DLCs) são decifradas e comprimidas com zstd em blocos de 1 MiB, virando `.ncz`. As chaves para recifrar ficam no próprio arquivo; o instalador reconstrói a NCA original **byte a byte**, com as assinaturas da Nintendo intactas.
-- NCAs pequenas (metadados, ícone/controle, manual), tickets e certificados são copiados sem alteração.
-- Atualizações têm a criptografia por subseções (BKTR) tratada separadamente, para que também comprimam bem.
-- Fragmentos delta das atualizações (NCAs *Data*, usados só para atualizações incrementais pelo console) são deixados de fora, como o nsz faz.
-- A economia depende do jogo: jogos com dados já comprimidos economizam pouco, outros chegam a 30–50%.
+With **Compress to NSZ** (on by default, needs `prod.keys`), the result is an `.nsz` in the [nsz](https://github.com/nicoboss/nsz) format, accepted by installers such as DBI and Tinfoil:
 
-Níveis: **Rápido**, **Normal** (padrão) e **Máximo** (bem mais lento, ganho pequeno).
+- The game data NCAs (types *Program* and *PublicData*: the bulk of the game, the update and the DLCs) are decrypted and compressed with zstd in 1 MiB blocks, becoming `.ncz`. The keys to re-encrypt them are stored in the file; the installer rebuilds the original NCA **byte for byte**, with Nintendo's signatures intact.
+- Small NCAs (metadata, icon/control, manual), tickets and certificates are copied unchanged.
+- The subsection encryption of updates (BKTR) is handled separately, so updates compress well too.
+- Delta fragments of updates (*Data* NCAs, used only by the console for incremental updates) are left out, as nsz does.
+- The savings depend on the game: games with already compressed data save little, others 30–50%.
 
-**Verificar após gravar** (ligado por padrão) relê o arquivo gerado, descomprime cada NCZ e compara o SHA-256 com o da NCA original; se algo não bater, o arquivo é apagado e o erro aparece no log. Durante a gravação, o hash de cada NCA também é comparado com o nome do arquivo (que é o próprio hash): se não bater, o log avisa que o NSP de origem pode estar corrompido.
+Levels: **Fast**, **Normal** (default) and **Maximum** (much slower, small gain).
 
-Compatibilidade conferida com o `nsz` 5.0.0 oficial: o `nsz -D` restaura o NSZ gerado por este app para um NSP idêntico byte a byte ao merge sem compressão; o app descomprime corretamente NSZs gerados pelo `nsz`; e a tabela de seções das NCZ é idêntica nas duas ferramentas.
+**Verify after writing** (on by default) reads the written file back, decompresses each NCZ and compares its SHA-256 with that of the original NCA; if anything does not match, the file is deleted and the error is logged. While writing, the hash of each NCA is also compared with its file name (which is the hash itself): if it does not match, the log warns that the source NSP may be corrupt.
 
-Sem compressão, o app gera um `.nsp` comum, apenas reempacotando os arquivos como antes.
+Compatibility checked against the official `nsz` 5.0.0: `nsz -D` restores an NSZ made by this app to an NSP identical byte for byte to the uncompressed merge; the app correctly decompresses NSZs made by `nsz`; and the NCZ section tables are identical in both tools.
 
-### Descomprimir NSZ → NSP
+Without compression, the app writes a plain `.nsp`, just repacking the files.
 
-Arquivos `.nsz` também entram na lista. Com **Comprimir para NSZ** desligado, as NCZ deles são descomprimidas e o resultado é um `.nsp` comum, com as NCAs originais **byte a byte** (o nome de cada NCA é o hash dela, e **Verificar após gravar** confere). Para só converter um NSZ, adicione o arquivo, desmarque a compressão e clique em **Mesclar selecionados**. Fragmentos delta que o NSZ descartou continuam de fora (não fazem falta para jogar). O modo **Aplicar atualização no jogo base** ainda não lê NSZ: descomprima antes.
+### Decompress NSZ → NSP
 
-### XCI (imagem de cartucho)
+`.nsz` files can be added to the list too. With **Compress to NSZ** off, their NCZs are decompressed and the result is a plain `.nsp` with the original NCAs **byte for byte** (each NCA is named after its hash, and **Verify after writing** checks it). To just convert an NSZ, add the file, turn compression off and click **Merge selected**. Delta fragments that the NSZ dropped stay out (they are not needed to play). **Apply update to the base game** does not read NSZ yet: decompress first.
 
-Arquivos `.xci` também entram na lista. Um XCI guarda as NCAs do jogo na partição *secure* do cartucho (num formato parecido com o PFS0, o HFS0); o app usa essas NCAs como se fossem um NSP, então um XCI pode ser convertido em NSP/NSZ e mesclado com atualizações e DLCs. NCAs de cartucho não usam ticket. Funcionam XCIs com ou sem a área de chaves de 0x1000 bytes no início, inclusive os "trimmed". XCZ (XCI comprimido) não é suportado.
+### XCI (cartridge image)
 
-### Atualizar um arquivo já mesclado
+`.xci` files can be added to the list too. An XCI stores the game's NCAs in the cartridge's *secure* partition (in HFS0, a format similar to PFS0); the app uses those NCAs as if they were an NSP, so an XCI can be converted to NSP/NSZ and merged with updates and DLCs. Cartridge NCAs do not use tickets. XCIs with or without the 0x1000-byte key area at the start work, trimmed ones included. XCZ (compressed XCI) is not supported.
 
-Como a mesclagem não altera nada, o jogo base original continua dentro do arquivo mesclado. Quando sair uma atualização nova, dá para instalá-la por cima no console ou no emulador, ou mesclar de novo o arquivo mesclado com a atualização nova: a lista mostra o que o arquivo já inclui (por exemplo, `inclui atualização 1.0.8 (v524288)`) e, na mesclagem, a atualização antiga que estava dentro dele é trocada pela nova (base e DLCs continuam).
+### Updating an already merged file
 
-Arquivos com a atualização *integrada* ao jogo base (versão maior que 0 num jogo base, como os `[patched]` gerados pela opção abaixo) aparecem como "atualização integrada, não aceita outra": uma atualização só se aplica ao jogo base original (v0), então o app não os combina com atualizações.
+Since merging changes nothing, the original base game is still inside the merged file. When a new update comes out, you can install it on top on the console or in the emulator, or merge the merged file again with the new update: the list shows what the file already contains (for example, `includes update 1.0.8 (v524288)`) and, when merging, the old update inside it is replaced by the new one (the base and DLCs stay).
 
-### Aplicar a atualização no jogo base (só emuladores)
+Files with the update *built into* the base game (version above 0 on a base game, like the `[patched]` files made by the option below) show as "update … applied, takes no other": an update applies only to the original base game (v0), so the app does not combine them with updates.
 
-O ícone **ⓘ** ao lado da opção mostra um resumo desta seção quando o mouse para sobre ele.
+### Apply the update to the base game (emulators only)
 
-Com **Aplicar atualização no jogo base**, em vez de guardar base e atualização como títulos separados, o app gera **um único jogo base já atualizado** (`… [patched].nsp`/`.nsz`). Ocupa menos espaço que o merge normal, porque as partes do jogo base que a atualização substituiu são descartadas, mas **não aceita mais nenhuma atualização**: vale a pena para jogos que não vão mais ser atualizados.
+The **ⓘ** icon next to the option shows a summary of this section when the mouse rests on it.
 
-- A seção RomFS da atualização (BKTR) é uma tabela que diz, para cada trecho do RomFS novo, se ele vem do jogo base ou dos dados da atualização. O app lê essa tabela e grava o RomFS completo resultante.
-- O ExeFS (código), os dados de controle (ícone/NACP) e os manuais vêm da atualização; o que só existe no jogo base (ex.: o logo) é mantido. Fragmentos delta e atualizações mais antigas são ignorados. DLCs marcadas entram sem alteração.
-- Um NSP já mesclado (base + atualização) também serve de entrada: o app usa a base e a atualização que estão dentro dele.
-- As NCAs novas não usam mais ticket (a chave vai para a área de chaves) e ganham um CNMT novo, de *Application* na versão da atualização.
-- Com **Verificar após gravar**, o app relê o RomFS gerado e confere toda a árvore de hashes IVFC: qualquer trecho montado errado aparece como erro no log.
-- Com **Comprimir para NSZ** ligado, o resultado é comprimido em seguida.
+With **Apply update to the base game**, instead of keeping the base and the update as separate titles, the app writes **a single, already updated base game** (`… [patched].nsp`/`.nsz`). It takes less space than a normal merge, because the parts of the base game that the update replaced are dropped, but it **accepts no further updates**: worth it for games that will not be updated anymore.
 
-**Limites desta opção:** as assinaturas RSA da Nintendo deixam de valer. Emuladores não as verificam; um console só aceitaria com patches de assinatura. Não é reversível: guarde os arquivos originais. Jogos que usam armazenamento esparso ou comprimido (alguns títulos recentes) ou tabelas de patch muito grandes ainda não são suportados: o log avisa.
+- The update's RomFS section (BKTR) is a table that says, for each piece of the new RomFS, whether it comes from the base game or from the update data. The app reads this table and writes the complete resulting RomFS.
+- The ExeFS (code), the control data (icon/NACP) and the manuals come from the update; what exists only in the base game (e.g. the logo) is kept. Delta fragments and older updates are ignored. Checked DLCs are added unchanged.
+- An already merged NSP (base + update) works as input too: the app uses the base and the update inside it.
+- The new NCAs no longer use a ticket (the key goes into the key area) and get a new CNMT, of type *Application*, at the update's version.
+- With **Verify after writing**, the app reads the written RomFS back and checks the whole IVFC hash tree: any piece assembled wrongly shows up as an error in the log.
+- With **Compress to NSZ** on, the result is compressed afterwards.
 
-Por padrão vêm marcadas só a atualização mais recente (as atualizações são cumulativas) e a versão mais nova de cada DLC, mas você escolhe arquivo por arquivo.
+**Limits of this option:** Nintendo's RSA signatures are no longer valid. Emulators do not check them; a console would accept the file only with signature patches. It cannot be undone: keep the original files. Games that use sparse or compressed storage (some recent titles) or very large patch tables are not supported yet: the log explains what to do (uncheck **Apply update to the base game**).
 
-### Converter imagens de disco para CHD
+By default only the newest update (updates are cumulative) and the newest version of each DLC are checked, but you choose file by file.
 
-Na aba **Discos → CHD**, arquivos `.cue`, `.gdi` e `.iso` entram na lista já marcados, com a plataforma, o tipo e o tamanho de cada um. Nada é convertido ao adicionar: marque os que quiser e clique em **Converter para CHD**. O resultado é o formato **CHD v5** do MAME, aceito por DuckStation, PCSX2, Flycast, PPSSPP, RetroArch e MAME. Não precisa do `prod.keys`. A conversão é feita pelo próprio app, em Go, sem o `chdman`:
+### Convert disc images to CHD
 
-- **`.cue` + `.bin`** → CHD de CD (PS1, Saturn, Sega CD, PC Engine CD…), no mesmo layout do `chdman createcd`: blocos de 8 setores de 2352 bytes + 96 de subcódigo, faixas completadas até múltiplos de 4 setores, faixas de áudio gravadas em big-endian e uma entrada de metadados `CHT2` por faixa (com pregap `INDEX 00` ou `PREGAP`). Aceita um `.bin` por faixa ou um `.bin` único. Setores Mode 1 e Mode 2 Form 1 (os dados de PS1) com ECC íntegro têm o sync e a paridade removidos e regenerados na leitura, como no `chdman` atual (em Mode 2 o cabeçalho conta como zero no cálculo do ECC, como manda a norma).
-- **Dreamcast (GD-ROM)** → CHD de GD-ROM (metadados `CHGD`), como o `chdman createcd`: tanto o `.gdi` clássico quanto o `.cue` multi-faixa do redump (o que tem `REM SINGLE-DENSITY AREA` e `REM HIGH-DENSITY AREA`). A área de alta densidade começa no setor 45000, e o espaço até ela é preenchido com setores vazios. O layout segue o `chdman` 0.289, a versão lançada: no `.gdi`, a distância até a faixa seguinte vira setores vazios no fim de cada faixa; no `.cue` do redump, o pregap de cada faixa passa para o fim da faixa anterior (o layout do `.gdi`). O código-fonte mais novo do MAME (ainda não lançado) troca parte desse preenchimento por pregaps; os emuladores leem os dois.
-- **`.iso`** → CHD de **CD** ou de **DVD**, conforme o jogo: imagens de PS1 e imagens de até 737.280.000 bytes (um CD de 80 minutos, como os jogos de PS2 em CD) viram CHD de CD (uma faixa Mode 1, como o `chdman createcd` faz com uma `.iso`); PSP e imagens maiores viram CHD de DVD, como o `chdman createdvd`. A coluna Detalhes mostra a escolha ("→ CHD de CD (automático)"); se ela estiver errada para algum jogo, clique na linha com o botão direito e escolha **Converter como CD** ou **Converter como DVD**.
-- **Plataforma:** o app reconhece PS1 e PS2 (pelo `SYSTEM.CNF`), PSP (`UMD_DATA.BIN`/`PSP_GAME`), Saturn, Sega CD e Dreamcast (pelo cabeçalho da Sega no primeiro setor), 3DO, Neo Geo CD (`IPL.TXT`) e PC Engine CD; em CDs só de áudio mostra "Audio CD". Imagens de GameCube e Wii também são reconhecidas.
-- **Playlist `.m3u`:** com **Criar playlist .m3u para jogos com vários discos** (ligado por padrão), ao converter discos com nomes como `Jogo (Disc 1)`, `Jogo (Disc 2)` (também `Disk`, `CD2` ou `Disc 2 of 3`), o app grava `Jogo.m3u` na pasta de saída com a lista dos CHDs desse jogo que estão lá, em ordem. Abrindo o `.m3u` no RetroArch ou no DuckStation dá para trocar de disco durante o jogo. Uma playlist que já está em dia não é regravada.
-- Cada bloco é comprimido com todos os codecs e fica o menor. Em CD: `cdlz` (LZMA), `cdzl` (deflate) e `cdfl` (FLAC, para faixas de áudio), como o `chdman`; em DVD: `lzma` e `zlib`. Todos os leitores de CHD suportam esses codecs. O FLAC é implementado no app: preditores fixos (ordem 0 a 4) e predição linear (LPC, até ordem 12, com coeficientes calculados por autocorrelação e Levinson-Durbin sobre janelas de Tukey), escolha entre estéreo independente, esquerda/lado, lado/direita e meio/lado pelo tamanho real de cada opção, e códigos de Rice por partição. Blocos repetidos (ex.: áreas vazias) são gravados uma vez só.
-- **Verificar após gravar** relê o CHD, descomprime todos os blocos e confere o CRC de cada um e o SHA-1 gravado no cabeçalho; se algo não bater, o arquivo é apagado. O botão **Verificar CHD…** da aba confere um `.chd` que você já tem, inclusive os gerados pelo `chdman` (o app lê os codecs `cdlz`, `cdzl`, `cdfl`, `lzma`, `zlib`, `huff` e `flac`; não lê `cdzs`/`zstd` nem CHDs com arquivo pai).
+In the **Discs → CHD** tab, `.cue`, `.gdi` and `.iso` files are added to the list already checked, with the platform, type and size of each. Nothing is converted when adding: check the ones you want and click **Convert to CHD**. The result is MAME's **CHD v5** format, read by DuckStation, PCSX2, Flycast, PPSSPP, RetroArch and MAME. It does not need `prod.keys`. The conversion is done by the app itself, in Go, without `chdman`:
 
-Compatibilidade conferida com o `chdman` 0.289 oficial: o `chdman verify` aceita os CHDs gerados (inclusive os blocos FLAC); o SHA-1 dos dados **e** o SHA-1 geral (que inclui os metadados das faixas) são idênticos aos de um CHD criado pelo `chdman createcd`/`createdvd` com a mesma entrada (inclusive uma `.iso` convertida como CD, um `.gdi` e um `.cue` de Dreamcast); e o `chdman extractcd` devolve o mesmo CUE/BIN dos dois. No outro sentido, o app lê e verifica os CHDs criados pelo `chdman`.
+- **`.cue` + `.bin`** → CD CHD (PS1, Saturn, Sega CD, PC Engine CD…), with the same layout as `chdman createcd`: hunks of 8 sectors of 2352 bytes + 96 bytes of subcode, tracks padded to multiples of 4 sectors, audio tracks stored big-endian and one `CHT2` metadata entry per track (with an `INDEX 00` or `PREGAP` pregap). It accepts one `.bin` per track or a single `.bin`. Mode 1 and Mode 2 Form 1 sectors (PS1 data) with intact ECC have their sync and parity removed and regenerated on read, as in current `chdman` (in Mode 2 the header counts as zero when computing the ECC, as the standard says).
+- **Dreamcast (GD-ROM)** → GD-ROM CHD (`CHGD` metadata), like `chdman createcd`: both the classic `.gdi` and the multi-track Redump `.cue` (the one with `REM SINGLE-DENSITY AREA` and `REM HIGH-DENSITY AREA`). The high-density area starts at sector 45000, and the space up to it is filled with empty sectors. The layout follows `chdman` 0.289, the released version: in a `.gdi`, the gap to the next track becomes empty sectors at the end of each track; in a Redump `.cue`, each track's pregap moves to the end of the previous track (the `.gdi` layout). The newer, not yet released MAME source replaces part of this padding with pregaps; emulators read both.
+- **`.iso`** → **CD** or **DVD** CHD, depending on the game: PS1 images and images up to 737,280,000 bytes (an 80-minute CD, like PS2 games on CD) become CD CHDs (one Mode 1 track, as `chdman createcd` does with an `.iso`); PSP and larger images become DVD CHDs, like `chdman createdvd`. The Details column shows the choice ("→ CD CHD (automatic)"); if it is wrong for a game, right-click the row and choose **Convert as CD** or **Convert as DVD**.
+- **Platform:** the app recognizes PS1 and PS2 (by `SYSTEM.CNF`), PSP (`UMD_DATA.BIN`/`PSP_GAME`), Saturn, Sega CD and Dreamcast (by the Sega header in the first sector), 3DO, Neo Geo CD (`IPL.TXT`) and PC Engine CD; audio-only CDs show "Audio CD". GameCube and Wii images are recognized too.
+- **`.m3u` playlist:** with **Create .m3u playlists for games on several discs** (on by default), when converting discs named like `Game (Disc 1)`, `Game (Disc 2)` (also `Disk`, `CD2` or `Disc 2 of 3`), the app writes `Game.m3u` in the output folder listing that game's CHDs found there, in order. Opening the `.m3u` in RetroArch or DuckStation lets you change discs while playing. A playlist that is already up to date is not rewritten.
+- Each hunk is compressed with every codec and the smallest result is kept. On CD: `cdlz` (LZMA), `cdzl` (deflate) and `cdfl` (FLAC, for audio tracks), like `chdman`; on DVD: `lzma` and `zlib`. All CHD readers support these codecs. FLAC is implemented in the app: fixed predictors (order 0 to 4) and linear prediction (LPC, up to order 12, with coefficients from autocorrelation and Levinson-Durbin over Tukey windows), a choice between independent stereo, left/side, side/right and mid/side by the real size of each option, and Rice codes per partition. Repeated hunks (e.g. empty areas) are stored only once.
+- **Verify after writing** reads the CHD back, decompresses every hunk and checks each one's CRC and the SHA-1 stored in the header; if anything does not match, the file is deleted. The tab's **Check CHD…** button checks a `.chd` you already have, including ones made by `chdman` (the app reads the `cdlz`, `cdzl`, `cdfl`, `lzma`, `zlib`, `huff` and `flac` codecs; it does not read `cdzs`/`zstd` or CHDs with a parent file).
 
-**Limites:**
+Compatibility checked against the official `chdman` 0.289: `chdman verify` accepts the CHDs made by the app (FLAC hunks included); the data SHA-1 **and** the overall SHA-1 (which includes the track metadata) are identical to those of a CHD made by `chdman createcd`/`createdvd` from the same input (including an `.iso` converted as CD, a `.gdi` and a Dreamcast `.cue`); and `chdman extractcd` returns the same CUE/BIN from both. The other way round, the app reads and verifies CHDs made by `chdman`.
 
-- O tamanho fica praticamente igual ao do `chdman`, com SHA-1 idêntico. Em jogos de PS1 reais só de dados: Colony Wars (Disc 1), 347,3 MB contra 346,9 MB (+0,1%), e X-Men vs. Street Fighter, 227,26 MB contra 227,53 MB (−0,1%). Em jogos com faixas de áudio de CD: Ridge Racer, 310,38 MB contra 309,91 MB (+0,15%), e Ridge Racer Revolution, 530,28 MB contra 529,55 MB (+0,14%); sem a predição linear (LPC) do FLAC, eram 4,9% e 4,3% maiores. A pequena diferença que sobra vem do codificador LZMA em Go, que comprime um pouco menos que o do 7-Zip, e de detalhes do FLAC da libFLAC. Em DVD a diferença é de uns 2%, porque o app também não grava os codecs `huff` e `flac` que o `chdman` tenta.
-- `.cue` com faixas em WAV e a conversão CHD → CUE/BIN não são suportadas.
+**Limits:**
 
-### Converter imagens de Xbox para XISO
+- The size is practically the same as `chdman`'s, with an identical SHA-1. On real data-only PS1 games: Colony Wars (Disc 1), 347.3 MB vs. 346.9 MB (+0.1%), and X-Men vs. Street Fighter, 227.26 MB vs. 227.53 MB (−0.1%). On games with CD audio tracks: Ridge Racer, 310.38 MB vs. 309.91 MB (+0.15%), and Ridge Racer Revolution, 530.28 MB vs. 529.55 MB (+0.14%); without FLAC linear prediction (LPC) they were 4.9% and 4.3% larger. The small remaining difference comes from the Go LZMA encoder, which compresses slightly less than 7-Zip's, and from libFLAC details. On DVD the difference is about 2%, because the app does not write the `huff` and `flac` codecs that `chdman` also tries.
+- `.cue` files with WAV tracks and CHD → CUE/BIN conversion are not supported.
 
-Na aba **Xbox → XISO**, imagens `.iso` de Xbox e Xbox 360 (por exemplo, as do redump) viram `Nome.xiso.iso`, o formato que o xemu, o Xenia e consoles desbloqueados carregam. Não precisa do `prod.keys`.
+### Convert Xbox images to XISO
 
-- A imagem de um disco tem uma partição de vídeo e depois a partição do jogo, num sistema de arquivos XDVDFS; os setores que nenhum arquivo usa são preenchidos com dados aleatórios. O app acha a partição do jogo (Xbox: XGD1; Xbox 360: XGD2 e XGD3) e grava de novo só as tabelas de diretório e os arquivos, um depois do outro, como o `extract-xiso -r`. Uma imagem que já é XISO também é aceita e regravada sem espaço sobrando.
-- O resultado costuma ser bem menor que a imagem original (que tem uns 7,3 GB no Xbox e mais no Xbox 360).
-- As tabelas de diretório originais são mantidas (só a posição de cada arquivo muda), e o conteúdo dos arquivos é copiado sem alteração: ao contrário do `extract-xiso`, o app **não** aplica o patch de "media check" nos `.xbe`.
-- Com **Verificar após gravar**, o app relê a XISO gerada e confere o SHA-1 de cada arquivo com o do original; se algo não bater, o arquivo é apagado.
-- A lista mostra a plataforma, o tipo de imagem (imagem do disco XGD1/XGD2/XGD3 ou XISO), o número de arquivos e o total de dados do jogo.
+In the **Xbox → XISO** tab, Xbox and Xbox 360 `.iso` images (for example, Redump ones) become `Name.xiso.iso`, the format that xemu, Xenia and modded consoles load. It does not need `prod.keys`.
 
-### Comprimir GameCube e Wii em RVZ
+- A disc image has a video partition followed by the game partition, in an XDVDFS file system; sectors not used by any file are filled with random data. The app finds the game partition (Xbox: XGD1; Xbox 360: XGD2 and XGD3) and rewrites only the directory tables and the files, one after the other, like `extract-xiso -r`. An image that is already an XISO is accepted too and rewritten without slack space.
+- The result is usually much smaller than the original image (about 7.3 GB on Xbox and more on Xbox 360).
+- The original directory tables are kept (only the position of each file changes), and the file contents are copied unchanged: unlike `extract-xiso`, the app does **not** apply the "media check" patch to the `.xbe` files.
+- With **Verify after writing**, the app reads the written XISO back and compares each file's SHA-1 with the original's; if anything does not match, the file is deleted.
+- The list shows the platform, the image type (XGD1/XGD2/XGD3 disc image or XISO), the number of files and the total game data.
 
-Na aba **GameCube/Wii → RVZ**, imagens de disco de GameCube e Wii (`.iso`, `.gcm`) viram **RVZ**, o formato comprimido do Dolphin. Não precisa do `prod.keys`.
+### Compress GameCube and Wii to RVZ
 
-- Os discos de GameCube têm muito preenchimento pseudoaleatório (às vezes mais da metade do disco), que nenhum compressor consegue reduzir. O RVZ descobre a semente do gerador que fez esse preenchimento e guarda só ela (68 bytes no lugar de cada trecho), e comprime o resto com Zstandard no nível mais alto da biblioteca. Para achar o preenchimento logo depois de cada arquivo, o app lê a tabela de arquivos (FST) do disco. O gerador e a recuperação da semente são uma tradução do código do Dolphin que está em domínio público (CC0); o resto segue a especificação do formato (`docs/WiaAndRvz.md` do Dolphin).
-- A lista mostra a plataforma, o ID e o título do jogo.
-- **Wii:** as partições do disco são criptografadas e têm árvores de hash (H0/H1/H2) a cada 32 KiB. O RVZ guarda os dados **descriptografados e sem as hashes**, o que deixa o preenchimento aleatório reconhecível e o resto comprimível; quem lê o RVZ (o Dolphin) recalcula as hashes e criptografa de novo com a chave de cada partição, que fica guardada no próprio RVZ. Onde a hash original difere da recalculada (discos com hashes incomuns), o RVZ guarda a original ("exceções"), então a ISO volta idêntica byte a byte. A tabela de partições, os tickets e o resto do disco fora das partições ficam como dados brutos.
-- **Chave comum do Wii:** para converter ISO de Wii → RVZ, o app precisa descriptografar a chave de cada partição, e para isso usa a **chave comum do Wii**, que o app **não contém**: coloque a sua na pasta `keys` como `wii_common_key.bin` (16 bytes) ou `wii_common_key.txt` (32 dígitos hexadecimais), ou escolha o arquivo em **Chave comum do Wii: Procurar…** abaixo da lista. Discos coreanos usam a chave coreana (`wii_korean_key.bin`, ao lado). Sem a chave, os discos de Wii aparecem em cinza; se a chave não descriptografar o disco, o app avisa antes de gravar. GameCube não precisa de chave.
-- **Tamanho do bloco** (abaixo da lista): 128 KiB (padrão, como o Dolphin sugere), 512 KiB, 1 MiB ou 2 MiB. Blocos maiores geram arquivos menores, mas o emulador descomprime o bloco inteiro a cada leitura de um trecho novo. 128 KiB é o mais seguro para handhelds e processadores fracos; 1 ou 2 MiB economizam espaço para jogar no PC. O nível de compressão não pesa ao jogar: o Zstandard descomprime praticamente na mesma velocidade em qualquer nível.
-- Com **Verificar após gravar**, o app descomprime o RVZ gerado e confere o SHA-1 com o da imagem original.
-- Compatibilidade conferida com o `DolphinTool` do Dolphin 2609b, em GameCube e em Wii: o Dolphin converte o RVZ do app de volta para uma ISO idêntica à original (no Wii, recalculando hashes e criptografia por conta própria), e o app lê os RVZ criados pelo Dolphin (conferido também com Super Smash Bros. Melee e Mario Kart Wii reais, em blocos de 2 MiB).
-- Tamanho em jogos reais, comparado com o Dolphin (Zstandard nível 5, blocos de 128 KiB): com blocos de 128 KiB o app fica praticamente igual (+0,2% a +0,9%); com 1 MiB, de 1,5% a 5,8% menor; com 2 MiB, de 2,1% a 7,1% menor (Pikmin, Melee, Wind Waker, Mario Kart Wii e Super Mario Galaxy).
+In the **GameCube/Wii → RVZ** tab, GameCube and Wii disc images (`.iso`, `.gcm`) become **RVZ**, Dolphin's compressed format. It does not need `prod.keys`.
 
-### Comprimir ISO em CSO/ZSO
+- GameCube discs contain a lot of pseudo-random padding (sometimes more than half the disc), which no compressor can shrink. RVZ finds the seed of the generator that produced that padding and stores only the seed (68 bytes in place of each piece), and compresses the rest with Zstandard at the library's highest level. To find the padding right after each file, the app reads the disc's file table (FST). The generator and the seed recovery are a translation of Dolphin code that is in the public domain (CC0); the rest follows the format specification (Dolphin's `docs/WiaAndRvz.md`).
+- The list shows the platform, the ID and the title of the game.
+- **Wii:** the disc partitions are encrypted and have hash trees (H0/H1/H2) every 32 KiB. RVZ stores the data **decrypted and without the hashes**, which makes the random padding recognizable and the rest compressible; the reader (Dolphin) recomputes the hashes and encrypts again with each partition's key, which is stored in the RVZ. Where the original hash differs from the recomputed one (discs with unusual hashes), RVZ stores the original ("exceptions"), so the ISO comes back identical byte for byte. The partition table, the tickets and the rest of the disc outside the partitions are stored as raw data.
+- **Wii common key:** to convert a Wii ISO to RVZ, the app has to decrypt each partition's key, and for that it uses the **Wii common key**, which the app **does not contain**: put yours in the `keys` folder as `wii_common_key.bin` (16 bytes) or `wii_common_key.txt` (32 hex digits), or choose the file with **Wii common key: Browse…** below the list. Korean discs use the Korean key (`wii_korean_key.bin`, next to it). Without the key, Wii discs are grayed out; if the key does not decrypt the disc, the app says so before writing. GameCube needs no key.
+- **Block size** (below the list): 128 KiB (default, as Dolphin suggests), 512 KiB, 1 MiB or 2 MiB. Larger blocks make smaller files, but the emulator decompresses the whole block every time it reads a new piece. 128 KiB is the safest for handhelds and weak CPUs; 1 or 2 MiB save space for playing on a PC. The compression level does not matter when playing: Zstandard decompresses at practically the same speed at any level.
+- With **Verify after writing**, the app decompresses the written RVZ and compares its SHA-1 with the original image's.
+- Compatibility checked with `DolphinTool` from Dolphin 2609b, on GameCube and Wii: Dolphin converts the app's RVZ back to an ISO identical to the original (on Wii, recomputing hashes and encryption on its own), and the app reads RVZs made by Dolphin (also checked with real Super Smash Bros. Melee and Mario Kart Wii discs, with 2 MiB blocks).
+- Size on real games, compared with Dolphin (Zstandard level 5, 128 KiB blocks): with 128 KiB blocks the app is practically the same (+0.2% to +0.9%); with 1 MiB, 1.5% to 5.8% smaller; with 2 MiB, 2.1% to 7.1% smaller (Pikmin, Melee, Wind Waker, Mario Kart Wii and Super Mario Galaxy).
 
-Na aba **ISO → CSO/ZSO**, imagens `.iso` (PSP, PS2 e outras com setores de 2048 bytes) são comprimidas em **CSO** ou **ZSO**, formatos que loaders e emuladores leem direto, sem descomprimir antes. Não precisa do `prod.keys`.
+### Compress ISO to CSO/ZSO
 
-- **CSO** usa deflate e é o mais aceito (PPSSPP, PCSX2, Open PS2 Loader, PSP com firmware customizado). **ZSO** usa LZ4: comprime um pouco menos, mas descomprime bem mais rápido, o que ajuda no console de verdade; confira se o seu loader ou emulador lê ZSO. A escolha fica em **ISO para:** abaixo da lista e vale para as próximas conversões.
-- O arquivo é gravado na versão 1 do formato, com blocos de 2048 bytes; cada bloco é comprimido separado (deflate no nível máximo ou LZ4 HC) e, se não diminuir, é guardado sem compressão. Imagens acima de 2 GiB usam o deslocamento de índice previsto no formato.
-- Com **Verificar após gravar**, o app descomprime o arquivo gerado e confere o SHA-1 com o da imagem original; se não bater, o arquivo é apagado.
+In the **ISO → CSO/ZSO** tab, `.iso` images (PSP, PS2 and others with 2048-byte sectors) are compressed to **CSO** or **ZSO**, formats that loaders and emulators read directly, without decompressing first. It does not need `prod.keys`.
 
-## Uso
+- **CSO** uses deflate and is the most widely supported (PPSSPP, PCSX2, Open PS2 Loader, PSP with custom firmware). **ZSO** uses LZ4: it compresses a little less but decompresses much faster, which helps on real hardware; check that your loader or emulator reads ZSO. The choice is in **ISO to:** below the list and applies to the next conversions.
+- The file is written in version 1 of the format, with 2048-byte blocks; each block is compressed separately (deflate at the highest level or LZ4 HC) and, if it does not shrink, stored uncompressed. Images over 2 GiB use the index shift that the format provides.
+- With **Verify after writing**, the app decompresses the written file and compares its SHA-1 with the original image's; if it does not match, the file is deleted.
 
-Os passos abaixo são da aba **Nintendo Switch**; as outras abas funcionam do mesmo jeito, com os botões de conversão delas.
+## Usage
 
+The steps below are for the **Nintendo Switch** tab; the other tabs work the same way, with their own conversion buttons.
 
-1. Coloque o `prod.keys` na pasta `keys/` (ao lado do executável). Ele é carregado automaticamente; também são procurados o último arquivo usado, `prod.keys` ao lado do executável e `~/.switch/prod.keys`. Ou clique em **Procurar…**.
-2. Clique em **Abrir pasta…** (ou, no Windows, arraste uma pasta para a janela). Abrir uma pasta **substitui** a lista atual e limpa o log; a pasta é lida recursivamente. Na janela de escolha, basta selecionar a pasta e clicar em OK (não é preciso entrar nela). Use **Adicionar arquivos…** (ou arraste arquivos, no Windows) para incluir arquivos avulsos sem limpar a lista. São lidos arquivos `.nsp`, `.nsz` e `.xci` (outros formatos arrastados vão para as abas deles).
-3. A lista mostra cada jogo com todos os seus arquivos (base, atualizações, DLCs). Com o `prod.keys`, o nome e o ícone do jogo, a versão legível (por exemplo, `1.0.8 (v524288)`) e o firmware mínimo exigido vêm do próprio NSP; o nome também é usado no arquivo de saída. Já vêm marcados a base, a atualização mais recente e a versão mais nova de cada DLC; clique na caixa de seleção (ou selecione a linha e aperte espaço) para marcar ou desmarcar. A caixa do jogo marca/desmarca todos os arquivos dele. **Marcar padrão** e **Desmarcar tudo** ajudam com listas grandes. Arquivos com exatamente o mesmo conteúdo de outro (por exemplo, o mesmo update baixado duas vezes, ou um NSP e o NSZ comprimido dele) aparecem em cinza como "cópia idêntica de …" e não vêm marcados.
-4. Escolha uma pasta de saída (opcional; o padrão é a pasta do primeiro arquivo do jogo) e clique em **Mesclar selecionados**. É gerado um arquivo (`.nsz` ou `.nsp`) por jogo com arquivos marcados.
+1. Put `prod.keys` in the `keys/` folder (next to the executable). It is loaded automatically; the app also looks for the last file used, `prod.keys` next to the executable and `~/.switch/prod.keys`. Or click **Browse…**.
+2. Click **Open folder…** (or, on Windows, drop a folder on the window). Opening a folder **replaces** the current list and clears the log; the folder is read recursively. In the folder dialog, just select the folder and click OK (no need to go into it). Use **Add files…** (or drop files, on Windows) to add single files without clearing the list. `.nsp`, `.nsz` and `.xci` files are read (other dropped formats go to their own tabs).
+3. The list shows each game with all its files (base, updates, DLCs). With `prod.keys`, the game's name and icon, the readable version (for example, `1.0.8 (v524288)`) and the minimum firmware required come from the NSP itself; the name is also used for the output file. The base, the newest update and the newest version of each DLC come checked; click the checkbox (or select the row and press space) to check or uncheck. The game's checkbox checks/unchecks all its files. **Select defaults** and **Unselect all** help with long lists. Files with exactly the same contents as another (for example, the same update downloaded twice, or an NSP and its compressed NSZ) are grayed out as "identical copy of …" and not checked.
+4. Choose an output folder (optional; the default is the folder of the game's first file) and click **Merge selected**. One file (`.nsz` or `.nsp`) is written per game with checked files.
 
-Durante a gravação e a verificação, a linha de status mostra o progresso, a velocidade e o tempo que falta (estimado a partir da velocidade até ali, depois dos primeiros segundos).
+While writing and verifying, the status line shows the progress, the speed and the time left (estimated from the speed so far, after the first few seconds).
 
-O tamanho e a posição da janela (ou se ela estava maximizada), a largura das colunas da lista e a posição da divisória entre a lista e o log são lembrados de uma execução para a outra. Se a janela tinha ficado num monitor que não está mais conectado, ela volta centralizada.
+The window's size and position (or whether it was maximized), the list's column widths and the position of the divider between the list and the log are remembered from one run to the next. If the window was on a monitor that is no longer connected, it comes back centered.
 
-O arquivo é gravado como `.part` e renomeado só quando termina, então cancelar nunca deixa um arquivo quebrado. A saída se chama `Nome [AppID][vVersão][N DLC].nsz` (ou `.nsp`).
+The file is written as `.part` and renamed only when finished, so cancelling never leaves a broken file. The output is named `Name [AppID][vVersion][N DLC].nsz` (or `.nsp`).
 
-O arquivo mesclado precisa de um instalador que aceite vários títulos num arquivo e, no caso do NSZ, o formato NSZ (por exemplo, DBI e Tinfoil). Emuladores variam no suporte a NSZ. Para voltar a um NSP comum, veja [Descomprimir NSZ → NSP](#descomprimir-nsz--nsp). **Guarde os originais** até confirmar que o arquivo mesclado instala e roda.
+The merged file needs an installer that accepts several titles in one file and, for NSZ, the NSZ format (for example, DBI and Tinfoil). Emulator support for NSZ varies. To get back to a plain NSP, see [Decompress NSZ → NSP](#decompress-nsz--nsp). **Keep the originals** until you have confirmed that the merged file installs and runs.
 
-## Verificar um backup
+## Check a backup
 
-**Verificar backup…** abre um `.nsp` ou `.nsz` que você já tem e confere se ele continua íntegro:
+**Check backup…** opens an `.nsp` or `.nsz` you already have and checks that it is still intact:
 
-- cada NCA é lida inteira (as NCZ são descomprimidas) e o SHA-256 dela é comparado com o que os metadados (CNMT) registram; NCAs que nenhum CNMT lista são comparadas com o próprio nome, que é o hash. Como o hash cobre todos os bytes, isso também garante as árvores de hashes internas (IVFC);
-- tudo o que os metadados listam precisa estar no arquivo (fragmentos delta podem faltar: não são necessários para jogar, e o NSZ os descarta);
-- toda NCA que precisa de ticket precisa ter o ticket no arquivo.
+- each NCA is read completely (NCZs are decompressed) and its SHA-256 is compared with the one recorded in the metadata (CNMT); NCAs not listed by any CNMT are compared with their own name, which is the hash. Since the hash covers every byte, this also covers the internal hash trees (IVFC);
+- everything the metadata lists must be in the file (delta fragments may be missing: they are not needed to play, and NSZ drops them);
+- every NCA that needs a ticket must have its ticket in the file.
 
-O resultado aparece no log ("tudo íntegro" ou a lista de problemas). Sem o `prod.keys` só os nomes dos arquivos podem ser conferidos.
+The result is shown in the log ("everything intact" or the list of problems). Without `prod.keys` only the file names can be checked.
 
-## Verificar online (titledb)
+## Online check (titledb)
 
-O botão **Atualizações e DLCs ▾** (aba Nintendo Switch) compara os jogos da lista com o [titledb](https://github.com/blawar/titledb), uma base pública de jogos do Switch:
+The **Updates and DLCs ▾** button (Nintendo Switch tab) compares the games in the list with [titledb](https://github.com/blawar/titledb), a public database of Switch games:
 
-- **Atualizar base de jogos** baixa do GitHub as versões de atualização de todos os jogos (`versions.json`) e o catálogo em inglês com os nomes de jogos e DLCs (`US.en.json`), cerca de 90 MB. O app guarda só o que usa em `titledb.cache` (cerca de 1 MB), ao lado do `gameforge.json`. Num novo download, arquivos que não mudaram no servidor não são baixados de novo.
-- **Verificar os jogos da lista** mostra no log, para cada jogo, se existe uma atualização mais nova do que a que você tem (contando a de um arquivo mesclado ou de um jogo base com a atualização aplicada), quais DLCs faltam e quais DLCs têm versão mais nova. Se a base ainda não foi baixada, o app avisa e pergunta se quer baixá-la.
-- Com a base carregada, a coluna de detalhes de cada jogo mostra um resumo: "atualizações e DLCs em dia (online)", "atualização mais nova disponível: v655360 de 2026-05-12 • 2 DLCs que não estão na pasta" ou "não consta na base online".
+- **Update game database** downloads from GitHub the update versions of all games (`versions.json`) and the English catalog with game and DLC names (`US.en.json`), about 90 MB. The app keeps only what it uses in `titledb.cache` (about 1 MB), next to `gameforge.json`. On a new download, files that did not change on the server are not downloaded again.
+- **Check the listed games** shows in the log, for each game, whether there is an update newer than the one you have (counting one inside a merged file or one applied to a base game), which DLCs are missing and which DLCs have a newer version. If the database has not been downloaded yet, the app says so and asks whether to download it.
+- With the database loaded, each game's details column shows a summary: "updates and DLCs up to date (online)", "newer update available: v655360 from 2026-05-12 • 2 DLCs not in the folder" or "not in the online database".
 
-A internet só é usada quando você escolhe **Atualizar base de jogos**; a verificação é feita no computador, sem enviar nada sobre os seus jogos. Ao lado do botão, a aba mostra o estado da base: ainda não baixada, ou até que data ela tem dados, com uma sugestão de atualizá-la se tiver mais de 14 dias. Nada disso aparece no log ao abrir o app. A data importa porque o titledb é atualizado por voluntários, a cada poucas semanas, então atualizações muito recentes podem ainda não estar lá.
+The internet is used only when you choose **Update game database**; the check runs on your computer, without sending anything about your games. Next to the button, the tab shows the state of the database: not downloaded yet, or up to which date it has data, with a hint to update it if it is more than 14 days old. None of this is written to the log when the app starts. The date matters because titledb is updated by volunteers every few weeks, so very recent updates may not be there yet.
 
-Os DLCs vêm do catálogo dos EUA: DLCs lançados só em outras regiões (por exemplo, só no Japão) não aparecem como faltando, e um jogo que não existe nesse catálogo aparece como "sem dados" se também não tiver atualizações listadas.
+DLCs come from the US catalog: DLCs released only in other regions (for example, only in Japan) do not show as missing, and a game that is not in this catalog shows as "no data" if it has no updates listed either.
 
-## Renomear arquivos do Switch
+## Rename Switch files
 
-O botão **Renomear…** da aba Nintendo Switch dá aos arquivos da lista o nome padrão, útil quando o nome ficou errado no dump ou incompleto:
+The **Rename…** button in the Nintendo Switch tab gives the files in the list their standard names, useful when a name was wrong or incomplete at dump time:
 
-- Jogo base: `Nome do Jogo [0100XXXXXXXX0000][v0].nsp` (um NSP já juntado leva também a versão da atualização e `[n DLC]`, como os arquivos que o app gera).
-- Atualização: `Nome do Jogo [0100XXXXXXXX0800][v196608].nsp`.
-- DLC: `Nome do Jogo - Nome da DLC [0100XXXXXXXXX001][v0].nsp`.
+- Base game: `Game Name [0100XXXXXXXX0000][v0].nsp` (an already merged NSP also gets the update version and `[n DLC]`, like the files the app writes).
+- Update: `Game Name [0100XXXXXXXX0800][v196608].nsp`.
+- DLC: `Game Name - DLC Name [0100XXXXXXXXX001][v0].nsp`.
 
-O nome do jogo é o oficial, lido de dentro do próprio arquivo (precisa do `prod.keys`); sem ele, vem da base de jogos (**Atualizações e DLCs ▾ → Atualizar base de jogos**). Os nomes das DLCs vêm da base de jogos. `:` vira ` - `, símbolos como ™ saem e caracteres proibidos no Windows viram `_`. A extensão (`.nsp`, `.nsz`, `.xci`) não muda. Antes de renomear, o app mostra a lista "nome atual → nome novo" e pede confirmação; um arquivo nunca substitui outro com o mesmo nome, e cada mudança fica no log.
+The game name is the official one, read from the file itself (needs `prod.keys`); without it, it comes from the game database (**Updates and DLCs ▾ → Update game database**). DLC names come from the game database. `:` becomes ` - `, symbols such as ™ are removed and characters not allowed on Windows become `_`. The extension (`.nsp`, `.nsz`, `.xci`) does not change. Before renaming, the app shows the "current name → new name" list and asks for confirmation; a file never replaces another one with the same name, and every change is logged.
 
-## Tema
+## Theme
 
-O seletor **Tema**, ao lado do idioma, tem **Automático** (segue o modo claro/escuro do Windows; no Linux, claro), **Claro** e **Escuro**. A troca é imediata. No tema escuro, a barra de título também fica escura no Windows; as janelas de mensagem nativas do Windows continuam claras.
+The **Theme** selector, next to the language, has **Automatic** (follows the Windows light/dark mode; light on Linux), **Light** and **Dark**. The change is immediate. With the dark theme, the title bar is dark on Windows too; Windows' native message boxes stay light.
 
-## Idioma
+## Language
 
-A interface está em inglês, português, alemão, francês e espanhol. Por padrão ("Automático") ela segue o idioma do sistema; se ele não for um desses, usa inglês. Troque pelo seletor **Idioma** no canto superior direito; a janela é redesenhada na hora, sem perder a lista nem o log, e as mensagens que já estão no log também passam para o novo idioma. Os diálogos de abrir arquivo/pasta também seguem o idioma escolhido: no Linux eles são desenhados pelo próprio Tk, que tem tradução para os cinco idiomas; no Windows o app usa os diálogos nativos quando o idioma escolhido é o do sistema e, quando não é (os nativos sempre usam o idioma do Windows), os diálogos do Tk, traduzidos.
+The interface is available in English, Portuguese, German, French and Spanish. By default ("Automatic") it follows the system language; if that is not one of these, it uses English. Change it with the **Language** selector in the top right corner; the window is redrawn at once, without losing the list or the log, and the messages already in the log switch to the new language too. The open file/folder dialogs follow the chosen language as well: on Linux they are drawn by Tk itself, which is translated into all five languages; on Windows the app uses the native dialogs when the chosen language is the system's and, when it is not (the native ones always use the Windows language), the translated Tk dialogs.
 
-## Configuração
+## Configuration
 
-As opções ficam em `gameforge.json`, na pasta do programa (ao lado do executável; com `go run`, na pasta atual). O arquivo é criado na primeira execução (um `nspmerge.json` de quando o app se chamava NSP Merge é renomeado para `gameforge.json` e as opções continuam valendo) e atualizado quando você muda algo:
+The options are stored in `gameforge.json`, in the program folder (next to the executable; with `go run`, in the current folder). The file is created on the first run (an `nspmerge.json` from when the app was called NSP Merge is renamed to `gameforge.json`, and its options are kept) and updated whenever you change something:
 
 ```json
 {
   "language": "auto",
   "theme": "auto",
-  "keys_path": "C:\\jogos\\gameforge\\keys\\prod.keys",
+  "keys_path": "C:\\games\\gameforge\\keys\\prod.keys",
   "output_dir": "",
   "last_dir": "",
   "format": "nsz",
@@ -201,27 +202,27 @@ As opções ficam em `gameforge.json`, na pasta do programa (ao lado do executá
 }
 ```
 
-- `language`: `auto`, `en`, `pt`, `de`, `fr` ou `es`.
-- `theme`: `auto`, `light` ou `dark`.
-- `keys_path`: último `prod.keys` carregado (a pasta `keys/` tem prioridade).
-- `output_dir`: pasta de saída; vazio = pasta do jogo.
-- `last_dir`: última pasta aberta nos diálogos.
-- `format`: `nsz` (comprimido) ou `nsp`.
-- `level`: `fast`, `normal` ou `max`.
-- `skip_verify`: `true` desliga a verificação após gravar.
-- `apply_update`: `true` aplica a atualização no jogo base (só emuladores).
-- `tab`: aba mostrada por último (`switch`, `chd`, `xiso`, `rvz` ou `ciso`).
-- `chd_no_m3u`: `true` desliga as playlists `.m3u` de jogos com vários discos.
-- `ciso_format`: formato das ISOs comprimidas, `cso` (padrão) ou `zso`.
-- `rvz_chunk_kib`: tamanho do bloco do RVZ em KiB (`128`, `512`, `1024` ou `2048`; padrão `128`).
-- `wii_key_path`: arquivo da chave comum do Wii escolhido em **Procurar…** (a pasta `keys` também é procurada).
-- `window`, `maximized`, `columns`, `divider`: layout da janela na última execução (gravados ao fechar; apague-os para voltar ao padrão).
+- `language`: `auto`, `en`, `pt`, `de`, `fr` or `es`.
+- `theme`: `auto`, `light` or `dark`.
+- `keys_path`: the last `prod.keys` loaded (the `keys/` folder takes priority).
+- `output_dir`: output folder; empty = the game's folder.
+- `last_dir`: last folder opened in the dialogs.
+- `format`: `nsz` (compressed) or `nsp`.
+- `level`: `fast`, `normal` or `max`.
+- `skip_verify`: `true` turns off verification after writing.
+- `apply_update`: `true` applies the update to the base game (emulators only).
+- `tab`: the last tab shown (`switch`, `chd`, `xiso`, `rvz` or `ciso`).
+- `chd_no_m3u`: `true` turns off `.m3u` playlists for games on several discs.
+- `ciso_format`: format of compressed ISOs, `cso` (default) or `zso`.
+- `rvz_chunk_kib`: RVZ block size in KiB (`128`, `512`, `1024` or `2048`; default `128`).
+- `wii_key_path`: the Wii common key file chosen with **Browse…** (the `keys` folder is searched too).
+- `window`, `maximized`, `columns`, `divider`: window layout on the last run (saved on close; delete them to go back to the defaults).
 
-Se a pasta do programa não permitir escrita (por exemplo, instalado em `/usr/bin`), o arquivo vai para a pasta de configuração do usuário (`~/.config/gameforge/` no Linux, `%AppData%\gameforge\` no Windows). A pasta `keys/` também é criada automaticamente se não existir.
+If the program folder is not writable (for example, installed in `/usr/bin`), the file goes to the user's configuration folder (`~/.config/gameforge/` on Linux, `%AppData%\gameforge\` on Windows). The `keys/` folder is also created automatically if it does not exist.
 
-## Compilação
+## Building
 
-Requer só o Go 1.27+: o Tk é usado sem CGO (as bibliotecas Tcl/Tk vão embutidas no executável e são extraídas na primeira execução para a pasta de cache do usuário). Não precisa de compilador C, e dá para compilar para Linux a partir do Windows e vice-versa.
+Only Go 1.27+ is needed: Tk is used without CGO (the Tcl/Tk libraries are embedded in the executable and extracted on the first run to the user's cache folder). No C compiler is needed, and you can build for Linux from Windows and vice versa.
 
 ### Windows
 
@@ -229,15 +230,15 @@ Requer só o Go 1.27+: o Tk é usado sem CGO (as bibliotecas Tcl/Tk vão embutid
 ./build.ps1
 ```
 
-ou à mão, com a flag que evita a janela de console:
+or by hand, with the flag that avoids the console window:
 
 ```bash
 CGO_ENABLED=0 go build -ldflags "-H windowsgui -s -w" -o gameforge.exe .
 ```
 
-Se o executável for gerado sem essa flag (por exemplo, um `go build` simples), o app fecha a janela de console logo ao abrir; ela ainda pode piscar por um instante.
+If the executable is built without that flag (for example, a plain `go build`), the app closes the console window right after starting; it may still flash for a moment.
 
-O ícone do `.exe` vem dos arquivos `rsrc_windows_*.syso`, que o `go build` inclui sozinho. O desenho fica em `internal/icon` (a janela também o usa); se ele mudar, gere os `.syso` de novo com `go run ./tools/mkicon`.
+The `.exe` icon comes from the `rsrc_windows_*.syso` files, which `go build` includes automatically. The drawing is in `internal/icon` (the window uses it too); if it changes, regenerate the `.syso` files with `go run ./tools/mkicon`.
 
 ### Linux
 
@@ -245,47 +246,47 @@ O ícone do `.exe` vem dos arquivos `rsrc_windows_*.syso`, que o `go build` incl
 ./build.sh
 ```
 
-ou `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o gameforge .` em qualquer sistema. Para rodar, o Linux precisa de um ambiente gráfico X11 (ou XWayland) com as bibliotecas `libX11`, `libXss`, `libXft` e `libfontconfig`, que qualquer desktop já instala.
+or `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o gameforge .` on any system. To run, Linux needs an X11 (or XWayland) desktop with the `libX11`, `libXss`, `libXft` and `libfontconfig` libraries, which any desktop already installs.
 
-### Testes
+### Tests
 
 ```bash
 go test ./internal/...
 ```
 
-Os testes geram NSPs sintéticos com chaves aleatórias (NCA com cabeçalho AES-XTS, seção AES-CTR via key area e via title key/ticket) e verificam a análise, a mesclagem e a compressão NCZ (incluindo seções BKTR de atualizações) com ida e volta byte a byte.
+The tests build synthetic NSPs with random keys (NCA with an AES-XTS header, AES-CTR section via key area and via title key/ticket) and check the analysis, the merge and the NCZ compression (including the BKTR sections of updates) with byte-for-byte round trips.
 
-A conversão CHD tem testes de ida e volta com imagens sintéticas e um teste de compatibilidade com o `chdman` do MAME, que só roda quando a variável `CHDMAN` aponta para o executável (o `chdman.exe` vem no pacote do MAME para Windows):
-
-```bash
-CHDMAN=/caminho/para/chdman.exe go test ./internal/chd -run Chdman -v
-```
-
-Ele converte as mesmas imagens com o app e com o `chdman`, roda `chdman verify` no CHD do app, compara o SHA-1 dos dados e o SHA-1 geral, confere que `chdman extractcd`/`extractdvd` devolve imagens idênticas e que o app lê os CHDs do `chdman` (codecs `cdfl`, `huff` e `flac`). Há também um teste de ida e volta do codificador/decodificador FLAC.
-
-A conversão RVZ é testada com um disco de GameCube sintético (arquivos, tabela de arquivos e preenchimento do gerador com uma semente por bloco de 32 KiB) e um disco de Wii sintético (tabela de partições, ticket com a chave do título criptografada por uma chave comum de teste, dados com FST, arquivos e preenchimento, árvore de hashes com algumas hashes alteradas para exigir exceções, criptografia AES): a recuperação da semente em várias posições, a ida e volta byte a byte, o tamanho final e os erros sem chave e com chave errada. Um teste de compatibilidade com o Dolphin roda quando a variável `DOLPHINTOOL` aponta para o `DolphinTool.exe` (que vem no Dolphin para Windows):
+The CHD conversion has round-trip tests with synthetic images and a compatibility test with MAME's `chdman`, which runs only when the `CHDMAN` variable points to the executable (`chdman.exe` comes with the MAME package for Windows):
 
 ```bash
-DOLPHINTOOL=/caminho/para/DolphinTool.exe go test ./internal/rvz -run Dolphin -v
+CHDMAN=/path/to/chdman.exe go test ./internal/chd -run Chdman -v
 ```
 
-Ele confere, para GameCube e Wii, que o Dolphin devolve a ISO original a partir do RVZ do app e que o app lê o RVZ feito pelo Dolphin.
+It converts the same images with the app and with `chdman`, runs `chdman verify` on the app's CHD, compares the data SHA-1 and the overall SHA-1, checks that `chdman extractcd`/`extractdvd` returns identical images and that the app reads `chdman`'s CHDs (codecs `cdfl`, `huff` and `flac`). There is also a round-trip test of the FLAC encoder/decoder.
 
-A compressão CSO/ZSO é testada com ida e volta byte a byte (dados compressíveis, aleatórios e um último bloco incompleto), com um índice deslocado com blocos alinhados, e com o decodificador LZ4 do app conferido contra a biblioteca LZ4; um CSO gerado também foi lido por um decodificador independente em Python (zlib), que chegou à imagem original.
+The RVZ conversion is tested with a synthetic GameCube disc (files, file table and generator padding with one seed per 32 KiB block) and a synthetic Wii disc (partition table, ticket with the title key encrypted with a test common key, data with an FST, files and padding, a hash tree with some hashes altered to require exceptions, AES encryption): seed recovery at several positions, byte-for-byte round trip, final size, and the errors with no key and with a wrong key. A compatibility test with Dolphin runs when the `DOLPHINTOOL` variable points to `DolphinTool.exe` (which comes with Dolphin for Windows):
 
-A conversão XISO é testada com imagens de Xbox sintéticas (uma imagem de disco com a partição do jogo deslocada e outra já em XISO, com preenchimento aleatório, pasta vazia, arquivo vazio e uma tabela de diretório maior que um setor): o resultado precisa ter os mesmos arquivos com o mesmo conteúdo, e regravar uma XISO gerada precisa dar os mesmos bytes.
+```bash
+DOLPHINTOOL=/path/to/DolphinTool.exe go test ./internal/rvz -run Dolphin -v
+```
 
-## Limitações
+It checks, for GameCube and Wii, that Dolphin returns the original ISO from the app's RVZ and that the app reads the RVZ made by Dolphin.
 
-- Somente NCA3 (todo o conteúdo atual). Tickets personalizados (vinculados ao console) não são decifrados; nesse caso o app usa o nome do arquivo, e a mesclagem funciona do mesmo jeito.
-- Não gera XCI e não lê XCZ (XCI comprimido).
-- NCAs com criptografia que os instaladores não sabem refazer (XTS, tipos novos) ou seções não contíguas ficam sem compressão.
-- Arrastar arquivos para a janela só funciona no Windows: o Tk 9.0 não tem drag and drop, e o app o implementa pela API do Windows. No Linux, use os botões.
+The CSO/ZSO compression is tested with byte-for-byte round trips (compressible data, random data and an incomplete last block), with an index shift with aligned blocks, and with the app's LZ4 decoder checked against the LZ4 library; a written CSO was also read by an independent Python decoder (zlib), which got back the original image.
 
-## Aviso
+The XISO conversion is tested with synthetic Xbox images (a disc image with the game partition at an offset and another already in XISO, with random padding, an empty folder, an empty file and a directory table larger than one sector): the result must have the same files with the same contents, and rewriting a written XISO must give the same bytes.
 
-Use apenas com jogos que você comprou e com chaves extraídas do seu próprio console. O `prod.keys` nunca é copiado nem enviado para lugar algum.
+## Limitations
 
-## Licença
+- NCA3 only (all current content). Personalized (console-bound) tickets are not decrypted; in that case the app uses the file name, and merging works the same way.
+- Does not write XCI and does not read XCZ (compressed XCI).
+- NCAs with encryption that installers cannot redo (XTS, new types) or non-contiguous sections are left uncompressed.
+- Dropping files on the window works only on Windows: Tk 9.0 has no drag and drop, and the app implements it through the Windows API. On Linux, use the buttons.
 
-[MIT](LICENSE). As bibliotecas usadas têm as suas próprias licenças (MIT, BSD, Apache 2.0, ISC e MPL 2.0), todas compatíveis.
+## Disclaimer
+
+Use only with games you own and with keys dumped from your own console. The app contains no keys. `prod.keys` is never copied or sent anywhere.
+
+## License
+
+[MIT](LICENSE). The libraries used have their own licenses (MIT, BSD, Apache 2.0, ISC and MPL 2.0), all compatible.
