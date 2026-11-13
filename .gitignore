@@ -1,0 +1,38 @@
+# Build output
+gameforge
+gameforge.exe
+
+# Personal files written next to the program
+gameforge.json
+nspmerge.json
+titledb.cache*
+*.tmp
+
+# Keys are personal: never publish them
+prod.keys
+*.keys
+keys/*
+!keys/LEIA-ME.txt
+
+# Game files
+*.nsp
+*.nsz
+*.xci
+*.xcz
+*.part
+*.chd
+*.cue
+*.bin
+*.gdi
+*.m3u
+*.iso
+*.cso
+*.zso
+*.gcm
+*.wbfs
+*.rvz
+
+# Editors and tools
+.vscode/
+.idea/
+.claude/

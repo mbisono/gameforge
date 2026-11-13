@@ -1,0 +1,566 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	. "modernc.org/tk9.0"
+
+	"gameforge/internal/i18n"
+)
+
+// converter is a file conversion with a tab of its own. Adding a format to
+// the app is adding a converter to newConvTabs.
+type converter struct {
+	id     string // config name of the tab
+	title  string // message keys: tab title, description, button and its tip
+	info   string
+	button string
+	tip    string
+	exts   []string          // input extensions
+	accept func(string) bool // optional check beyond the extension
+	// drop, if set, limits the files dropped on the window that go to this
+	// tab when it is not shown (e.g. .iso goes to the CHD tab by default).
+	drop  func(string) bool
+	types []FileType // for the file dialog
+	// describe fills in what a file is (ok, platform, detail), or why it
+	// cannot be converted. It is called again when the item's mode changes.
+	describe func(it *convItem)
+	// outName is the output file name for an item.
+	outName func(it *convItem) string
+	// run converts the item to out, logging what it found. progress reports
+	// the conversion, then the verification (verifying true).
+	run func(ctx context.Context, u *ui, it *convItem, out string, verify bool,
+		progress func(verifying bool, done, total int64)) (inSize, outSize int64, err error)
+	// Optional: buttons for the action row, options below the list, entries
+	// of the right-click menu of an item, and work after a batch.
+	extra   func(u *ui, parent *TFrameWidget) []*TButtonWidget
+	options func(u *ui, parent *TFrameWidget) []Widget
+	menu    func(u *ui, t *convTab, it *convItem) []menuEntry
+	after   func(u *ui, done []converted)
+}
+
+// menuEntry is an entry of an item's right-click menu.
+type menuEntry struct {
+	label    string
+	selected bool
+	action   func()
+}
+
+// converted is a finished conversion, for converter.after.
+type converted struct {
+	item *convItem
+	out  string
+}
+
+// convItem is a file in a conversion tab.
+type convItem struct {
+	path     string
+	mode     string // converter-specific choice, e.g. "cd" or "dvd"; "" = automatic
+	kind     string // what describe resolved, e.g. "cd" or "dvd"
+	size     int64  // input size including the files a sheet refers to; 0 = the file's size
+	ok       bool
+	platform string
+	detail   fmt.Stringer
+	status   fmt.Stringer
+	tab      *convTab
+	id       string // row in the list
+}
+
+// convTab holds a converter's file list; the widgets are rebuilt with the
+// window.
+type convTab struct {
+	conv    *converter
+	items   []*convItem
+	checked map[string]bool
+
+	tree    *TTreeviewWidget
+	summary *TLabelWidget
+	runBtn  *TButtonWidget
+	buttons []*TButtonWidget
+	widgets []Widget // options, disabled while busy
+}
+
+func newConvTabs() []*convTab {
+	var tabs []*convTab
+	for _, c := range []*converter{chdConverter, xisoConverter, rvzConverter, cisoConverter} {
+		tabs = append(tabs, &convTab{conv: c, checked: map[string]bool{}})
+	}
+	return tabs
+}
+
+func hasExt(path string, exts []string) bool {
+	for _, ext := range exts {
+		if strings.EqualFold(filepath.Ext(path), ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// accepts reports whether a file belongs to this tab.
+func (t *convTab) accepts(path string) bool {
+	return hasExt(path, t.conv.exts) && (t.conv.accept == nil || t.conv.accept(path))
+}
+
+// add lists the accepted files among paths, scanning folders, and returns
+// how many were new.
+func (t *convTab) add(u *ui, paths []string) int {
+	known := map[string]bool{}
+	for _, it := range t.items {
+		known[it.path] = true
+	}
+	n := 0
+	for _, p := range paths {
+		filepath.WalkDir(p, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !t.accepts(path) {
+				return nil
+			}
+			abs, err := filepath.Abs(path)
+			if err != nil || known[abs] {
+				return nil
+			}
+			known[abs] = true
+			it := &convItem{path: abs, tab: t}
+			t.conv.describe(it)
+			t.items = append(t.items, it)
+			t.checked[abs] = it.ok
+			if !it.ok {
+				u.println(lazyf("✗ %s: %s", filepath.Base(abs), it.detail))
+			}
+			n++
+			return nil
+		})
+	}
+	return n
+}
+
+func (t *convTab) checkedItems() []*convItem {
+	var out []*convItem
+	for _, it := range t.items {
+		if it.ok && t.checked[it.path] {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
+// build fills the tab: actions, a description, the list, options and the
+// convert button. It returns the action row, to size the window.
+func (t *convTab) build(u *ui, tab *TFrameWidget) *TFrameWidget {
+	GridColumnConfigure(tab.Window, 0, Weight(1))
+	GridRowConfigure(tab.Window, 2, Weight(1))
+
+	actions := tab.TFrame()
+	Grid(actions, Row(0), Column(0), Sticky("w"))
+	openDir := actions.TButton(Txt(T("btn.open_folder")), Command(func() {
+		if p := u.openFolder(); p != "" {
+			t.addAndShow(u, []string{p})
+		}
+	}))
+	addFile := actions.TButton(Txt(T("btn.add_nsp")), Command(func() {
+		if ps := u.openFiles(t.conv.types); len(ps) > 0 {
+			t.addAndShow(u, ps)
+		}
+	}))
+	clearBtn := actions.TButton(Txt(T("btn.clear")), Command(func() {
+		t.items, t.checked = nil, map[string]bool{}
+		t.refresh(u)
+	}))
+	all := actions.TButton(Txt(T("btn.select_all")), Command(func() { t.checkAll(u, true) }))
+	none := actions.TButton(Txt(T("btn.select_none")), Command(func() { t.checkAll(u, false) }))
+	t.buttons = []*TButtonWidget{openDir, addFile, clearBtn, all, none}
+	row := []Widget{openDir, addFile, clearBtn, actions.TSeparator(Orient("vertical")), all, none}
+	if t.conv.extra != nil {
+		row = append(row, actions.TSeparator(Orient("vertical")))
+		for _, b := range t.conv.extra(u, actions) {
+			row = append(row, b)
+			t.buttons = append(t.buttons, b)
+		}
+	}
+	gridRow(row...)
+
+	info := tab.TLabel(Txt(T(t.conv.info)), Wraplength("240m"), Justify("left"))
+	Grid(info, Row(1), Column(0), Sticky("w"), pad)
+
+	listFrame := tab.TFrame()
+	Grid(listFrame, Row(2), Column(0), Sticky("news"), pad)
+	t.tree = t.buildTree(u, listFrame)
+
+	t.widgets = nil
+	if t.conv.options != nil {
+		opts := tab.TFrame()
+		Grid(opts, Row(3), Column(0), Sticky("w"))
+		t.widgets = t.conv.options(u, opts)
+		for i, w := range t.widgets {
+			Grid(w, Row(0), Column(i), Sticky("w"), pad)
+		}
+	}
+
+	run := tab.TFrame()
+	Grid(run, Row(4), Column(0), edges)
+	GridColumnConfigure(run.Window, 0, Weight(1))
+	t.summary = run.TLabel()
+	Grid(t.summary, Row(0), Column(0), Sticky("w"), pad)
+	t.runBtn = run.TButton(Txt(T(t.conv.button)), Default("active"), Command(func() { t.start(u) }))
+	setTooltip(t.runBtn, T(t.conv.tip))
+	Grid(t.runBtn, Row(0), Column(1), pad, ipad)
+	return actions
+}
+
+func (t *convTab) buildTree(u *ui, parent *TFrameWidget) *TTreeviewWidget {
+	var sb *TScrollbarWidget
+	tv := parent.TTreeview(Columns("platform detail status"), Selectmode("browse"), Height(12),
+		Yscrollcommand(func(e *Event) { e.ScrollSet(sb) }))
+	sb = parent.TScrollbar(Command(func(e *Event) { e.Yview(tv) }))
+	Grid(tv, Row(0), Column(0), Sticky("news"))
+	Grid(sb, Row(0), Column(1), Sticky("ns"))
+	GridColumnConfigure(parent.Window, 0, Weight(1))
+	GridRowConfigure(parent.Window, 0, Weight(1))
+	tv.Heading("#0", Txt(T("list.file")), Anchor("w"))
+	tv.Heading("platform", Txt(T("list.platform")), Anchor("w"))
+	tv.Heading("detail", Txt(T("list.detail")), Anchor("w"))
+	tv.Heading("status", Txt(T("list.status")), Anchor("w"))
+	tv.Column("#0", Width(380), Stretch(true))
+	tv.Column("platform", Width(110), Stretch(false))
+	tv.Column("detail", Width(380), Stretch(true))
+	tv.Column("status", Width(200), Stretch(true))
+	tv.TagConfigure("unknown", Foreground("gray50"))
+	Bind(tv, "<ButtonRelease-1>", Command(func(e *Event) {
+		if strings.HasSuffix(tv.IdentifyElement(e.X, e.Y), "image") {
+			t.toggle(u, tv.IdentifyItem(e.X, e.Y))
+		}
+	}))
+	Bind(tv, "<space>", Command(func() { t.toggle(u, tv.Focus()) }))
+	if t.conv.menu != nil {
+		Bind(tv, "<Button-3>", Command(func(e *Event) { t.popup(u, tv.IdentifyItem(e.X, e.Y), e.XRoot, e.YRoot) }))
+	}
+	return tv
+}
+
+func (t *convTab) item(id string) *convItem {
+	i, err := strconv.Atoi(strings.TrimPrefix(id, "c"))
+	if err != nil || i < 0 || i >= len(t.items) {
+		return nil
+	}
+	return t.items[i]
+}
+
+func (t *convTab) toggle(u *ui, id string) {
+	it := t.item(id)
+	if u.busy || it == nil || !it.ok {
+		return
+	}
+	t.checked[it.path] = !t.checked[it.path]
+	t.refresh(u)
+	t.tree.Focus(id)
+	t.tree.Selection("set", id)
+}
+
+// popup shows the right-click menu of an item.
+func (t *convTab) popup(u *ui, id string, x, y int) {
+	it := t.item(id)
+	if u.busy || it == nil {
+		return
+	}
+	entries := t.conv.menu(u, t, it)
+	if len(entries) == 0 {
+		return
+	}
+	t.tree.Focus(id)
+	t.tree.Selection("set", id)
+	m := Menu(Tearoff(false))
+	for _, e := range entries {
+		label := "     " + e.label
+		if e.selected {
+			label = "✓  " + e.label
+		}
+		m.AddCommand(Lbl(label), Command(e.action))
+	}
+	Popup(m.Window, x, y, nil)
+}
+
+func (t *convTab) checkAll(u *ui, v bool) {
+	for _, it := range t.items {
+		t.checked[it.path] = v && it.ok
+	}
+	t.refresh(u)
+}
+
+// addAndShow adds files and shows the result.
+func (t *convTab) addAndShow(u *ui, paths []string) {
+	if u.busy {
+		return
+	}
+	if t.add(u, paths) == 0 {
+		u.logf("log.no_new_files")
+	}
+	t.refresh(u)
+}
+
+func stringOf(s fmt.Stringer) string {
+	if s == nil {
+		return ""
+	}
+	return s.String()
+}
+
+// refresh shows the list, keeping the scroll position, and updates the
+// summary and the button.
+func (t *convTab) refresh(u *ui) {
+	if t.tree == nil {
+		return
+	}
+	path := t.tree.String()
+	yview := strings.Fields(tcl(path, "yview"))
+	t.tree.Delete(t.tree.Children(""))
+	var size int64
+	for i, it := range t.items {
+		it.id = fmt.Sprintf("c%d", i)
+		values := Values(tclList([]string{it.platform, stringOf(it.detail), stringOf(it.status)}))
+		if !it.ok {
+			t.tree.Insert("", "end", Id(it.id), Image(checkImage(-1)), Txt(filepath.Base(it.path)), values, Tags("unknown"))
+			continue
+		}
+		t.tree.Insert("", "end", Id(it.id), checkMark(t.checked[it.path]), Txt(filepath.Base(it.path)), values)
+		if t.checked[it.path] {
+			if it.size > 0 {
+				size += it.size
+			} else if st, err := os.Stat(it.path); err == nil {
+				size += st.Size()
+			}
+		}
+	}
+	if len(yview) > 0 {
+		tcl(path, "yview", "moveto", yview[0])
+	}
+	t.summary.Configure(Txt(T("summary.conv", len(t.items), len(t.checkedItems()), humanSize(size))))
+	t.setBusy(u, u.busy)
+}
+
+func (t *convTab) setBusy(u *ui, busy bool) {
+	if t.runBtn == nil {
+		return
+	}
+	for _, b := range t.buttons {
+		enable(b, !busy)
+	}
+	for _, w := range t.widgets {
+		if c, ok := w.(interface{ Configure(...Opt) *Window }); ok {
+			enable(c, !busy)
+		}
+	}
+	enable(t.runBtn, !busy && len(t.checkedItems()) > 0)
+}
+
+// setItemStatus shows a status in an item's row; safe to call from any
+// goroutine (applied by flush).
+func (u *ui) setItemStatus(it *convItem, s fmt.Stringer) {
+	u.mu.Lock()
+	if u.pendingItems == nil {
+		u.pendingItems = map[*convItem]fmt.Stringer{}
+	}
+	u.pendingItems[it] = s
+	u.mu.Unlock()
+}
+
+// flushItems applies the pending item statuses; it runs on the GUI thread.
+func (u *ui) flushItems(pending map[*convItem]fmt.Stringer) {
+	for it, s := range pending {
+		it.status = s
+		if it.tab.tree != nil && it.id != "" && tcl(it.tab.tree.String(), "exists", it.id) == "1" {
+			tcl(it.tab.tree.String(), "set", it.id, "status", stringOf(s))
+		}
+	}
+}
+
+// start converts the checked files in the background, one after the
+// other, into the output folder or next to each file.
+func (t *convTab) start(u *ui) {
+	items := t.checkedItems()
+	if u.busy || len(items) == 0 {
+		return
+	}
+	outDir := strings.TrimSpace(u.outEntry.Textvariable())
+	if outDir != "" {
+		if st, err := os.Stat(outDir); err != nil || !st.IsDir() {
+			MessageBox(Parent(App), Icon("error"), Title(T("app.title")), Msg(T("err.out_dir", outDir)))
+			return
+		}
+	}
+	verify := !u.cfg.SkipVerify
+	ctx, cancel := context.WithCancel(context.Background())
+	u.cancelMerge = cancel
+	u.setBusy(true)
+	enable(u.cancelBtn, true)
+	for _, it := range items {
+		u.setItemStatus(it, i18n.M("st.queued"))
+	}
+
+	go func() {
+		defer cancel()
+		var done []converted
+		for i, it := range items {
+			if ctx.Err() != nil {
+				u.setItemStatus(it, i18n.M("st.cancelled"))
+				continue
+			}
+			in := it.path
+			dir := outDir
+			if dir == "" {
+				dir = filepath.Dir(in)
+			}
+			out := filepath.Join(dir, t.conv.outName(it))
+			name := filepath.Base(out)
+			u.separate()
+			if strings.EqualFold(filepath.Clean(out), filepath.Clean(in)) {
+				u.logf("log.same_file", filepath.Base(in))
+				u.setItemStatus(it, i18n.M("st.same"))
+				continue
+			}
+			if _, err := os.Stat(out); err == nil {
+				u.logf("log.exists", name)
+				u.setItemStatus(it, i18n.M("st.exists"))
+				continue
+			}
+			u.println(lazyf("▶ [%d/%d] %s → %s", i+1, len(items), filepath.Base(in), name))
+			u.setItemStatus(it, i18n.M("st.converting", 0))
+
+			start := time.Now()
+			phase, phaseStart, lastPct := false, start, -1
+			inSize, outSize, err := t.conv.run(ctx, u, it, out, verify, func(verifying bool, done, total int64) {
+				if verifying != phase {
+					phase, phaseStart, lastPct = verifying, time.Now(), -1
+				}
+				u.setProgress(float64(done) / float64(max(total, 1)))
+				pct := int(done * 100 / max(total, 1))
+				key := "st.converting"
+				if verifying {
+					key = "st.verifying"
+				}
+				if pct != lastPct {
+					lastPct = pct
+					u.setItemStatus(it, i18n.M(key, pct))
+				}
+				if verifying {
+					u.setStatus(T("status.verifying", name, humanSize(done), humanSize(total)) + eta(phaseStart, done, total))
+					return
+				}
+				speed := int64(float64(done) / max(time.Since(phaseStart).Seconds(), 0.001))
+				u.setStatus(name + " — " + humanSize(done) + " / " + humanSize(total) +
+					" (" + humanSize(speed) + "/s)" + eta(phaseStart, done, total))
+			})
+			if err != nil {
+				os.Remove(out) // incomplete or not verified
+				if ctx.Err() != nil {
+					u.logf("log.cancelled")
+					u.setItemStatus(it, i18n.M("st.cancelled"))
+					continue
+				}
+				u.logf("log.merge_error", err)
+				u.setItemStatus(it, lazyf("✗ %v", err))
+				continue
+			}
+			took := time.Since(start).Round(time.Second)
+			saved := 0
+			if inSize > 0 {
+				saved = int(100 - outSize*100/inSize)
+			}
+			if saved >= 0 {
+				u.setItemStatus(it, i18n.M("st.done", humanSize(outSize), saved, took))
+			} else {
+				u.setItemStatus(it, i18n.M("st.done_larger", humanSize(outSize), -saved, took))
+			}
+			key := "log.done"
+			if saved < 0 { // decompressed
+				key, saved = "log.done_larger", -saved
+			}
+			u.logf(key, took, name, humanSize(inSize), humanSize(outSize), saved)
+			done = append(done, converted{it, out})
+		}
+		if t.conv.after != nil && len(done) > 0 {
+			t.conv.after(u, done)
+		}
+		u.setProgress(0)
+		u.setStatus(T("status.conv_done", len(done), len(items)))
+		PostEvent(func() {
+			u.flush()
+			u.cancelMerge = nil
+			enable(u.cancelBtn, false)
+			u.setBusy(false)
+		}, false)
+	}()
+}
+
+// dropPaths sends dropped files to the tabs of their formats: to the tab
+// shown if it takes the file, else to the first tab that takes it by
+// default. It then shows a tab that received files. Dropped folders
+// replace the Switch list, as "Open folder" does.
+func (u *ui) dropPaths(paths []string) {
+	if u.busy {
+		return
+	}
+	var cur *convTab
+	for _, t := range u.tabs {
+		if t.conv.id == u.cfg.Tab {
+			cur = t
+		}
+	}
+	hasDir, hasGame := false, false
+	perTab := map[*convTab][]string{}
+	for _, p := range paths {
+		if st, err := os.Stat(p); err == nil && st.IsDir() {
+			hasDir = true
+		}
+		filepath.WalkDir(p, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			if cur != nil && cur.accepts(path) {
+				perTab[cur] = append(perTab[cur], path)
+				return nil
+			}
+			if isGameFile(path) {
+				hasGame = true
+				return nil
+			}
+			for _, t := range u.tabs {
+				if t.accepts(path) && (t.conv.drop == nil || t.conv.drop(path)) {
+					perTab[t] = append(perTab[t], path)
+					break
+				}
+			}
+			return nil
+		})
+	}
+	var got []string
+	if hasGame {
+		u.addPaths(paths, hasDir)
+		got = append(got, "switch")
+	}
+	for _, t := range u.tabs {
+		if len(perTab[t]) > 0 && t.add(u, perTab[t]) > 0 {
+			t.refresh(u)
+			got = append(got, t.conv.id)
+		}
+	}
+	if len(got) == 0 {
+		u.logf("log.no_new_files")
+		return
+	}
+	for _, g := range got {
+		if g == u.cfg.Tab {
+			return // the current tab received files: stay there
+		}
+	}
+	u.selectTab(got[0])
+}
+
+// msg is a translated message for a converter's description.
+func msg(key string, args ...any) fmt.Stringer { return i18n.M(key, args...) }
