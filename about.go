@@ -12,8 +12,8 @@ import (
 // block size option for RVZ, 2.2.1 moved the game database state from the
 // log to the Switch tab, 2.3.0 added renaming Switch files, 2.3.1 made the
 // log easier to read (file names only, a blank line between files) and
-// added the conversion time to the file status.
-const appVersion = "2.3.1"
+// added the conversion time to the file status, 2.4.0 added the 7z tab.
+const appVersion = "2.4.0"
 
 // showAbout shows the version, what the app does and what it builds on.
 func (u *ui) showAbout() {

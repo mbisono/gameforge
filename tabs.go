@@ -25,6 +25,10 @@ type converter struct {
 	tip    string
 	exts   []string          // input extensions
 	accept func(string) bool // optional check beyond the extension
+	// anyExt converters take files of any extension: the tab keeps every
+	// file it is given in a pool and lists those accept takes (exts is
+	// unused). refilter lists them again after the choice changes.
+	anyExt bool
 	// drop, if set, limits the files dropped on the window that go to this
 	// tab when it is not shown (e.g. .iso goes to the CHD tab by default).
 	drop  func(string) bool
@@ -44,6 +48,8 @@ type converter struct {
 	options func(u *ui, parent *TFrameWidget) []Widget
 	menu    func(u *ui, t *convTab, it *convItem) []menuEntry
 	after   func(u *ui, done []converted)
+	// refreshed, if set, runs after the tab's list is shown again.
+	refreshed func(u *ui, t *convTab)
 }
 
 // menuEntry is an entry of an item's right-click menu.
@@ -79,6 +85,7 @@ type convTab struct {
 	conv    *converter
 	items   []*convItem
 	checked map[string]bool
+	pool    []string // anyExt: every file given to the tab, listed or not
 
 	tree    *TTreeviewWidget
 	summary *TLabelWidget
@@ -89,7 +96,7 @@ type convTab struct {
 
 func newConvTabs() []*convTab {
 	var tabs []*convTab
-	for _, c := range []*converter{chdConverter, xisoConverter, rvzConverter, cisoConverter} {
+	for _, c := range []*converter{chdConverter, xisoConverter, rvzConverter, cisoConverter, sevenZipConverter} {
 		tabs = append(tabs, &convTab{conv: c, checked: map[string]bool{}})
 	}
 	return tabs
@@ -106,6 +113,9 @@ func hasExt(path string, exts []string) bool {
 
 // accepts reports whether a file belongs to this tab.
 func (t *convTab) accepts(path string) bool {
+	if t.conv.anyExt {
+		return t.conv.accept(path)
+	}
 	return hasExt(path, t.conv.exts) && (t.conv.accept == nil || t.conv.accept(path))
 }
 
@@ -116,29 +126,67 @@ func (t *convTab) add(u *ui, paths []string) int {
 	for _, it := range t.items {
 		known[it.path] = true
 	}
+	pooled := map[string]bool{}
+	for _, p := range t.pool {
+		pooled[p] = true
+	}
 	n := 0
 	for _, p := range paths {
 		filepath.WalkDir(p, func(path string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() || !t.accepts(path) {
+			if err != nil || d.IsDir() {
 				return nil
 			}
 			abs, err := filepath.Abs(path)
-			if err != nil || known[abs] {
+			if err != nil {
+				return nil
+			}
+			if t.conv.anyExt && !pooled[abs] {
+				pooled[abs] = true
+				t.pool = append(t.pool, abs)
+			}
+			if known[abs] || !t.accepts(abs) {
 				return nil
 			}
 			known[abs] = true
-			it := &convItem{path: abs, tab: t}
-			t.conv.describe(it)
-			t.items = append(t.items, it)
-			t.checked[abs] = it.ok
-			if !it.ok {
-				u.println(lazyf("✗ %s: %s", filepath.Base(abs), it.detail))
-			}
+			t.list(u, abs)
 			n++
 			return nil
 		})
 	}
 	return n
+}
+
+// list adds a file to the list, checked when it can be converted.
+func (t *convTab) list(u *ui, path string) {
+	it := &convItem{path: path, tab: t}
+	t.conv.describe(it)
+	t.items = append(t.items, it)
+	t.checked[path] = it.ok
+	if !it.ok {
+		u.println(lazyf("✗ %s: %s", filepath.Base(path), it.detail))
+	}
+}
+
+// refilter lists again the pooled files that the converter now accepts,
+// in pool order, keeping the items and choices already there.
+func (t *convTab) refilter(u *ui) {
+	old := map[string]*convItem{}
+	for _, it := range t.items {
+		old[it.path] = it
+	}
+	t.items = nil
+	for _, p := range t.pool {
+		if !t.accepts(p) {
+			delete(t.checked, p)
+			continue
+		}
+		if it, ok := old[p]; ok {
+			t.items = append(t.items, it)
+		} else {
+			t.list(u, p)
+		}
+	}
+	t.refresh(u)
 }
 
 func (t *convTab) checkedItems() []*convItem {
@@ -170,7 +218,7 @@ func (t *convTab) build(u *ui, tab *TFrameWidget) *TFrameWidget {
 		}
 	}))
 	clearBtn := actions.TButton(Txt(T("btn.clear")), Command(func() {
-		t.items, t.checked = nil, map[string]bool{}
+		t.items, t.checked, t.pool = nil, map[string]bool{}, nil
 		t.refresh(u)
 	}))
 	all := actions.TButton(Txt(T("btn.select_all")), Command(func() { t.checkAll(u, true) }))
@@ -342,6 +390,9 @@ func (t *convTab) refresh(u *ui) {
 	}
 	t.summary.Configure(Txt(T("summary.conv", len(t.items), len(t.checkedItems()), humanSize(size))))
 	t.setBusy(u, u.busy)
+	if t.conv.refreshed != nil {
+		t.conv.refreshed(u, t)
+	}
 }
 
 func (t *convTab) setBusy(u *ui, busy bool) {
@@ -352,7 +403,9 @@ func (t *convTab) setBusy(u *ui, busy bool) {
 		enable(b, !busy)
 	}
 	for _, w := range t.widgets {
-		if c, ok := w.(interface{ Configure(...Opt) *Window }); ok {
+		if f, ok := w.(*TFrameWidget); ok {
+			enableTree(f.Window, !busy)
+		} else if c, ok := w.(interface{ Configure(...Opt) *Window }); ok {
 			enable(c, !busy)
 		}
 	}
@@ -522,7 +575,7 @@ func (u *ui) dropPaths(paths []string) {
 			if err != nil || d.IsDir() {
 				return nil
 			}
-			if cur != nil && cur.accepts(path) {
+			if cur != nil && (cur.accepts(path) || cur.conv.anyExt) {
 				perTab[cur] = append(perTab[cur], path)
 				return nil
 			}
@@ -560,6 +613,16 @@ func (u *ui) dropPaths(paths []string) {
 		}
 	}
 	u.selectTab(got[0])
+}
+
+// enableTree enables or disables the widgets inside a frame, at any depth
+// (frames and labels without a state are skipped).
+func enableTree(w *Window, on bool) {
+	state := map[bool]string{true: "normal", false: "disabled"}[on]
+	for _, c := range WinfoChildren(w) {
+		tcl("catch", c.String()+" configure -state "+state)
+		enableTree(c, on)
+	}
 }
 
 // msg is a translated message for a converter's description.

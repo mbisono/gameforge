@@ -3,8 +3,11 @@ module gameforge
 go 1.27.3
 
 require (
+	github.com/itchio/lzma v0.0.0-20190703113020-d3e24e3e3d49
 	github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade
 	github.com/klauspost/compress v1.20.3
+	github.com/pierrec/lz4/v4 v4.1.33
+	github.com/ulikunitz/xz v0.5.17
 	modernc.org/tk9.0 v1.80.0
 )
 
@@ -17,10 +20,8 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
-	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
-	github.com/ulikunitz/xz v0.5.17 // indirect
 	golang.org/x/image v0.36.0 // indirect
 	golang.org/x/net v0.50.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect

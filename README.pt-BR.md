@@ -4,15 +4,15 @@
 
 Aplicativo com interface gráfica (Go + Tk, via [modernc.org/tk9.0](https://gitlab.com/cznic/tk9.0)) para Windows e Linux que junta o **jogo base**, a **atualização** e as **DLCs** de um jogo de Nintendo Switch (NSP, NSZ ou XCI) em um único arquivo, por padrão **comprimido em NSZ** para ocupar menos espaço, para fazer backup dos seus jogos comprados.
 
-Em outras abas, o app também converte imagens de disco de outros consoles: **Discos → CHD** (PS1, PS2, Saturn, Sega CD, Dreamcast, PSP…), **Xbox → XISO** (Xbox e Xbox 360), **GameCube/Wii → RVZ** e **ISO → CSO/ZSO** (PSP e PS2).
+Em outras abas, o app também converte imagens de disco de outros consoles: **Discos → CHD** (PS1, PS2, Saturn, Sega CD, Dreamcast, PSP…), **Xbox → XISO** (Xbox e Xbox 360), **GameCube/Wii → RVZ** e **ISO → CSO/ZSO** (PSP e PS2), e **ROMs → 7z** comprime ROMs de cartucho ou recomprime arquivos ZIP em 7z.
 
-Versão atual: **2.3.1** (as versões 1.x eram o nspmerge, só para o Switch). O botão **Sobre…**, ao lado de idioma e tema, mostra a versão, o que o app faz e as bibliotecas usadas.
+Versão atual: **2.4.0** (as versões 1.x eram o nspmerge, só para o Switch). O botão **Sobre…**, ao lado de idioma e tema, mostra a versão, o que o app faz e as bibliotecas usadas.
 
 ## Abas
 
-A janela tem uma aba por plataforma/formato: **Nintendo Switch**, **Discos → CHD**, **Xbox → XISO**, **GameCube/Wii → RVZ** e **ISO → CSO/ZSO**. Idioma, tema, pasta de saída, **Verificar após gravar**, o log, a barra de progresso e **Cancelar** valem para todas. Cada aba tem sua própria lista, com **Abrir pasta…**, **Adicionar arquivos…**, **Limpar lista** e o botão que executa a conversão; nada é convertido só por entrar na lista. A aba mostrada por último volta na próxima execução.
+A janela tem uma aba por plataforma/formato: **Nintendo Switch**, **Discos → CHD**, **Xbox → XISO**, **GameCube/Wii → RVZ**, **ISO → CSO/ZSO** e **ROMs → 7z**. Idioma, tema, pasta de saída, **Verificar após gravar**, o log, a barra de progresso e **Cancelar** valem para todas. Cada aba tem sua própria lista, com **Abrir pasta…**, **Adicionar arquivos…**, **Limpar lista** e o botão que executa a conversão; nada é convertido só por entrar na lista. A aba mostrada por último volta na próxima execução.
 
-Arquivos arrastados para a janela (ou pastas, lidas recursivamente) vão para a aba aberta, se ela aceita o formato; senão, para a aba padrão do formato: `.nsp`/`.nsz`/`.xci` para Nintendo Switch, `.cue` e `.gdi` para Discos → CHD e `.iso` para Xbox → XISO quando é uma imagem de Xbox (o app procura o sistema de arquivos XDVDFS), para GameCube/Wii → RVZ quando é de GameCube ou Wii (e também `.gcm`), ou para Discos → CHD nos outros casos. Para comprimir uma `.iso` em CSO/ZSO, abra a aba ISO → CSO/ZSO antes de arrastar (ou use os botões dela). Se a aba atual não recebeu nada, o app mostra a aba que recebeu. Arquivos soltos sobre o próprio executável (ou abertos com "Abrir com") entram do mesmo jeito.
+Arquivos arrastados para a janela (ou pastas, lidas recursivamente) vão para a aba aberta, se ela aceita o formato; senão, para a aba padrão do formato: `.nsp`/`.nsz`/`.xci` para Nintendo Switch, `.cue` e `.gdi` para Discos → CHD e `.iso` para Xbox → XISO quando é uma imagem de Xbox (o app procura o sistema de arquivos XDVDFS), para GameCube/Wii → RVZ quando é de GameCube ou Wii (e também `.gcm`), ou para Discos → CHD nos outros casos. Para comprimir uma `.iso` em CSO/ZSO, abra a aba ISO → CSO/ZSO antes de arrastar (ou use os botões dela); o mesmo vale para ROMs → 7z, que aceita arquivos de qualquer extensão. Se a aba atual não recebeu nada, o app mostra a aba que recebeu. Arquivos soltos sobre o próprio executável (ou abertos com "Abrir com") entram do mesmo jeito.
 
 Nas abas de conversão, a lista tem as colunas **Plataforma** (detectada pelo conteúdo do disco), **Detalhes** e **Status**: ao clicar em converter, cada linha mostra "Na fila", "Convertendo 43%", "Verificando 80%" e, no fim, o tamanho do resultado e quanto diminuiu, ou o motivo de um erro ("⏭ já existe", "✗ …", "■ cancelado").
 
@@ -123,6 +123,18 @@ Na aba **ISO → CSO/ZSO**, imagens `.iso` (PSP, PS2 e outras com setores de 204
 - O arquivo é gravado na versão 1 do formato, com blocos de 2048 bytes; cada bloco é comprimido separado (deflate no nível máximo ou LZ4 HC) e, se não diminuir, é guardado sem compressão. Imagens acima de 2 GiB usam o deslocamento de índice previsto no formato.
 - Com **Verificar após gravar**, o app descomprime o arquivo gerado e confere o SHA-1 com o da imagem original; se não bater, o arquivo é apagado.
 
+### Comprimir ROMs em 7z
+
+Na aba **ROMs → 7z**, cada arquivo vira o seu próprio `.7z`, com o mesmo nome: ROMs de cartucho (`Jogo (USA).gbc` → `Jogo (USA).7z`) ou arquivos ZIP, como sets de arcade, que viram um 7z com os mesmos arquivos dentro, com os mesmos nomes e datas. Não precisa do `prod.keys`.
+
+- **Quais arquivos:** abaixo da lista, a aba mostra as extensões dos arquivos abertos, com quantos arquivos têm cada uma, como caixas de marcar (`.zip (142)`, `.auto (87)`, `.png (87)`…). Só as extensões marcadas entram na lista e são comprimidas. Os arquivos do RetroArch começam desmarcados (saves e states como `.auto`, `.srm` e `.state*`, capturas como `.png`, e `.cfg`, `.lpl`, `.cue`, `.m3u`, patches e textos); qualquer outra extensão começa marcada, então uma pasta de `.gbc` com os seus `.auto` e `.png` normalmente não precisa de ajuste. As escolhas ficam lembradas. Save states nunca são comprimidos.
+- **Compressão:** LZMA, com o codificador do LZMA SDK (o mesmo do 7-Zip) portado para Go, no nível normal do 7-Zip (5), num fluxo sólido por arquivo. Níveis mais altos só aumentam o dicionário além do tamanho de uma ROM: num arquivo de 18 MB, o nível máximo do 7-Zip ficou só 0,13% menor que o normal. O resultado fica praticamente do tamanho do 7-Zip (11,48 MB contra 11,44 MB nesse arquivo; um ZIP no nível máximo tinha 12,35 MB), mas o codificador em Go é umas 1,5 a 3,5 vezes mais lento que o 7-Zip em uma thread, por volta de 1 a 2 MB por segundo: alguns segundos para uma ROM de cartucho ou um set de arcade comum, mas uns 30 segundos para uma ROM de GBA de 32 MB.
+- **ZIP:** são lidos arquivos comprimidos com deflate ou guardados sem compressão; ZIPs com senha e outros métodos são recusados, com o motivo. O CRC de cada arquivo é conferido com o do ZIP (o MAME e o FBNeo identificam as ROMs por ele).
+- **Apagar os originais depois de verificar:** remove cada original depois que o 7z dele é gravado, relido e comparado com ele, o que sempre acontece com esta opção, mesmo com **Verificar após gravar** desligado. Se a verificação falhar, o original fica. No Windows os originais vão para a Lixeira (em unidades sem Lixeira, como alguns pendrives e unidades de rede, o Windows os apaga); no Linux são apagados.
+- **RetroArch:** save states e capturas têm o nome do jogo sem a extensão, então continuam valendo com o `.7z`. As playlists (`.lpl`) guardam o nome do arquivo com a extensão antiga: escaneie a pasta de novo no RetroArch. O FBNeo e o MAME leem 7z direto; para os outros núcleos, o RetroArch extrai o jogo numa pasta temporária antes.
+- Com **Verificar após gravar**, o app relê o arquivo, descomprime tudo e compara o tamanho e o CRC de cada arquivo com o que foi gravado.
+- Compatibilidade conferida com o 7-Zip 26: o `7z t` aceita os arquivos e o `7z x` extrai os arquivos originais, inclusive pastas dentro de um ZIP, arquivos vazios e nomes com acentos; o leitor do app também abre arquivos do 7-Zip com cabeçalho sem compressão.
+
 ## Uso
 
 Os passos abaixo são da aba **Nintendo Switch**; as outras abas funcionam do mesmo jeito, com os botões de conversão delas.
@@ -212,11 +224,13 @@ As opções ficam em `gameforge.json`, na pasta do programa (ao lado do executá
 - `level`: `fast`, `normal` ou `max`.
 - `skip_verify`: `true` desliga a verificação após gravar.
 - `apply_update`: `true` aplica a atualização no jogo base (só emuladores).
-- `tab`: aba mostrada por último (`switch`, `chd`, `xiso`, `rvz` ou `ciso`).
+- `tab`: aba mostrada por último (`switch`, `chd`, `xiso`, `rvz`, `ciso` ou `7z`).
 - `chd_no_m3u`: `true` desliga as playlists `.m3u` de jogos com vários discos.
 - `ciso_format`: formato das ISOs comprimidas, `cso` (padrão) ou `zso`.
 - `rvz_chunk_kib`: tamanho do bloco do RVZ em KiB (`128`, `512`, `1024` ou `2048`; padrão `128`).
 - `wii_key_path`: arquivo da chave comum do Wii escolhido em **Procurar…** (a pasta `keys` também é procurada).
+- `sevenzip_exts`: extensões marcadas (`true`) ou desmarcadas (`false`) na aba ROMs → 7z; as outras seguem o padrão.
+- `sevenzip_delete`: `true` apaga os originais depois que o 7z deles é verificado.
 - `window`, `maximized`, `columns`, `divider`: layout da janela na última execução (gravados ao fechar; apague-os para voltar ao padrão).
 
 Se a pasta do programa não permitir escrita (por exemplo, instalado em `/usr/bin`), o arquivo vai para a pasta de configuração do usuário (`~/.config/gameforge/` no Linux, `%AppData%\gameforge\` no Windows). A pasta `keys/` também é criada automaticamente se não existir.
@@ -272,6 +286,14 @@ DOLPHINTOOL=/caminho/para/DolphinTool.exe go test ./internal/rvz -run Dolphin -v
 ```
 
 Ele confere, para GameCube e Wii, que o Dolphin devolve a ISO original a partir do RVZ do app e que o app lê o RVZ feito pelo Dolphin.
+
+O gravador e o leitor de 7z são testados com ida e volta byte a byte (dados compressíveis e aleatórios, arquivo vazio, pasta e nome com acentos, arquivo único, só arquivos vazios), com um arquivo corrompido que precisa falhar na verificação e com a conversão de uma pasta de ROMs e um ZIP de arcade sintéticos (quais extensões entram na lista, os arquivos dentro, quais originais são removidos). Um teste de compatibilidade com o 7-Zip roda quando a variável `SEVENZIP` aponta para o `7z.exe`:
+
+```bash
+SEVENZIP=/caminho/para/7z.exe go test ./internal/sevenzip . -run "7Zip|SevenZip" -v
+```
+
+Ele confere que o `7z t` aceita os arquivos, que o `7z x` extrai os arquivos originais e que o app lê um arquivo feito pelo 7-Zip.
 
 A compressão CSO/ZSO é testada com ida e volta byte a byte (dados compressíveis, aleatórios e um último bloco incompleto), com um índice deslocado com blocos alinhados, e com o decodificador LZ4 do app conferido contra a biblioteca LZ4; um CSO gerado também foi lido por um decodificador independente em Python (zlib), que chegou à imagem original.
 

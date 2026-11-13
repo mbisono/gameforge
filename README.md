@@ -4,15 +4,15 @@
 
 A desktop app (Go + Tk, via [modernc.org/tk9.0](https://gitlab.com/cznic/tk9.0)) for Windows and Linux that merges the **base game**, the **update** and the **DLCs** of a Nintendo Switch game (NSP, NSZ or XCI) into a single file, **compressed to NSZ** by default to save space, for backing up the games you own.
 
-Other tabs convert disc images of other consoles: **Discs → CHD** (PS1, PS2, Saturn, Sega CD, Dreamcast, PSP…), **Xbox → XISO** (Xbox and Xbox 360), **GameCube/Wii → RVZ** and **ISO → CSO/ZSO** (PSP and PS2).
+Other tabs convert disc images of other consoles: **Discs → CHD** (PS1, PS2, Saturn, Sega CD, Dreamcast, PSP…), **Xbox → XISO** (Xbox and Xbox 360), **GameCube/Wii → RVZ** and **ISO → CSO/ZSO** (PSP and PS2), and **ROMs → 7z** compresses cartridge ROMs or recompresses ZIP files to 7z.
 
-Current version: **2.3.1** (the 1.x versions were nspmerge, for the Switch only). The **About…** button, next to language and theme, shows the version, what the app does and the libraries it uses.
+Current version: **2.4.0** (the 1.x versions were nspmerge, for the Switch only). The **About…** button, next to language and theme, shows the version, what the app does and the libraries it uses.
 
 ## Tabs
 
-The window has one tab per platform or format: **Nintendo Switch**, **Discs → CHD**, **Xbox → XISO**, **GameCube/Wii → RVZ** and **ISO → CSO/ZSO**. Language, theme, output folder, **Verify after writing**, the log, the progress bar and **Cancel** are shared by all of them. Each tab has its own list, with **Open folder…**, **Add files…**, **Clear list** and the button that runs the conversion; nothing is converted just by being added to the list. The last tab shown comes back on the next start.
+The window has one tab per platform or format: **Nintendo Switch**, **Discs → CHD**, **Xbox → XISO**, **GameCube/Wii → RVZ**, **ISO → CSO/ZSO** and **ROMs → 7z**. Language, theme, output folder, **Verify after writing**, the log, the progress bar and **Cancel** are shared by all of them. Each tab has its own list, with **Open folder…**, **Add files…**, **Clear list** and the button that runs the conversion; nothing is converted just by being added to the list. The last tab shown comes back on the next start.
 
-Files dropped on the window (or folders, read recursively) go to the open tab if it accepts the format; otherwise to the default tab for that format: `.nsp`/`.nsz`/`.xci` to Nintendo Switch, `.cue` and `.gdi` to Discs → CHD, and `.iso` to Xbox → XISO when it is an Xbox image (the app looks for the XDVDFS file system), to GameCube/Wii → RVZ when it is a GameCube or Wii disc (`.gcm` too), or to Discs → CHD otherwise. To compress an `.iso` to CSO/ZSO, open the ISO → CSO/ZSO tab before dropping it (or use its buttons). If the current tab received nothing, the app switches to the tab that did. Files dropped on the executable itself (or opened with "Open with") are added the same way.
+Files dropped on the window (or folders, read recursively) go to the open tab if it accepts the format; otherwise to the default tab for that format: `.nsp`/`.nsz`/`.xci` to Nintendo Switch, `.cue` and `.gdi` to Discs → CHD, and `.iso` to Xbox → XISO when it is an Xbox image (the app looks for the XDVDFS file system), to GameCube/Wii → RVZ when it is a GameCube or Wii disc (`.gcm` too), or to Discs → CHD otherwise. To compress an `.iso` to CSO/ZSO, open the ISO → CSO/ZSO tab before dropping it (or use its buttons); the same goes for ROMs → 7z, which takes files of any extension. If the current tab received nothing, the app switches to the tab that did. Files dropped on the executable itself (or opened with "Open with") are added the same way.
 
 In the conversion tabs, the list has the columns **Platform** (detected from the disc contents), **Details** and **Status**: when you convert, each row shows "Queued", "Converting 43%", "Verifying 80%" and, at the end, the size of the result, how much smaller it is and how long it took, or why it failed ("⏭ already exists", "✗ …", "■ cancelled").
 
@@ -123,6 +123,18 @@ In the **ISO → CSO/ZSO** tab, `.iso` images (PSP, PS2 and others with 2048-byt
 - The file is written in version 1 of the format, with 2048-byte blocks; each block is compressed separately (deflate at the highest level or LZ4 HC) and, if it does not shrink, stored uncompressed. Images over 2 GiB use the index shift that the format provides.
 - With **Verify after writing**, the app decompresses the written file and compares its SHA-1 with the original image's; if it does not match, the file is deleted.
 
+### Compress ROMs to 7z
+
+In the **ROMs → 7z** tab, each file becomes its own `.7z`, with the same name: cartridge ROMs (`Game (USA).gbc` → `Game (USA).7z`) or ZIP files, such as arcade sets, which become a 7z with the same files inside, with the same names and dates. It does not need `prod.keys`.
+
+- **Which files:** below the list, the tab shows the extensions of the files you opened, with how many files have each, as checkboxes (`.zip (142)`, `.auto (87)`, `.png (87)`…). Only checked extensions are listed and compressed. RetroArch's files start unchecked (saves and states such as `.auto`, `.srm` and `.state*`, thumbnails such as `.png`, and `.cfg`, `.lpl`, `.cue`, `.m3u`, patches and notes); any other extension starts checked, so a folder of `.gbc` files with their `.auto` and `.png` usually needs no change. Your choices are remembered. Save states are never compressed.
+- **Compression:** LZMA, from the LZMA SDK's encoder (the one inside 7-Zip) ported to Go, at 7-Zip's normal level (5), in one solid stream per archive. Higher levels only enlarge the dictionary beyond the size of a ROM: on an 18 MB file, 7-Zip's highest level was 0.13% smaller than its normal level. The result is practically the size of 7-Zip's (11.48 MB against 11.44 MB on that file; a ZIP at the highest level had 12.35 MB), but the Go encoder is about 1.5 to 3.5 times slower than 7-Zip on one thread, around 1 to 2 MB per second: a few seconds for a typical cartridge ROM or arcade set, but around half a minute for a 32 MB GBA ROM.
+- **ZIP:** files compressed with deflate or stored are read; password-protected ZIPs and other methods are refused with the reason. Each file's CRC is checked against the ZIP's (MAME and FBNeo identify ROMs by it).
+- **Delete the originals after verifying:** removes each original once its 7z is written, read back and compared with it, which always happens with this option, even with **Verify after writing** off. If the check fails, the original stays. On Windows the originals go to the Recycle Bin (on drives without one, such as some USB and network drives, Windows deletes them); on Linux they are deleted.
+- **RetroArch:** save states and thumbnails are named after the game without the extension, so they keep working with the `.7z`. Playlists (`.lpl`) store the file name with its old extension: scan the folder again in RetroArch. FBNeo and MAME read 7z directly; for other cores, RetroArch extracts the game to a temporary folder first.
+- With **Verify after writing**, the app reads the archive back, decompresses every file and compares its size and CRC with what was written.
+- Compatibility checked with 7-Zip 26: `7z t` accepts the archives and `7z x` extracts the original files, including folders inside a ZIP, empty files and non-ASCII names; the app's reader also opens 7-Zip's archives with a plain header.
+
 ## Usage
 
 The steps below are for the **Nintendo Switch** tab; the other tabs work the same way, with their own conversion buttons.
@@ -211,11 +223,13 @@ The options are stored in `gameforge.json`, in the program folder (next to the e
 - `level`: `fast`, `normal` or `max`.
 - `skip_verify`: `true` turns off verification after writing.
 - `apply_update`: `true` applies the update to the base game (emulators only).
-- `tab`: the last tab shown (`switch`, `chd`, `xiso`, `rvz` or `ciso`).
+- `tab`: the last tab shown (`switch`, `chd`, `xiso`, `rvz`, `ciso` or `7z`).
 - `chd_no_m3u`: `true` turns off `.m3u` playlists for games on several discs.
 - `ciso_format`: format of compressed ISOs, `cso` (default) or `zso`.
 - `rvz_chunk_kib`: RVZ block size in KiB (`128`, `512`, `1024` or `2048`; default `128`).
 - `wii_key_path`: the Wii common key file chosen with **Browse…** (the `keys` folder is searched too).
+- `sevenzip_exts`: extensions checked (`true`) or unchecked (`false`) in the ROMs → 7z tab; the others follow the defaults.
+- `sevenzip_delete`: `true` deletes the originals after their 7z is verified.
 - `window`, `maximized`, `columns`, `divider`: window layout on the last run (saved on close; delete them to go back to the defaults).
 
 If the program folder is not writable (for example, installed in `/usr/bin`), the file goes to the user's configuration folder (`~/.config/gameforge/` on Linux, `%AppData%\gameforge\` on Windows). The `keys/` folder is also created automatically if it does not exist.
@@ -271,6 +285,14 @@ DOLPHINTOOL=/path/to/DolphinTool.exe go test ./internal/rvz -run Dolphin -v
 ```
 
 It checks, for GameCube and Wii, that Dolphin returns the original ISO from the app's RVZ and that the app reads the RVZ made by Dolphin.
+
+The 7z writer and reader are tested with byte-for-byte round trips (compressible and random data, an empty file, a folder and a non-ASCII name, a single file, only empty files), a corrupted archive that must fail the check, and the conversion of a synthetic ROM folder and arcade ZIP (which extensions are listed, the files inside, which originals are removed). A compatibility test with 7-Zip runs when the `SEVENZIP` variable points to `7z.exe`:
+
+```bash
+SEVENZIP=/path/to/7z.exe go test ./internal/sevenzip . -run "7Zip|SevenZip" -v
+```
+
+It checks that `7z t` accepts the archives, that `7z x` extracts the original files, and that the app reads an archive made by 7-Zip.
 
 The CSO/ZSO compression is tested with byte-for-byte round trips (compressible data, random data and an incomplete last block), with an index shift with aligned blocks, and with the app's LZ4 decoder checked against the LZ4 library; a written CSO was also read by an independent Python decoder (zlib), which got back the original image.
 

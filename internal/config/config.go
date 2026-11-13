@@ -50,6 +50,12 @@ type Config struct {
 	WiiKeyPath string `json:"wii_key_path,omitempty"`
 	// RvzChunk is the RVZ block size in KiB (0: 128).
 	RvzChunk int `json:"rvz_chunk_kib,omitempty"`
+	// SevenZipExts records the extensions the user checked (true) or
+	// unchecked (false) in the 7z tab; others follow the defaults.
+	SevenZipExts map[string]bool `json:"sevenzip_exts,omitempty"`
+	// SevenZipDelete removes the original files after their 7z archive is
+	// written and verified.
+	SevenZipDelete bool `json:"sevenzip_delete,omitempty"`
 
 	// Window layout of the last run: geometry "WxH+X+Y" of the normal
 	// (not maximized) window, whether it was maximized, the widths of the
@@ -58,7 +64,8 @@ type Config struct {
 	Maximized bool   `json:"maximized,omitempty"`
 	Columns   []int  `json:"columns,omitempty"`
 	Divider   int    `json:"divider,omitempty"`
-	// Tab is the tab shown last: "switch", "chd" or "xiso".
+	// Tab is the tab shown last: "switch" or a converter id ("chd", "xiso",
+	// "rvz", "ciso", "7z").
 	Tab string `json:"tab,omitempty"`
 
 	path string
