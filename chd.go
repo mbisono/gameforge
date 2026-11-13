@@ -84,7 +84,15 @@ var chdConverter = &converter{
 				u.startCheck(p)
 			}
 		}))
-		return []*TButtonWidget{check}
+		rename := parent.TButton(Txt(T("btn.rename")), Command(func() {
+			for _, t := range u.tabs {
+				if t.conv.id == "chd" {
+					t.renameDiscs(u)
+				}
+			}
+		}))
+		setTooltip(rename, T("drename.tip"))
+		return []*TButtonWidget{check, rename}
 	},
 	options: func(u *ui, parent *TFrameWidget) []Widget {
 		v := Variable(tclBool(!u.cfg.ChdNoM3U))

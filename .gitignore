@@ -36,3 +36,4 @@ keys/*
 .vscode/
 .idea/
 .claude/
+redump.cache*

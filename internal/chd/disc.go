@@ -1,8 +1,10 @@
 package chd
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"strconv"
 	"strings"
 )
@@ -87,6 +89,11 @@ func OpenDisc(path string) (*Disc, error) {
 			t.start += pregap
 			t.Frames -= pregap
 		}
+		// On a GD-ROM, empty frames filling the gap up to the
+		// high-density area are not part of the track's file.
+		if pad, err := strconv.Atoi(f["PAD"]); err == nil && pad > 0 && pad <= t.Frames {
+			t.Frames -= pad
+		}
 		d.Tracks = append(d.Tracks, t)
 		chdFrame += (frames + 3) &^ 3
 	}
@@ -153,4 +160,98 @@ func (d *Disc) ReadSector(t, lba int) ([]byte, error) {
 		return nil, fmt.Errorf("chd: sector %d is outside track %d", lba, tr.Number)
 	}
 	return b, d.read(b, int64(tr.start+lba)*FrameSize+int64(skip))
+}
+
+// sectorBytes is the size of a sector of a track type in a BIN file.
+func sectorBytes(typ string) int {
+	switch typ {
+	case "MODE1", "MODE2_FORM1":
+		return 2048
+	case "MODE2", "MODE2_FORM_MIX":
+		return 2336
+	case "MODE2_FORM2":
+		return 2324
+	}
+	return SectorSize // raw data and audio
+}
+
+// track finds a track by number; 0 stands for the whole image, which on a
+// CD is its only track.
+func (d *Disc) track(n int) (int, bool) {
+	if n == 0 && len(d.Tracks) == 1 {
+		return 0, true
+	}
+	for i, t := range d.Tracks {
+		if t.Number == n {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// Size returns the size track n would have as a BIN file (0: the whole
+// image, an ISO for a DVD); ok is false if there is no such track.
+func (d *Disc) Size(n int) (int64, bool) {
+	if d.DVD {
+		return d.r.LogicalBytes, n == 0
+	}
+	i, ok := d.track(n)
+	if !ok {
+		return 0, false
+	}
+	t := d.Tracks[i]
+	return int64(t.Frames) * int64(sectorBytes(t.Type)), true
+}
+
+// CRC computes the CRC-32 of track n as a BIN file (0: the whole image),
+// as disc databases list it. It reads the whole track.
+func (d *Disc) CRC(ctx context.Context, n int, progress func(done, total int64)) (uint32, error) {
+	h := crc32.NewIEEE()
+	if d.DVD {
+		if n != 0 {
+			return 0, errors.New("chd: no such track")
+		}
+		buf := make([]byte, d.r.HunkBytes)
+		for off := int64(0); off < d.r.LogicalBytes; off += int64(len(buf)) {
+			if err := ctx.Err(); err != nil {
+				return 0, err
+			}
+			b := buf[:min(int64(len(buf)), d.r.LogicalBytes-off)]
+			if err := d.read(b, off); err != nil {
+				return 0, err
+			}
+			h.Write(b)
+			if progress != nil {
+				progress(off+int64(len(b)), d.r.LogicalBytes)
+			}
+		}
+		return h.Sum32(), nil
+	}
+	i, ok := d.track(n)
+	if !ok {
+		return 0, errors.New("chd: no such track")
+	}
+	t := d.Tracks[i]
+	size := sectorBytes(t.Type)
+	b := make([]byte, size)
+	for f := 0; f < t.Frames; f++ {
+		if f%256 == 0 {
+			if err := ctx.Err(); err != nil {
+				return 0, err
+			}
+			if progress != nil {
+				progress(int64(f), int64(t.Frames))
+			}
+		}
+		if err := d.read(b, int64(t.start+f)*FrameSize); err != nil {
+			return 0, err
+		}
+		if t.Type == "AUDIO" { // stored big-endian; BIN files are little-endian
+			for k := 0; k+1 < len(b); k += 2 {
+				b[k], b[k+1] = b[k+1], b[k]
+			}
+		}
+		h.Write(b)
+	}
+	return h.Sum32(), nil
 }
