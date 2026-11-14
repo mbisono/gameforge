@@ -8,6 +8,10 @@ Other tabs handle disc images of other consoles: **Discs** (PS1, PS2, Saturn, Se
 
 Current version: **2.7.0** (the 1.x versions were nspmerge, for the Switch only). The **About…** button, next to language and theme, shows the version, what the app does and the libraries it uses.
 
+## Download
+
+Ready-made executables for Windows and Linux (64-bit) are on the [Releases](https://github.com/tschertel/gameforge/releases) page, with the source code of each version. What changed in each version is in [CHANGELOG.md](CHANGELOG.md). To build from source, see [Building](#building).
+
 ## Tabs
 
 The window has one tab per platform or format: **Nintendo Switch**, **Discs**, **Xbox → XISO**, **GameCube/Wii → RVZ**, **ISO → CSO/ZSO** and **ROMs → 7z**. Language, theme, **Verify after writing**, the log, the progress bar and **Cancel** are shared by all of them. The **Output** folder belongs to each tab: opening a folder in a tab (or adding or dropping files) makes that folder the tab's output, so switching between functions needs no new choice; you can still change it by hand, and an empty field writes each result next to its file. Each tab has its own list, with **Open folder…**, **Add files…**, **Clear list** and the button that runs the conversion; nothing is converted just by being added to the list. The last tab shown comes back on the next start.
@@ -322,4 +326,4 @@ Use only with games you own and with keys dumped from your own console. The app 
 
 ## License
 
-[MIT](LICENSE). The libraries used have their own licenses (MIT, BSD, Apache 2.0, ISC and MPL 2.0), all compatible. The Redump databases, downloaded by the app when you rename disc images, are © Redump and libretro, under CC BY-SA 4.0; they are not part of this repository.
+[MIT](LICENSE). The libraries used have their own licenses, reproduced in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt) (MIT, BSD, Apache 2.0, ISC and MPL 2.0), all compatible. The Redump databases, downloaded by the app when you rename disc images, are © Redump and libretro, under CC BY-SA 4.0; they are not part of this repository.

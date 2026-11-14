@@ -8,6 +8,10 @@ Em outras abas, o app também cuida de imagens de disco de outros consoles: **Di
 
 Versão atual: **2.7.0** (as versões 1.x eram o nspmerge, só para o Switch). O botão **Sobre…**, ao lado de idioma e tema, mostra a versão, o que o app faz e as bibliotecas usadas.
 
+## Download
+
+Executáveis prontos para Windows e Linux (64 bits) estão na página de [Releases](https://github.com/tschertel/gameforge/releases), com o código-fonte de cada versão. O que mudou em cada versão está no [CHANGELOG.md](CHANGELOG.md) (em inglês). Para compilar a partir do código, veja [Compilação](#compilação).
+
 ## Abas
 
 A janela tem uma aba por plataforma/formato: **Nintendo Switch**, **Discos**, **Xbox → XISO**, **GameCube/Wii → RVZ**, **ISO → CSO/ZSO** e **ROMs → 7z**. Idioma, tema, **Verificar após gravar**, o log, a barra de progresso e **Cancelar** valem para todas. A pasta de **Saída** é de cada aba: abrir uma pasta numa aba (ou adicionar ou arrastar arquivos) faz dessa pasta a saída da aba, então trocar de função não exige escolher de novo; dá para mudar à mão, e com o campo vazio cada resultado é gravado ao lado do arquivo. Cada aba tem sua própria lista, com **Abrir pasta…**, **Adicionar arquivos…**, **Limpar lista** e o botão que executa a conversão; nada é convertido só por entrar na lista. A aba mostrada por último volta na próxima execução.
@@ -323,4 +327,4 @@ Use apenas com jogos que você comprou e com chaves extraídas do seu próprio c
 
 ## Licença
 
-[MIT](LICENSE). As bibliotecas usadas têm as suas próprias licenças (MIT, BSD, Apache 2.0, ISC e MPL 2.0), todas compatíveis. As bases do Redump, baixadas pelo app quando você renomeia imagens de disco, são © Redump e libretro, sob CC BY-SA 4.0; elas não fazem parte deste repositório.
+[MIT](LICENSE). As bibliotecas usadas têm as suas próprias licenças, reproduzidas em [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt) (MIT, BSD, Apache 2.0, ISC e MPL 2.0), todas compatíveis. As bases do Redump, baixadas pelo app quando você renomeia imagens de disco, são © Redump e libretro, sob CC BY-SA 4.0; elas não fazem parte deste repositório.
