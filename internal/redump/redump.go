@@ -30,6 +30,9 @@ const Source = "github.com/libretro/libretro-database (Redump, CC BY-SA 4.0)"
 
 var baseURL = "https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/redump/"
 
+// Platforms lists the platforms with a database, in display order.
+var Platforms = []string{"PS1", "PS2", "PSP", "Saturn", "Sega CD", "Dreamcast", "GameCube", "Wii"}
+
 // Files names the database of each platform (as discinfo names them).
 var Files = map[string]string{
 	"PS1":       "Sony - PlayStation",

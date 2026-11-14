@@ -29,8 +29,11 @@ type Config struct {
 	// Theme is "light", "dark" or "auto" to follow the system.
 	Theme     string `json:"theme"`
 	KeysPath  string `json:"keys_path"`
-	OutputDir string `json:"output_dir"`
-	LastDir   string `json:"last_dir"`
+	OutputDir string `json:"output_dir"` // older versions: one for all tabs
+	// OutputDirs holds the output folder of each tab ("" = next to each
+	// file); it follows the folder last opened in the tab.
+	OutputDirs map[string]string `json:"output_dirs,omitempty"`
+	LastDir    string            `json:"last_dir"`
 	// Format is "nsz" (compressed, default) or "nsp".
 	Format string `json:"format"`
 	// Level is the NSZ compression level: "fast", "normal" (default) or "max".
@@ -56,6 +59,9 @@ type Config struct {
 	// SevenZipDelete removes the original files after their 7z archive is
 	// written and verified.
 	SevenZipDelete bool `json:"sevenzip_delete,omitempty"`
+	// ShowHidden shows hidden files and folders (names starting with a
+	// dot) in Tk's file dialogs; they are hidden by default.
+	ShowHidden bool `json:"show_hidden,omitempty"`
 
 	// Window layout of the last run: geometry "WxH+X+Y" of the normal
 	// (not maximized) window, whether it was maximized, the widths of the

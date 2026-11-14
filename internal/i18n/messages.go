@@ -953,7 +953,7 @@ var messages = map[string]msg{
 
 	// Tabs and conversions.
 	"tab.switch": {"Nintendo Switch", "Nintendo Switch", "Nintendo Switch", "Nintendo Switch", "Nintendo Switch"},
-	"tab.chd":    {"Discs → CHD", "Discos → CHD", "Discs → CHD", "Disques → CHD", "Discos → CHD"},
+	"tab.chd":    {"Discs", "Discos", "Discs", "Disques", "Discos"},
 	"tab.xiso":   {"Xbox → XISO", "Xbox → XISO", "Xbox → XISO", "Xbox → XISO", "Xbox → XISO"},
 	"tab.xiso.info": {
 		"Xbox and Xbox 360 disc images (.iso, e.g. redump) rebuilt as XISO: only the game partition, without the video partition and the random filler, for xemu, Xenia and modded consoles. The game files are not changed.",
@@ -1112,11 +1112,11 @@ var messages = map[string]msg{
 		"ISO → CSO/ZSO",
 	},
 	"tab.ciso.info": {
-		"ISO images (PSP, PS2…) compressed to CSO or ZSO, which loaders and emulators read directly, block by block. Dropped .iso files go to the CHD tab unless this tab is shown. Does not need prod.keys.",
-		"Imagens ISO (PSP, PS2…) comprimidas para CSO ou ZSO, que loaders e emuladores leem direto, bloco a bloco. Arquivos .iso arrastados vão para a aba CHD, a não ser que esta aba esteja aberta. Não precisa do prod.keys.",
-		"ISO-Abbilder (PSP, PS2…) als CSO oder ZSO komprimiert, die Loader und Emulatoren direkt blockweise lesen. Gezogene .iso-Dateien gehen in den CHD-Tab, außer dieser Tab ist geöffnet. Braucht keine prod.keys.",
-		"Images ISO (PSP, PS2…) compressées en CSO ou ZSO, que les loaders et émulateurs lisent directement, bloc par bloc. Les .iso déposés vont dans l'onglet CHD, sauf si cet onglet est affiché. Le prod.keys n'est pas nécessaire.",
-		"Imágenes ISO (PSP, PS2…) comprimidas a CSO o ZSO, que los loaders y emuladores leen directamente, bloque a bloque. Los .iso arrastrados van a la pestaña CHD, salvo que esta pestaña esté abierta. No necesita prod.keys.",
+		"ISO images (PSP, PS2…) compressed to CSO or ZSO, which loaders and emulators read directly, block by block. Dropped .iso files go to the Discs tab unless this tab is shown. Does not need prod.keys.",
+		"Imagens ISO (PSP, PS2…) comprimidas para CSO ou ZSO, que loaders e emuladores leem direto, bloco a bloco. Arquivos .iso arrastados vão para a aba Discos, a não ser que esta aba esteja aberta. Não precisa do prod.keys.",
+		"ISO-Abbilder (PSP, PS2…) als CSO oder ZSO komprimiert, die Loader und Emulatoren direkt blockweise lesen. Gezogene .iso-Dateien gehen in den Discs-Tab, außer dieser Tab ist geöffnet. Braucht keine prod.keys.",
+		"Images ISO (PSP, PS2…) compressées en CSO ou ZSO, que les loaders et émulateurs lisent directement, bloc par bloc. Les .iso déposés vont dans l'onglet Disques, sauf si cet onglet est affiché. Le prod.keys n'est pas nécessaire.",
+		"Imágenes ISO (PSP, PS2…) comprimidas a CSO o ZSO, que los loaders y emuladores leen directamente, bloque a bloque. Los .iso arrastrados van a la pestaña Discos, salvo que esta pestaña esté abierta. No necesita prod.keys.",
 	},
 	"btn.ciso": {"Convert", "Converter", "Umwandeln", "Convertir", "Convertir"},
 	"btn.ciso.tip": {
@@ -1546,5 +1546,51 @@ var messages = map[string]msg{
 		"✗ Redump-Datenbank konnte nicht gelesen werden: %v",
 		"✗ Impossible de lire la base Redump : %v",
 		"✗ No se pudo leer la base de Redump: %v",
+	},
+
+	// Redump database menu of the Discs tab.
+	"redump.menu": {"Names database", "Base de nomes", "Namensdatenbank", "Base de noms", "Base de nombres"},
+	"redump.menu.tip": {
+		"The Redump databases (from github.com/libretro/libretro-database, CC BY-SA 4.0) give \"Rename…\" the usual names of disc backups, found by the game's code. They are kept on this computer and downloaded only when you ask, or when you rename discs of a console that is not there yet.",
+		"As bases do Redump (de github.com/libretro/libretro-database, CC BY-SA 4.0) dão ao \"Renomear…\" os nomes mais usados em backups de disco, achados pelo código do jogo. Ficam guardadas no computador e só são baixadas quando você pede, ou quando renomeia discos de um console que ainda não está nelas.",
+		"Die Redump-Datenbanken (von github.com/libretro/libretro-database, CC BY-SA 4.0) geben \"Umbenennen…\" die üblichen Namen von Disc-Backups, gefunden über den Spielcode. Sie bleiben auf diesem Computer und werden nur auf Wunsch geladen, oder beim Umbenennen von Discs einer Konsole, die noch fehlt.",
+		"Les bases Redump (de github.com/libretro/libretro-database, CC BY-SA 4.0) donnent à « Renommer… » les noms habituels des sauvegardes de disques, trouvés par le code du jeu. Elles restent sur cet ordinateur et ne sont téléchargées qu'à votre demande, ou en renommant des disques d'une console qui n'y est pas encore.",
+		"Las bases de Redump (de github.com/libretro/libretro-database, CC BY-SA 4.0) dan a \"Renombrar…\" los nombres habituales de las copias de discos, encontrados por el código del juego. Se guardan en este equipo y solo se descargan cuando lo pides, o al renombrar discos de una consola que aún no está.",
+	},
+	"redump.update": {
+		"Update names database (all consoles, about 12 MB)",
+		"Atualizar base de nomes (todos os consoles, uns 12 MB)",
+		"Namensdatenbank aktualisieren (alle Konsolen, etwa 12 MB)",
+		"Mettre à jour la base de noms (toutes les consoles, environ 12 Mo)",
+		"Actualizar base de nombres (todas las consolas, unos 12 MB)",
+	},
+	"redump.all": {"all consoles", "todos os consoles", "alle Konsolen", "toutes les consoles", "todas las consolas"},
+	"redump.status_none": {
+		"names database not downloaded yet",
+		"base de nomes ainda não baixada",
+		"Namensdatenbank noch nicht geladen",
+		"base de noms pas encore téléchargée",
+		"base de nombres aún no descargada",
+	},
+	"redump.status": {
+		"names: %s, data of %s",
+		"nomes: %s, dados de %s",
+		"Namen: %s, Stand %s",
+		"noms : %s, données du %s",
+		"nombres: %s, datos de %s",
+	},
+	"redump.status_old": {
+		"names: %s, data of %s (downloaded %d days ago: update it)",
+		"nomes: %s, dados de %s (baixada há %d dias: atualize)",
+		"Namen: %s, Stand %s (vor %d Tagen geladen: bitte aktualisieren)",
+		"noms : %s, données du %s (téléchargée il y a %d jours : mettez-la à jour)",
+		"nombres: %s, datos de %s (descargada hace %d días: actualízala)",
+	},
+	"redump.status_error": {
+		"names database unreadable (see the log)",
+		"base de nomes ilegível (veja o log)",
+		"Namensdatenbank nicht lesbar (siehe Protokoll)",
+		"base de noms illisible (voir le journal)",
+		"base de nombres ilegible (mira el registro)",
 	},
 }

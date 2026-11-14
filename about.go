@@ -14,8 +14,11 @@ import (
 // log easier to read (file names only, a blank line between files) and
 // added the conversion time to the file status, 2.4.0 added the 7z tab,
 // 2.5.0 shows what disc images and CHDs say about their games, 2.6.0
-// renames disc images with their Redump names.
-const appVersion = "2.6.0"
+// renames disc images with their Redump names, 2.7.0 shows the icons of
+// PSP games, has a menu to update the Redump database, calls the CHD tab
+// "Discs", hides hidden files in Tk's file dialogs, evens out the tabs of
+// the clam theme and keeps one output folder per tab.
+const appVersion = "2.7.0"
 
 // showAbout shows the version, what the app does and what it builds on.
 func (u *ui) showAbout() {

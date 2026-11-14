@@ -208,7 +208,11 @@ func applyTheme(dark bool) {
 	tcl("ttk::style", "theme", "use", theme)
 	if !dark {
 		// Roomier tabs than the system default; the dark theme sets its own.
+		// Some themes (clam, Tk's default on many Linux desktops) give the
+		// selected tab a padding of its own, which would override this one
+		// and make that tab narrower, with its text lower.
 		tcl("ttk::style", "configure", "TNotebook.Tab", "-padding", "14 6")
+		tcl("ttk::style", "map", "TNotebook.Tab", "-padding", "selected {14 6}")
 	}
 	tcl(".", "configure", "-background", root)
 	for pattern, value := range options {

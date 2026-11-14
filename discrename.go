@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	. "modernc.org/tk9.0"
 
@@ -21,11 +22,17 @@ import (
 	"gameforge/internal/redump"
 )
 
-// discDB is the local copy of the Redump databases, loaded on first use.
+// discDB is the local copy of the Redump databases, loaded on first use,
+// and the label of the Discs tab that shows its state.
 var discDB struct {
 	db     *redump.DB
+	err    error
 	loaded bool
+	status *TLabelWidget
 }
+
+// A Redump database older than this gets a hint to update it.
+const redumpMaxAge = 30 * 24 * time.Hour
 
 func (u *ui) redumpPath() string {
 	return filepath.Join(filepath.Dir(u.cfg.Path()), redump.FileName)
@@ -37,19 +44,65 @@ func (u *ui) redumpDB() *redump.DB {
 		db, err := redump.Load(u.redumpPath())
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			u.logf("redump.load_error", err)
+			discDB.err = err
 		}
 		discDB.db = db
 	}
 	return discDB.db
 }
 
-// discRename is a disc image of the CHD tab and its new path.
+// showRedumpStatus shows which consoles the Redump database has and how
+// current it is, next to its menu in the Discs tab.
+func (u *ui) showRedumpStatus() {
+	if discDB.status == nil {
+		return
+	}
+	db := u.redumpDB()
+	var have []string
+	newest := ""
+	if db != nil {
+		for _, p := range redump.Platforms {
+			if l := db.Lists[p]; l != nil {
+				have = append(have, p)
+				newest = max(newest, strings.ReplaceAll(l.Version, ".", "-"))
+			}
+		}
+	}
+	consoles := strings.Join(have, ", ")
+	if len(have) == len(redump.Platforms) {
+		consoles = T("redump.all")
+	}
+	var text string
+	switch {
+	case len(have) > 0 && time.Since(db.Downloaded) > redumpMaxAge:
+		text = T("redump.status_old", consoles, newest, int(time.Since(db.Downloaded).Hours()/24))
+	case len(have) > 0:
+		text = T("redump.status", consoles, newest)
+	case discDB.err != nil:
+		text = T("redump.status_error")
+	default:
+		text = T("redump.status_none")
+	}
+	discDB.status.Configure(Txt(text))
+}
+
+// updateRedump downloads (or checks for changes) the Redump databases of
+// all consoles.
+func (u *ui) updateRedump() {
+	if u.busy {
+		return
+	}
+	u.separate()
+	u.downloadRedump(redump.Platforms, func() {})
+}
+
+// discRename is a disc image of the Discs tab and its new path.
 type discRename struct {
 	item *convItem
 	to   string
 }
 
-// renameDiscs gives the CHD and ISO files of the CHD tab their Redump
+// renameDiscs gives the CHD and ISO files of the Discs tab their Redump
 // names, downloading the databases of their platforms first if the user
 // agrees, and showing the changes before renaming.
 func (t *convTab) renameDiscs(u *ui) {
@@ -123,8 +176,9 @@ func (u *ui) downloadRedump(platforms []string, then func()) {
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
 			if err == nil {
-				discDB.db = db
+				discDB.db, discDB.err = db, nil
 			}
+			u.showRedumpStatus()
 			if cancelled {
 				u.logf("log.cancelled")
 				u.flush()

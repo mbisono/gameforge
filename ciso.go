@@ -27,7 +27,7 @@ var cisoConverter = &converter{
 	tip:    "btn.ciso.tip",
 	exts:   []string{".iso"},
 	accept: func(path string) bool { return !xiso.IsXbox(path) && !isNintendoDisc(path) },
-	// Dropped ISO images go to the CHD tab, unless this tab is shown.
+	// Dropped ISO images go to the Discs tab, unless this tab is shown.
 	drop:  func(string) bool { return false },
 	types: []FileType{{TypeName: "ISO", Extensions: []string{".iso"}}},
 	describe: func(it *convItem) {

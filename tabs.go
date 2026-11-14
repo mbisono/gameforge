@@ -30,7 +30,7 @@ type converter struct {
 	// unused). refilter lists them again after the choice changes.
 	anyExt bool
 	// drop, if set, limits the files dropped on the window that go to this
-	// tab when it is not shown (e.g. .iso goes to the CHD tab by default).
+	// tab when it is not shown (e.g. .iso goes to the Discs tab by default).
 	drop  func(string) bool
 	types []FileType // for the file dialog
 	// describe fills in what a file is (ok, platform, detail), or why it
@@ -44,7 +44,7 @@ type converter struct {
 		progress func(verifying bool, done, total int64)) (inSize, outSize int64, err error)
 	// Optional: buttons for the action row, options below the list, entries
 	// of the right-click menu of an item, and work after a batch.
-	extra   func(u *ui, parent *TFrameWidget) []*TButtonWidget
+	extra   func(u *ui, parent *TFrameWidget) []Widget
 	options func(u *ui, parent *TFrameWidget) []Widget
 	menu    func(u *ui, t *convTab, it *convItem) []menuEntry
 	after   func(u *ui, done []converted)
@@ -72,7 +72,8 @@ type convItem struct {
 	kind     string // what describe resolved, e.g. "cd" or "dvd"
 	size     int64  // input size including the files a sheet refers to; 0 = the file's size
 	ok       bool
-	infoOnly bool // listed for what it is, not to convert (e.g. a CHD)
+	infoOnly bool   // listed for what it is, not to convert (e.g. a CHD)
+	icon     []byte // PNG shown next to the check box (PSP games)
 	platform string
 	detail   fmt.Stringer
 	status   fmt.Stringer
@@ -91,8 +92,8 @@ type convTab struct {
 	tree    *TTreeviewWidget
 	summary *TLabelWidget
 	runBtn  *TButtonWidget
-	buttons []*TButtonWidget
-	widgets []Widget // options, disabled while busy
+	buttons []interface{ Configure(...Opt) *Window } // disabled while busy
+	widgets []Widget                                 // options, disabled while busy
 }
 
 func newConvTabs() []*convTab {
@@ -210,11 +211,13 @@ func (t *convTab) build(u *ui, tab *TFrameWidget) *TFrameWidget {
 	Grid(actions, Row(0), Column(0), Sticky("w"))
 	openDir := actions.TButton(Txt(T("btn.open_folder")), Command(func() {
 		if p := u.openFolder(); p != "" {
+			u.followInput(t.conv.id, []string{p})
 			t.addAndShow(u, []string{p})
 		}
 	}))
 	addFile := actions.TButton(Txt(T("btn.add_nsp")), Command(func() {
 		if ps := u.openFiles(t.conv.types); len(ps) > 0 {
+			u.followInput(t.conv.id, ps)
 			t.addAndShow(u, ps)
 		}
 	}))
@@ -224,13 +227,18 @@ func (t *convTab) build(u *ui, tab *TFrameWidget) *TFrameWidget {
 	}))
 	all := actions.TButton(Txt(T("btn.select_all")), Command(func() { t.checkAll(u, true) }))
 	none := actions.TButton(Txt(T("btn.select_none")), Command(func() { t.checkAll(u, false) }))
-	t.buttons = []*TButtonWidget{openDir, addFile, clearBtn, all, none}
+	t.buttons = []interface{ Configure(...Opt) *Window }{openDir, addFile, clearBtn, all, none}
 	row := []Widget{openDir, addFile, clearBtn, actions.TSeparator(Orient("vertical")), all, none}
 	if t.conv.extra != nil {
 		row = append(row, actions.TSeparator(Orient("vertical")))
-		for _, b := range t.conv.extra(u, actions) {
-			row = append(row, b)
-			t.buttons = append(t.buttons, b)
+		for _, w := range t.conv.extra(u, actions) {
+			row = append(row, w)
+			switch b := w.(type) {
+			case *TButtonWidget:
+				t.buttons = append(t.buttons, b)
+			case *TMenubuttonWidget:
+				t.buttons = append(t.buttons, b)
+			}
 		}
 	}
 	gridRow(row...)
@@ -282,7 +290,10 @@ func (t *convTab) buildTree(u *ui, parent *TFrameWidget) *TTreeviewWidget {
 	tv.Column("status", Width(200), Stretch(true))
 	tv.TagConfigure("unknown", Foreground("gray50"))
 	Bind(tv, "<ButtonRelease-1>", Command(func(e *Event) {
-		if strings.HasSuffix(tv.IdentifyElement(e.X, e.Y), "image") {
+		// Only a click on the check box toggles, not one on an icon drawn
+		// right of it in the same image (as in the Switch list).
+		isImage := func(x int) bool { return strings.HasSuffix(tv.IdentifyElement(x, e.Y), "image") }
+		if isImage(e.X) && !isImage(e.X-checkBoxImage(0).Bounds().Dx()) {
 			t.toggle(u, tv.IdentifyItem(e.X, e.Y))
 		}
 	}))
@@ -373,15 +384,32 @@ func (t *convTab) refresh(u *ui) {
 	for i, it := range t.items {
 		it.id = fmt.Sprintf("c%d", i)
 		values := Values(tclList([]string{it.platform, stringOf(it.detail), stringOf(it.status)}))
-		if it.infoOnly {
+		state := map[bool]int{true: 1, false: 0}[t.checked[it.path]]
+		switch {
+		case it.infoOnly:
+			state = -2
+		case !it.ok:
+			state = -1
+		}
+		mark, hasIcon := discMark(it.icon, state, it.path)
+		switch {
+		case it.infoOnly && hasIcon:
+			t.tree.Insert("", "end", Id(it.id), mark, Txt(filepath.Base(it.path)), values)
+			continue
+		case it.infoOnly:
 			t.tree.Insert("", "end", Id(it.id), Txt(filepath.Base(it.path)), values)
 			continue
+		case !hasIcon:
+			mark = checkMark(t.checked[it.path])
+			if !it.ok {
+				mark = Image(checkImage(-1))
+			}
 		}
 		if !it.ok {
-			t.tree.Insert("", "end", Id(it.id), Image(checkImage(-1)), Txt(filepath.Base(it.path)), values, Tags("unknown"))
+			t.tree.Insert("", "end", Id(it.id), mark, Txt(filepath.Base(it.path)), values, Tags("unknown"))
 			continue
 		}
-		t.tree.Insert("", "end", Id(it.id), checkMark(t.checked[it.path]), Txt(filepath.Base(it.path)), values)
+		t.tree.Insert("", "end", Id(it.id), mark, Txt(filepath.Base(it.path)), values)
 		if t.checked[it.path] {
 			if it.size > 0 {
 				size += it.size
@@ -599,11 +627,13 @@ func (u *ui) dropPaths(paths []string) {
 	}
 	var got []string
 	if hasGame {
+		u.followInput("switch", paths)
 		u.addPaths(paths, hasDir)
 		got = append(got, "switch")
 	}
 	for _, t := range u.tabs {
 		if len(perTab[t]) > 0 && t.add(u, perTab[t]) > 0 {
+			u.followInput(t.conv.id, paths)
 			t.refresh(u)
 			got = append(got, t.conv.id)
 		}

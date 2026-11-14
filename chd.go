@@ -78,7 +78,7 @@ var chdConverter = &converter{
 		}
 		return res.InputSize, res.OutputSize, nil
 	},
-	extra: func(u *ui, parent *TFrameWidget) []*TButtonWidget {
+	extra: func(u *ui, parent *TFrameWidget) []Widget {
 		check := parent.TButton(Txt(T("btn.check_chd")), Command(func() {
 			if p := u.openFile([]FileType{{TypeName: "CHD", Extensions: []string{".chd"}}}, "", true); p != "" {
 				u.startCheck(p)
@@ -92,7 +92,15 @@ var chdConverter = &converter{
 			}
 		}))
 		setTooltip(rename, T("drename.tip"))
-		return []*TButtonWidget{check, rename}
+		dbBtn := parent.TMenubutton(Txt(T("redump.menu")))
+		menu := dbBtn.Menu(Tearoff(false))
+		menu.AddCommand(Lbl(T("redump.update")), Command(u.updateRedump))
+		dbBtn.Configure(Mnu(menu))
+		discDB.status = parent.TLabel()
+		setTooltip(dbBtn, T("redump.menu.tip"))
+		setTooltip(discDB.status, T("redump.menu.tip"))
+		u.showRedumpStatus()
+		return []Widget{check, rename, parent.TSeparator(Orient("vertical")), dbBtn, discDB.status}
 	},
 	options: func(u *ui, parent *TFrameWidget) []Widget {
 		v := Variable(tclBool(!u.cfg.ChdNoM3U))
@@ -220,7 +228,7 @@ func describeCHD(it *convItem) {
 	}
 	d.Close()
 	info, _ := discinfo.InfoFromCHD(it.path)
-	it.platform = info.Platform
+	it.platform, it.icon = info.Platform, info.Icon
 	size := humanSize(st.Size())
 	it.detail = withGame(info, lazyLine(func() string { return T("chd.row_chd", stringOf(kind), size) }))
 }
@@ -281,6 +289,7 @@ func describeDisc(it *convItem) {
 	}
 	size, kind, chosen := humanSize(st.Size()), strings.ToUpper(it.kind), it.mode != ""
 	info, _ := discinfo.InfoFromISO(it.path)
+	it.icon = info.Icon
 	it.detail = withGame(info, lazyLine(func() string {
 		how := T("chd.auto")
 		if chosen {
@@ -304,7 +313,9 @@ func (u *ui) openFiles(types []FileType) []string {
 		tcl("auto_load", cmd)
 		patchDialogs()
 	}
+	u.prepareDialog()
 	list := tcl(append([]string{cmd}, opts...)...)
+	u.rememberHidden()
 	n, _ := strconv.Atoi(tcl("llength", list))
 	var paths []string
 	for i := range n {

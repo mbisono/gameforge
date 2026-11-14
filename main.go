@@ -56,6 +56,7 @@ type ui struct {
 	applyUpdate *TCheckbuttonWidget
 	applyRow    *TFrameWidget // applyUpdate with its info icon
 	outEntry    *TEntryWidget
+	outTab      string // the tab whose output folder outEntry shows
 	tree        *TTreeviewWidget
 	panes       *TPanedwindowWidget
 	summary     *TLabelWidget
@@ -161,6 +162,18 @@ func setTkLanguage() {
 	tcl("::msgcat::mclocale", i18n.Current())
 	// Tk loaded its catalog for the previous locale at startup.
 	eval.Eval(`namespace eval ::tk {::msgcat::mcload [file join $::tk_library msgs]}`)
+	// The "show hidden" box of the dialogs, which Tk translates only into
+	// German among the app's languages.
+	eval.Eval(`namespace eval ::tk {
+	foreach {lang files dirs} {
+		pt "Mostrar arquivos e pastas &ocultos" "Mostrar pastas &ocultas"
+		fr "Afficher les fichiers et dossiers &cachés" "Afficher les dossiers &cachés"
+		es "Mostrar archivos y carpetas &ocultos" "Mostrar carpetas &ocultas"
+	} {
+		::msgcat::mcset $lang "Show &Hidden Files and Directories" $files
+		::msgcat::mcset $lang "Show &Hidden Directories" $dirs
+	}
+}`)
 }
 
 // patchDialogs improves Tk's own file and folder dialogs. Loading a dialog
@@ -305,6 +318,7 @@ func (u *ui) build() {
 			if id == cur && name != u.cfg.Tab {
 				u.cfg.Tab = name
 				u.saveConfig()
+				u.showOutputDir()
 			}
 		}
 	}))
@@ -314,11 +328,11 @@ func (u *ui) build() {
 	Grid(opts, Row(2), Column(0), edges)
 	GridColumnConfigure(opts.Window, 1, Weight(1))
 	Grid(opts.TLabel(Txt(T("form.output"))), Row(0), Column(0), pad)
-	u.outEntry = opts.TEntry(Textvariable(u.cfg.OutputDir))
+	u.outEntry = opts.TEntry()
+	u.showOutputDir()
 	saveOut := func() {
-		if s := strings.TrimSpace(u.outEntry.Textvariable()); s != u.cfg.OutputDir {
-			u.cfg.OutputDir = s
-			u.saveConfig()
+		if s := strings.TrimSpace(u.outEntry.Textvariable()); s != u.outputDir(u.outTab) {
+			u.setOutputDir(u.outTab, s, false)
 		}
 	}
 	Bind(u.outEntry, "<KeyRelease>", Command(saveOut))
@@ -326,8 +340,7 @@ func (u *ui) build() {
 	Grid(u.outEntry, Row(0), Column(1), edges, pad)
 	outBtn := opts.TButton(Txt(T("btn.browse")), Command(func() {
 		if p := u.openFolder(); p != "" {
-			u.outEntry.Configure(Textvariable(p))
-			saveOut()
+			u.setOutputDir(u.outTab, p, true)
 		}
 	}))
 	Grid(outBtn, Row(0), Column(2), pad)
@@ -413,12 +426,14 @@ func (u *ui) buildSwitchTab(tab *TFrameWidget) *TFrameWidget {
 	Grid(actions, Row(2), Column(0), Sticky("w"))
 	openDir := actions.TButton(Txt(T("btn.open_folder")), Command(func() {
 		if p := u.openFolder(); p != "" {
+			u.followInput("switch", []string{p})
 			u.addPaths([]string{p}, true)
 		}
 	}))
 	addFile := actions.TButton(Txt(T("btn.add_nsp")), Command(func() {
 		types := []FileType{{TypeName: "Nintendo Switch NSP/NSZ/XCI", Extensions: gameExts}}
 		if ps := u.openFiles(types); len(ps) > 0 {
+			u.followInput("switch", ps)
 			u.addPaths(ps, false)
 		}
 	}))
@@ -979,7 +994,9 @@ func (u *ui) openFile(types []FileType, startDir string, remember bool) string {
 		tcl("auto_load", cmd)
 		patchDialogs()
 	}
+	u.prepareDialog()
 	p := filepath.FromSlash(tcl(append([]string{cmd}, opts...)...))
+	u.rememberHidden()
 	if p != "" && remember {
 		u.cfg.LastDir = filepath.Dir(p)
 		u.saveConfig()
@@ -999,12 +1016,111 @@ func (u *ui) openFolder() string {
 		tcl("auto_load", cmd)
 		patchDialogs()
 	}
+	u.prepareDialog()
 	p := filepath.FromSlash(tcl(append([]string{cmd}, opts...)...))
+	u.rememberHidden()
 	if p != "" {
 		u.cfg.LastDir = p
 		u.saveConfig()
 	}
 	return p
+}
+
+// outputDir returns the output folder of a tab ("switch" or a converter
+// id); "" writes each result next to its file. Tabs without one of their
+// own use the folder of older versions, which had one for all tabs.
+func (u *ui) outputDir(tab string) string {
+	if d, ok := u.cfg.OutputDirs[tab]; ok {
+		return d
+	}
+	return u.cfg.OutputDir
+}
+
+// setOutputDir sets the output folder of a tab and, with show, puts it in
+// the field when that tab is shown.
+func (u *ui) setOutputDir(tab, dir string, show bool) {
+	if u.cfg.OutputDirs == nil {
+		u.cfg.OutputDirs = map[string]string{}
+	}
+	u.cfg.OutputDirs[tab] = dir
+	u.saveConfig()
+	if show && tab == u.cfg.Tab {
+		u.showOutputDir()
+	}
+}
+
+// showOutputDir puts the output folder of the shown tab in the field.
+func (u *ui) showOutputDir() {
+	if u.outEntry == nil {
+		return
+	}
+	u.outTab = u.cfg.Tab
+	u.outEntry.Configure(Textvariable(u.outputDir(u.outTab)))
+}
+
+// followInput makes the output folder of a tab the folder just opened in
+// it, or the folder of the first file added or dropped.
+func (u *ui) followInput(tab string, paths []string) {
+	if len(paths) == 0 {
+		return
+	}
+	dir := paths[0]
+	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
+		dir = filepath.Dir(dir)
+	}
+	u.setOutputDir(tab, dir, true)
+}
+
+// prepareDialog makes Tk's own file and folder dialogs (used on Linux,
+// and on Windows when the app's language is not the system's) hide hidden
+// files and folders, whose names start with a dot, unless the user showed
+// them last time; the dialogs get a check box to show them. The Windows
+// dialogs follow Explorer's setting instead.
+func (u *ui) prepareDialog() {
+	// The dialog's code sets both variables when it is loaded.
+	tcl("auto_load", "::tk::dialog::file::")
+	// Tk leaves out names starting with a dot only on Unix, where glob
+	// skips them; on Windows it lists them, and files with the hidden
+	// attribute too. Filter its listing the same way everywhere.
+	eval.Eval(hiddenFilterTcl)
+	tcl("set", "::tk::dialog::file::showHiddenBtn", "1")
+	tcl("set", "::tk::dialog::file::showHiddenVar", tclBool(u.cfg.ShowHidden))
+}
+
+// hiddenFilterTcl wraps the listing of Tk's file dialog: unless hidden
+// files are shown, it drops names starting with a dot and, on Windows,
+// files and folders with the hidden attribute.
+const hiddenFilterTcl = `
+if {[info procs ::tk::dialog::file::GlobFiltered] eq ""} {auto_load ::tk::dialog::file::GlobFiltered}
+if {![string match *gameforge-hidden* [info body ::tk::dialog::file::GlobFiltered]]} {
+	catch {rename ::tk::dialog::file::GlobFilteredTk {}}
+	rename ::tk::dialog::file::GlobFiltered ::tk::dialog::file::GlobFilteredTk
+	proc ::tk::dialog::file::GlobFiltered {dir type {overrideFilter 0}} {
+		# gameforge-hidden
+		variable showHiddenVar
+		upvar 1 data data ;# Tk's version reads its caller's data(filter)
+		set result [GlobFilteredTk $dir $type $overrideFilter]
+		if {$showHiddenVar} {
+			return $result
+		}
+		set windows [expr {$::tcl_platform(platform) eq "windows"}]
+		set out {}
+		foreach f $result {
+			if {[string index $f 0] eq "."} continue
+			if {$windows && ![catch {file attributes [file join $dir $f] -hidden} hidden] && $hidden} continue
+			lappend out $f
+		}
+		return $out
+	}
+}
+`
+
+// rememberHidden keeps the state of the dialog's "show hidden" box.
+func (u *ui) rememberHidden() {
+	if v := tcl("set", "::tk::dialog::file::showHiddenVar") == "1"; v != u.cfg.ShowHidden {
+		u.cfg.ShowHidden = v
+		u.saveConfig()
+	}
 }
 
 // fileTypes formats a -filetypes list, with "all files" at the end.
