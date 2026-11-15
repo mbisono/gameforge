@@ -386,7 +386,11 @@ func (t *convTab) applyRenames(u *ui, plan []discRename) {
 			lines = append(lines, T("rename.more", len(plan)-i))
 			break
 		}
-		lines = append(lines, filepath.Base(r.item.path)+"\n   → "+filepath.Base(r.to))
+		line := filepath.Base(r.item.path) + "\n   → " + filepath.Base(r.to)
+		if n := len(companions(r.item.path)); n > 0 {
+			line += "\n   " + T("drename.companions", n)
+		}
+		lines = append(lines, line)
 	}
 	answer := MessageBox(Parent(App), Icon("question"), Type("yesno"), Title(T("app.title")),
 		Msg(T("rename.confirm", len(plan))), Detail(strings.Join(lines, "\n")))
@@ -402,6 +406,15 @@ func (t *convTab) applyRenames(u *ui, plan []discRename) {
 			continue
 		}
 		u.logf("log.renamed", filepath.Base(from), filepath.Base(r.to))
+		// The RetroArch files named after the game follow it.
+		for _, c := range companions(from) {
+			to := companionName(c, from, r.to)
+			if err := renameFile(c, to); err != nil {
+				u.logf("drename.companion_error", filepath.Base(c), err)
+				continue
+			}
+			u.logf("drename.companion", filepath.Base(c), filepath.Base(to))
+		}
 		renamed[from] = r.to
 		r.item.path = r.to
 		if v, ok := t.checked[from]; ok {
@@ -416,6 +429,47 @@ func (t *convTab) applyRenames(u *ui, plan []discRename) {
 	u.logf("log.rename_done", done, len(plan))
 	u.flush()
 	t.refresh(u)
+}
+
+// companionExts are the extensions of the files RetroArch names after a
+// game: saves, save states (.state, .state1… and .state.auto), thumbnails,
+// and per-game cheats, core options and remaps.
+var companionExts = map[string]bool{
+	".auto": true, ".state": true, ".srm": true, ".sav": true, ".rtc": true, ".mcr": true, ".ldci": true,
+	".png": true, ".jpg": true, ".jpeg": true, ".bmp": true,
+	".cht": true, ".opt": true, ".rmp": true, ".cfg": true,
+}
+
+// companions lists the files next to a game that RetroArch named after
+// it: the game's name without its extension, a dot, and a save, state,
+// thumbnail or setting extension ("Game.state.auto", "Game.png"). The file
+// is renamed or removed without them, so they are looked up before.
+func companions(game string) []string {
+	dir, name := filepath.Dir(game), filepath.Base(game)
+	prefix := strings.TrimSuffix(name, filepath.Ext(name)) + "."
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range entries {
+		n := e.Name()
+		if e.IsDir() || strings.EqualFold(n, name) || len(n) <= len(prefix) || !strings.EqualFold(n[:len(prefix)], prefix) {
+			continue
+		}
+		if companionExts[extOf(n)] {
+			out = append(out, filepath.Join(dir, n))
+		}
+	}
+	return out
+}
+
+// companionName is the new path of a companion file of a game renamed
+// from game to to: the new name with the same suffix.
+func companionName(companion, game, to string) string {
+	oldBase := strings.TrimSuffix(filepath.Base(game), filepath.Ext(game))
+	newBase := strings.TrimSuffix(filepath.Base(to), filepath.Ext(to))
+	return filepath.Join(filepath.Dir(to), newBase+filepath.Base(companion)[len(oldBase):])
 }
 
 // updatePlaylists replaces the old names of renamed files in the .m3u

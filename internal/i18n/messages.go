@@ -1227,11 +1227,11 @@ var messages = map[string]msg{
 	"btn.about":   {"About…", "Sobre…", "Über…", "À propos…", "Acerca de…"},
 	"about.title": {"About GameForge", "Sobre o GameForge", "Über GameForge", "À propos de GameForge", "Acerca de GameForge"},
 	"about.text": {
-		"Backups of games you own:\n• Nintendo Switch: merges base game, update and DLCs into one NSP/NSZ, compresses to NSZ, checks backups and looks for updates online.\n• Discs: CD/DVD/GD-ROM → CHD, Xbox → XISO, GameCube/Wii → RVZ, ISO → CSO/ZSO.\n\nThe app contains no keys and no games: prod.keys and the Wii common key are your own.\n\nWritten in Go, without external programs. Tk (modernc.org/tk9.0), compression: klauspost/compress, ulikunitz/xz, pierrec/lz4. CHD as MAME's chdman, RVZ as Dolphin (padding generator from Dolphin, CC0).\n\n%s, %s",
-		"Backup de jogos que você possui:\n• Nintendo Switch: junta jogo base, atualização e DLCs num único NSP/NSZ, comprime em NSZ, verifica backups e procura atualizações online.\n• Discos: CD/DVD/GD-ROM → CHD, Xbox → XISO, GameCube/Wii → RVZ, ISO → CSO/ZSO.\n\nO app não contém chaves nem jogos: o prod.keys e a chave comum do Wii são seus.\n\nEscrito em Go, sem programas externos. Tk (modernc.org/tk9.0), compressão: klauspost/compress, ulikunitz/xz, pierrec/lz4. CHD como o chdman do MAME, RVZ como o Dolphin (gerador de preenchimento do Dolphin, CC0).\n\n%s, %s",
-		"Sicherungen eigener Spiele:\n• Nintendo Switch: führt Basisspiel, Update und DLCs zu einer NSP/NSZ zusammen, komprimiert zu NSZ, prüft Sicherungen und sucht online nach Updates.\n• Discs: CD/DVD/GD-ROM → CHD, Xbox → XISO, GameCube/Wii → RVZ, ISO → CSO/ZSO.\n\nDie App enthält keine Schlüssel und keine Spiele: prod.keys und der Wii Common Key sind deine eigenen.\n\nIn Go geschrieben, ohne externe Programme. Tk (modernc.org/tk9.0), Kompression: klauspost/compress, ulikunitz/xz, pierrec/lz4. CHD wie chdman von MAME, RVZ wie Dolphin (Füllgenerator aus Dolphin, CC0).\n\n%s, %s",
-		"Sauvegardes de jeux que vous possédez :\n• Nintendo Switch : fusionne jeu de base, mise à jour et DLC en un seul NSP/NSZ, compresse en NSZ, vérifie les sauvegardes et cherche les mises à jour en ligne.\n• Disques : CD/DVD/GD-ROM → CHD, Xbox → XISO, GameCube/Wii → RVZ, ISO → CSO/ZSO.\n\nL'application ne contient ni clés ni jeux : le prod.keys et la clé commune Wii sont les vôtres.\n\nÉcrit en Go, sans programmes externes. Tk (modernc.org/tk9.0), compression : klauspost/compress, ulikunitz/xz, pierrec/lz4. CHD comme chdman de MAME, RVZ comme Dolphin (générateur de remplissage de Dolphin, CC0).\n\n%s, %s",
-		"Copias de seguridad de juegos que posees:\n• Nintendo Switch: une juego base, actualización y DLC en un solo NSP/NSZ, comprime a NSZ, verifica copias y busca actualizaciones en línea.\n• Discos: CD/DVD/GD-ROM → CHD, Xbox → XISO, GameCube/Wii → RVZ, ISO → CSO/ZSO.\n\nLa aplicación no contiene claves ni juegos: el prod.keys y la clave común de Wii son tuyos.\n\nEscrito en Go, sin programas externos. Tk (modernc.org/tk9.0), compresión: klauspost/compress, ulikunitz/xz, pierrec/lz4. CHD como chdman de MAME, RVZ como Dolphin (generador de relleno de Dolphin, CC0).\n\n%s, %s",
+		"Backups of games you own:\n• Nintendo Switch: merges base game, update and DLCs into one NSP/NSZ, compresses to NSZ, checks backups and looks for updates online.\n• Discs: CD/DVD/GD-ROM → CHD, with game information and Redump names; Xbox → XISO, GameCube/Wii → RVZ, ISO → CSO/ZSO.\n• ROMs → 7z.\n\nThe app contains no keys and no games: prod.keys and the Wii common key are your own.\n\nWritten in Go, without external programs. Tk (modernc.org/tk9.0), compression: klauspost/compress, ulikunitz/xz, pierrec/lz4, itchio/lzma (LZMA SDK). CHD as MAME's chdman, RVZ as Dolphin (padding generator from Dolphin, CC0). Game names from Redump (libretro-database, CC BY-SA 4.0) and titledb.\n\n%s, %s",
+		"Backup de jogos que você possui:\n• Nintendo Switch: junta jogo base, atualização e DLCs num único NSP/NSZ, comprime em NSZ, verifica backups e procura atualizações online.\n• Discos: CD/DVD/GD-ROM → CHD, com informações do jogo e nomes do Redump; Xbox → XISO, GameCube/Wii → RVZ, ISO → CSO/ZSO.\n• ROMs → 7z.\n\nO app não contém chaves nem jogos: o prod.keys e a chave comum do Wii são seus.\n\nEscrito em Go, sem programas externos. Tk (modernc.org/tk9.0), compressão: klauspost/compress, ulikunitz/xz, pierrec/lz4, itchio/lzma (LZMA SDK). CHD como o chdman do MAME, RVZ como o Dolphin (gerador de preenchimento do Dolphin, CC0). Nomes dos jogos do Redump (libretro-database, CC BY-SA 4.0) e do titledb.\n\n%s, %s",
+		"Sicherungen eigener Spiele:\n• Nintendo Switch: führt Basisspiel, Update und DLCs zu einer NSP/NSZ zusammen, komprimiert zu NSZ, prüft Sicherungen und sucht online nach Updates.\n• Discs: CD/DVD/GD-ROM → CHD, mit Spielinformationen und Redump-Namen; Xbox → XISO, GameCube/Wii → RVZ, ISO → CSO/ZSO.\n• ROMs → 7z.\n\nDie App enthält keine Schlüssel und keine Spiele: prod.keys und der Wii Common Key sind deine eigenen.\n\nIn Go geschrieben, ohne externe Programme. Tk (modernc.org/tk9.0), Kompression: klauspost/compress, ulikunitz/xz, pierrec/lz4, itchio/lzma (LZMA SDK). CHD wie chdman von MAME, RVZ wie Dolphin (Füllgenerator aus Dolphin, CC0). Spielnamen von Redump (libretro-database, CC BY-SA 4.0) und titledb.\n\n%s, %s",
+		"Sauvegardes de jeux que vous possédez :\n• Nintendo Switch : fusionne jeu de base, mise à jour et DLC en un seul NSP/NSZ, compresse en NSZ, vérifie les sauvegardes et cherche les mises à jour en ligne.\n• Disques : CD/DVD/GD-ROM → CHD, avec les informations du jeu et les noms Redump ; Xbox → XISO, GameCube/Wii → RVZ, ISO → CSO/ZSO.\n• ROMs → 7z.\n\nL'application ne contient ni clés ni jeux : le prod.keys et la clé commune Wii sont les vôtres.\n\nÉcrit en Go, sans programmes externes. Tk (modernc.org/tk9.0), compression : klauspost/compress, ulikunitz/xz, pierrec/lz4, itchio/lzma (LZMA SDK). CHD comme chdman de MAME, RVZ comme Dolphin (générateur de remplissage de Dolphin, CC0). Noms des jeux de Redump (libretro-database, CC BY-SA 4.0) et titledb.\n\n%s, %s",
+		"Copias de seguridad de juegos que posees:\n• Nintendo Switch: une juego base, actualización y DLC en un solo NSP/NSZ, comprime a NSZ, verifica copias y busca actualizaciones en línea.\n• Discos: CD/DVD/GD-ROM → CHD, con información del juego y nombres de Redump; Xbox → XISO, GameCube/Wii → RVZ, ISO → CSO/ZSO.\n• ROMs → 7z.\n\nLa aplicación no contiene claves ni juegos: el prod.keys y la clave común de Wii son tuyos.\n\nEscrito en Go, sin programas externos. Tk (modernc.org/tk9.0), compresión: klauspost/compress, ulikunitz/xz, pierrec/lz4, itchio/lzma (LZMA SDK). CHD como chdman de MAME, RVZ como Dolphin (generador de relleno de Dolphin, CC0). Nombres de juegos de Redump (libretro-database, CC BY-SA 4.0) y titledb.\n\n%s, %s",
 	},
 
 	// RVZ block size.
@@ -1592,5 +1592,22 @@ var messages = map[string]msg{
 		"Namensdatenbank nicht lesbar (siehe Protokoll)",
 		"base de noms illisible (voir le journal)",
 		"base de nombres ilegible (mira el registro)",
+	},
+
+	// RetroArch files renamed with their disc image.
+	"drename.companions": {
+		"+ %d RetroArch file(s) of the game (saves, states, thumbnails…)",
+		"+ %d arquivo(s) do RetroArch do jogo (saves, states, capturas…)",
+		"+ %d RetroArch-Datei(en) des Spiels (Spielstände, States, Vorschaubilder…)",
+		"+ %d fichier(s) RetroArch du jeu (sauvegardes, states, vignettes…)",
+		"+ %d archivo(s) de RetroArch del juego (partidas, states, capturas…)",
+	},
+	"drename.companion": {"    ✎ %s → %s", "    ✎ %s → %s", "    ✎ %s → %s", "    ✎ %s → %s", "    ✎ %s → %s"},
+	"drename.companion_error": {
+		"    ✗ Could not rename %s: %v",
+		"    ✗ Não foi possível renomear %s: %v",
+		"    ✗ %s konnte nicht umbenannt werden: %v",
+		"    ✗ Impossible de renommer %s : %v",
+		"    ✗ No se pudo renombrar %s: %v",
 	},
 }

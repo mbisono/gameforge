@@ -2,6 +2,15 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.7.1] - 2026-11-15
+
+### Changed
+- Renaming disc images in the Discs tab also renames the RetroArch files named after the game in the same folder (save states such as `.state.auto` and `.state1`, `.srm` saves, `.png` thumbnails, per-game cheats and options), so they keep working; the preview counts them.
+- The About box describes the ROMs → 7z tab and the Redump names, credits their sources and has a clickable link to the project's GitHub page (it is now a window of its own, of fixed size).
+
+### Fixed
+- On Linux, message boxes such as About could be resized.
+
 ## [2.7.0] - 2026-11-14
 
 ### Added
@@ -81,6 +90,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.7.1]: https://github.com/tschertel/gameforge/releases/tag/v2.7.1
 [2.7.0]: https://github.com/tschertel/gameforge/releases/tag/v2.7.0
 [2.6.0]: https://github.com/tschertel/gameforge/tree/v2.6.0
 [2.5.0]: https://github.com/tschertel/gameforge/tree/v2.5.0

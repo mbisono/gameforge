@@ -111,6 +111,9 @@ func main() {
 	}
 	setTkLanguage()
 	patchDialogs()
+	// Tk's own message boxes (Linux) are plain windows the window manager
+	// lets resize; like the native ones on Windows, they keep their size.
+	eval.Eval(`bind Dialog <Map> {+catch {wm resizable %W 0 0}}`)
 	initThemes()
 	initTooltips()
 

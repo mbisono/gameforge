@@ -25,6 +25,35 @@ func TestUpdatePlaylists(t *testing.T) {
 	}
 }
 
+func TestCompanions(t *testing.T) {
+	dir := t.TempDir()
+	for _, n := range []string{
+		"Ridge Racer.chd", "Ridge Racer.state.auto", "Ridge Racer.state1", "ridge racer.PNG", "Ridge Racer.srm",
+		"Ridge Racer.cue", "Ridge Racer Revolution.png", "Ridge Racer.m3u", "Other.png",
+	} {
+		os.WriteFile(filepath.Join(dir, n), nil, 0o644)
+	}
+	game := filepath.Join(dir, "Ridge Racer.chd")
+	got := map[string]string{}
+	for _, c := range companions(game) {
+		got[filepath.Base(c)] = filepath.Base(companionName(c, game, filepath.Join(dir, "Ridge Racer (Europe).chd")))
+	}
+	want := map[string]string{
+		"Ridge Racer.state.auto": "Ridge Racer (Europe).state.auto",
+		"Ridge Racer.state1":     "Ridge Racer (Europe).state1",
+		"ridge racer.PNG":        "Ridge Racer (Europe).PNG",
+		"Ridge Racer.srm":        "Ridge Racer (Europe).srm",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("companions %v", got)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s → %q, want %q", k, got[k], v)
+		}
+	}
+}
+
 func TestFileSafe(t *testing.T) {
 	for in, want := range map[string]string{
 		"Ridge Racer (Europe)":           "Ridge Racer (Europe)",
