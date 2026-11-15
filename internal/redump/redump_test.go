@@ -1,6 +1,8 @@
 package redump
 
 import (
+	"gameforge/internal/datfile"
+
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -135,9 +137,9 @@ func TestDownloadAndCache(t *testing.T) {
 		w.Write([]byte(sample))
 	}))
 	defer srv.Close()
-	old := baseURL
-	baseURL = srv.URL + "/"
-	defer func() { baseURL = old }()
+	old := datfile.BaseURL
+	datfile.BaseURL = srv.URL + "/"
+	defer func() { datfile.BaseURL = old }()
 
 	db, err := Download(context.Background(), nil, []string{"PS1"}, nil)
 	if err != nil || !db.Has("PS1") || db.Has("PS2") {

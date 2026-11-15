@@ -37,3 +37,4 @@ keys/*
 .idea/
 .claude/
 redump.cache*
+nointro.cache*

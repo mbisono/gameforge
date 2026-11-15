@@ -86,7 +86,8 @@ var sevenZipConverter = &converter{
 	button: "btn.sz",
 	tip:    "btn.sz.tip",
 	anyExt: true,
-	accept: func(path string) bool { return szEnabled(extOf(path)) },
+	// 7z files are listed too, to be renamed, but not compressed again.
+	accept: func(path string) bool { return extOf(path) == ".7z" || szEnabled(extOf(path)) },
 	drop:   func(string) bool { return false }, // only when the tab is shown
 	types:  []FileType{{TypeName: "*", Extensions: []string{"*"}}},
 	describe: func(it *convItem) {
@@ -98,6 +99,23 @@ var sevenZipConverter = &converter{
 		}
 		size := humanSize(st.Size())
 		ext := extOf(it.path)
+		if ext == ".7z" {
+			it.infoOnly = true
+			it.platform = "7z"
+			entries, err := sevenzip.List(it.path)
+			if err != nil {
+				it.detail = lazyf("%s · %v", size, err)
+				return
+			}
+			n := 0
+			for _, e := range entries {
+				if !e.Dir {
+					n++
+				}
+			}
+			it.detail = msg("sz.row_7z", n, size)
+			return
+		}
 		if ext != ".zip" {
 			it.platform = romPlatforms[ext]
 			it.ok = true
@@ -145,6 +163,25 @@ var sevenZipConverter = &converter{
 			}
 		}
 		return st.Size(), res.OutputSize, nil
+	},
+	extra: func(u *ui, parent *TFrameWidget) []Widget {
+		rename := parent.TButton(Txt(T("btn.rename")), Command(func() {
+			for _, t := range u.tabs {
+				if t.conv.id == "7z" {
+					t.renameRoms(u)
+				}
+			}
+		}))
+		setTooltip(rename, T("rrename.tip"))
+		dbBtn := parent.TMenubutton(Txt(T("redump.menu")))
+		menu := dbBtn.Menu(Tearoff(false))
+		menu.AddCommand(Lbl(T("nointro.update")), Command(u.updateNoIntro))
+		dbBtn.Configure(Mnu(menu))
+		romDB.status = parent.TLabel()
+		setTooltip(dbBtn, T("nointro.menu.tip"))
+		setTooltip(romDB.status, T("nointro.menu.tip"))
+		u.showNoIntroStatus()
+		return []Widget{rename, parent.TSeparator(Orient("vertical")), dbBtn, romDB.status}
 	},
 	options: func(u *ui, parent *TFrameWidget) []Widget {
 		sevenZip.ui = u

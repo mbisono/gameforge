@@ -104,6 +104,16 @@ func TestSingleAndEmpty(t *testing.T) {
 	}
 }
 
+func TestList(t *testing.T) {
+	files := testFiles()
+	out, _ := writeArchive(t, files)
+	got, err := List(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkEntries(t, got, files)
+}
+
 func TestCorruption(t *testing.T) {
 	files := testFiles()
 	out, res := writeArchive(t, files)
@@ -189,5 +199,31 @@ func Test7Zip(t *testing.T) {
 	}
 	if found != len(files) {
 		t.Errorf("found %d of %d files in 7-Zip's archive: %+v", found, len(files), entries)
+	}
+
+	// List reads 7-Zip's default archives, whose header is compressed,
+	// with one solid block or a block per file.
+	for _, args := range [][]string{{"-mx=5"}, {"-mx=5", "-ms=off"}, {"-mx=9", "-m0=lzma"}} {
+		def := filepath.Join(t.TempDir(), "default.7z")
+		cmd := exec.Command(exe, append(append([]string{"a"}, args...), def, ".")...)
+		cmd.Dir = src
+		if b, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("7z a: %v\n%s", err, b)
+		}
+		listed, err := List(def)
+		if err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		found := 0
+		for _, e := range listed {
+			for _, f := range files {
+				if e.Name == f.name && e.Size == int64(len(f.data)) && e.CRC == crc32.ChecksumIEEE(f.data) {
+					found++
+				}
+			}
+		}
+		if found != len(files) {
+			t.Errorf("%v: listed %d of %d files: %+v", args, found, len(files), listed)
+		}
 	}
 }

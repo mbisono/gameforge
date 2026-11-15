@@ -1080,8 +1080,11 @@ func (u *ui) followInput(tab string, paths []string) {
 // them last time; the dialogs get a check box to show them. The Windows
 // dialogs follow Explorer's setting instead.
 func (u *ui) prepareDialog() {
-	// The dialog's code sets both variables when it is loaded.
-	tcl("auto_load", "::tk::dialog::file::")
+	// The dialog's code sets both variables when it is loaded. auto_load
+	// sources the file again even when it is loaded, which would undo
+	// patchDialogs (the drives in the folder menu on Windows), so only the
+	// first time.
+	eval.Eval(`if {[info procs ::tk::dialog::file::Update] eq ""} {auto_load ::tk::dialog::file::}`)
 	// Tk leaves out names starting with a dot only on Unix, where glob
 	// skips them; on Windows it lists them, and files with the hidden
 	// attribute too. Filter its listing the same way everywhere.

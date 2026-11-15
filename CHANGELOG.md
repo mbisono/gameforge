@@ -2,6 +2,16 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.8.0] - 2026-11-15
+
+### Added
+- **Rename…** in the ROMs → 7z tab gives ROMs, ZIPs and 7z files their No-Intro names (e.g. `Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc`), found by the ROM's CRC-32 and size, read from the archive's header without unpacking. ROMs with an iNES, fwNES, Lynx, Atari 7800 or SNES copier header, and Nintendo 64 `.v64`/`.n64` files, are found too. Archives with several files, such as arcade sets, keep their names; RetroArch files named after the game follow it.
+- The No-Intro databases published by libretro are downloaded on demand per console (29 consoles) and cached in `nointro.cache`, with a **Names database ▾** menu in the tab to update them.
+- The ROMs → 7z tab lists 7z files too (to rename them; they are not compressed again), and the 7z reader reads the file list of 7-Zip's archives with a compressed header.
+
+### Fixed
+- Since 2.7.0, Tk's file and folder dialogs no longer listed the drives (`C:\`, `E:\`…) in the folder menu on Windows, and a folder selected in the folder dialog could need a second click: opening a dialog reloaded Tk's dialog code and undid the app's changes to it.
+
 ## [2.7.1] - 2026-11-15
 
 ### Changed
@@ -90,6 +100,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.8.0]: https://github.com/tschertel/gameforge/releases/tag/v2.8.0
 [2.7.1]: https://github.com/tschertel/gameforge/releases/tag/v2.7.1
 [2.7.0]: https://github.com/tschertel/gameforge/releases/tag/v2.7.0
 [2.6.0]: https://github.com/tschertel/gameforge/tree/v2.6.0

@@ -4,9 +4,9 @@
 
 A desktop app (Go + Tk, via [modernc.org/tk9.0](https://gitlab.com/cznic/tk9.0)) for Windows and Linux that merges the **base game**, the **update** and the **DLCs** of a Nintendo Switch game (NSP, NSZ or XCI) into a single file, **compressed to NSZ** by default to save space, for backing up the games you own.
 
-Other tabs handle disc images of other consoles: **Discs** (PS1, PS2, Saturn, Sega CD, Dreamcast, PSP…: conversion to CHD, game information and renaming with Redump names), **Xbox → XISO** (Xbox and Xbox 360), **GameCube/Wii → RVZ** and **ISO → CSO/ZSO** (PSP and PS2), and **ROMs → 7z** compresses cartridge ROMs or recompresses ZIP files to 7z.
+Other tabs handle disc images of other consoles: **Discs** (PS1, PS2, Saturn, Sega CD, Dreamcast, PSP…: conversion to CHD, game information and renaming with Redump names), **Xbox → XISO** (Xbox and Xbox 360), **GameCube/Wii → RVZ** and **ISO → CSO/ZSO** (PSP and PS2), and **ROMs → 7z** compresses cartridge ROMs or recompresses ZIP files to 7z, and renames ROMs with their No-Intro names.
 
-Current version: **2.7.1** (the 1.x versions were nspmerge, for the Switch only). The **About…** button, next to language and theme, shows the version, what the app does and the libraries it uses.
+Current version: **2.8.0** (the 1.x versions were nspmerge, for the Switch only). The **About…** button, next to language and theme, shows the version, what the app does and the libraries it uses.
 
 ## Download
 
@@ -140,6 +140,7 @@ In the **ROMs → 7z** tab, each file becomes its own `.7z`, with the same name:
 - **RetroArch:** save states and thumbnails are named after the game without the extension, so they keep working with the `.7z`. Playlists (`.lpl`) store the file name with its old extension: scan the folder again in RetroArch. FBNeo and MAME read 7z directly; for other cores, RetroArch extracts the game to a temporary folder first.
 - With **Verify after writing**, the app reads the archive back, decompresses every file and compares its size and CRC with what was written.
 - Compatibility checked with 7-Zip 26: `7z t` accepts the archives and `7z x` extracts the original files, including folders inside a ZIP, empty files and non-ASCII names; the app's reader also opens 7-Zip's archives with a plain header.
+- **Rename…** gives the ROMs, ZIPs and 7z files in the list their [No-Intro](https://no-intro.org) names, the usual names of cartridge backups: `pokemon crystal.gbc` → `Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc`, `pkmn.zip` → `Pokemon - Crystal Version (USA, Europe) (Rev 1).zip`. Cartridges carry no reliable game code, so the ROM is found by its CRC-32 and size: for ZIP and 7z files they come from the archive's header, without unpacking (7z files are listed in the tab for this, but not compressed again; the app reads 7-Zip's own archives too); loose ROMs are read once. A ROM with a header that is not part of the cartridge, or in another byte order, is also found: NES (iNES), Famicom Disk System (fwNES), Lynx and Atari 7800 headers, SNES copier headers, and Nintendo 64 `.v64` and `.n64` files. Only the file is renamed, keeping its extension; the ROM inside an archive keeps its name, and nothing is recompressed. Archives with more than one file, such as arcade sets (`sf2.zip`, `ffight.zip`), are never renamed, because MAME and FBNeo find the game by that short name; ROMs that are not in the database (hacks, translations, homebrew, bad dumps) keep their names too, and the log says why for each. The names come from the No-Intro databases published by libretro ([libretro-database](https://github.com/libretro/libretro-database)), for 29 consoles (Nintendo from Game Boy to DS, Sega from SG-1000 to 32X, PC Engine, WonderSwan, Neo Geo Pocket, Atari, ColecoVision, Intellivision, Vectrex): the first time a console's ROMs are renamed, the app asks to download its database and keeps what it uses in `nointro.cache`, next to `gameforge.json`; the **Names database ▾** menu updates all of them (about 12 MB). As in the Discs tab, the changes are shown before renaming, no file is ever replaced, every change is logged, and the RetroArch files named after the game follow it (`pokemon crystal.srm` → `Pokemon - Crystal Version (USA, Europe) (Rev 1).srm`…).
 
 ## Usage
 
@@ -303,7 +304,9 @@ The 7z writer and reader are tested with byte-for-byte round trips (compressible
 SEVENZIP=/path/to/7z.exe go test ./internal/sevenzip . -run "7Zip|SevenZip" -v
 ```
 
-It checks that `7z t` accepts the archives, that `7z x` extracts the original files, and that the app reads an archive made by 7-Zip.
+It checks that `7z t` accepts the archives, that `7z x` extracts the original files, and that the app reads archives made by 7-Zip, including the file list of its default archives, whose header is compressed.
+
+The No-Intro renaming is tested with a sample database (headered and headerless entries, a download with an unchanged second download, the cache file), with ROMs that differ from the database (another iNES header, `.v64` and `.n64` byte orders), with a loose ROM, a ZIP, a 7z and a multi-file arcade ZIP, and with the real databases when `NOINTRO_DATS` points to a folder of them.
 
 The CSO/ZSO compression is tested with byte-for-byte round trips (compressible data, random data and an incomplete last block), with an index shift with aligned blocks, and with the app's LZ4 decoder checked against the LZ4 library; a written CSO was also read by an independent Python decoder (zlib), which got back the original image.
 
@@ -326,4 +329,4 @@ Use only with games you own and with keys dumped from your own console. The app 
 
 ## License
 
-[MIT](LICENSE). The libraries used have their own licenses, reproduced in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt) (MIT, BSD, Apache 2.0, ISC and MPL 2.0), all compatible. The Redump databases, downloaded by the app when you rename disc images, are © Redump and libretro, under CC BY-SA 4.0; they are not part of this repository.
+[MIT](LICENSE). The libraries used have their own licenses, reproduced in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt) (MIT, BSD, Apache 2.0, ISC and MPL 2.0), all compatible. The Redump databases, downloaded by the app when you rename disc images, are © Redump and libretro, under CC BY-SA 4.0, and the No-Intro databases, downloaded when you rename ROMs, are © No-Intro, as published by libretro; they are not part of this repository.

@@ -72,31 +72,9 @@ func Check(ctx context.Context, path string, progress func(done, total int64)) (
 		}
 		src := io.NewSectionReader(f, offset, a.packSizes[fi])
 		offset += a.packSizes[fi]
-		var r io.Reader
-		switch {
-		case bytes.Equal(fo.codec, codecLZMA2):
-			if len(fo.prop) != 1 {
-				return nil, errFormat
-			}
-			d := min(max(dictSize(fo.prop[0]), lzma.MinDictCap), lzma.MaxDictCap)
-			r, err = lzma.Reader2Config{DictCap: int(d)}.NewReader2(bufio.NewReaderSize(src, 1<<16))
-			if err != nil {
-				return nil, err
-			}
-		case bytes.Equal(fo.codec, codecLZMA):
-			// The decoder wants the .lzma header: properties, then size.
-			if len(fo.prop) != 5 {
-				return nil, errFormat
-			}
-			hdr := binary.LittleEndian.AppendUint64(append([]byte(nil), fo.prop...), uint64(fo.unpack))
-			r, err = lzma.NewReader(io.MultiReader(bytes.NewReader(hdr), bufio.NewReaderSize(src, 1<<16)))
-			if err != nil {
-				return nil, err
-			}
-		case bytes.Equal(fo.codec, codecCopy):
-			r = src
-		default:
-			return nil, fmt.Errorf("%w: codec %X", ErrUnsupported, fo.codec)
+		r, err := decoder(src, fo)
+		if err != nil {
+			return nil, err
 		}
 		folderCRC := crc32.NewIEEE()
 		for k, size := range fo.sizes {
@@ -142,6 +120,62 @@ func Check(ctx context.Context, path string, progress func(done, total int64)) (
 	return a.entries, nil
 }
 
+// decoder decompresses the pack stream of a folder.
+func decoder(src io.Reader, fo folder) (io.Reader, error) {
+	switch {
+	case bytes.Equal(fo.codec, codecLZMA2):
+		if len(fo.prop) != 1 {
+			return nil, errFormat
+		}
+		d := min(max(dictSize(fo.prop[0]), lzma.MinDictCap), lzma.MaxDictCap)
+		return lzma.Reader2Config{DictCap: int(d)}.NewReader2(bufio.NewReaderSize(src, 1<<16))
+	case bytes.Equal(fo.codec, codecLZMA):
+		// The decoder wants the .lzma header: properties, then size.
+		if len(fo.prop) != 5 {
+			return nil, errFormat
+		}
+		hdr := binary.LittleEndian.AppendUint64(append([]byte(nil), fo.prop...), uint64(fo.unpack))
+		return lzma.NewReader(io.MultiReader(bytes.NewReader(hdr), bufio.NewReaderSize(src, 1<<16)))
+	case bytes.Equal(fo.codec, codecCopy):
+		return src, nil
+	}
+	return nil, fmt.Errorf("%w: codec %X", ErrUnsupported, fo.codec)
+}
+
+// List reads the header of the archive at path and returns its files with
+// the sizes and CRCs it records, without decompressing them (a file whose
+// CRC the header does not give has CRC 0).
+func List(path string) ([]Entry, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	a, err := readHeader(f)
+	if err != nil {
+		return nil, err
+	}
+	entries := a.entries
+	// Data streams in folder order, matched to the non-empty entries.
+	si := 0
+	for _, fo := range a.folders {
+		for j, size := range fo.sizes {
+			for si < len(entries) && a.empty[si] {
+				si++
+			}
+			if si >= len(entries) {
+				return nil, errFormat
+			}
+			entries[si].Size = size
+			if fo.crcKnown[j] {
+				entries[si].CRC = fo.crcs[j]
+			}
+			si++
+		}
+	}
+	return entries, nil
+}
+
 func readHeader(f *os.File) (*archive, error) {
 	var sig [sigHeaderSize]byte
 	if _, err := io.ReadFull(f, sig[:]); err != nil {
@@ -169,12 +203,52 @@ func readHeader(f *os.File) (*archive, error) {
 	if crc32.ChecksumIEEE(hdr) != binary.LittleEndian.Uint32(sig[28:]) {
 		return nil, errors.New("7z: header CRC mismatch")
 	}
+	// 7-Zip compresses the header itself: the encoded header tells where
+	// the compressed one is and how to unpack it.
+	for range 4 {
+		if len(hdr) == 0 || hdr[0] != idEncodedHeader {
+			break
+		}
+		if hdr, err = unpackHeader(f, hdr[1:]); err != nil {
+			return nil, err
+		}
+	}
 	p := &parser{b: hdr}
 	a, err := p.header()
 	if err == nil && p.err != nil {
 		err = p.err
 	}
 	return a, err
+}
+
+// unpackHeader decompresses a header from the streams info of an encoded
+// header.
+func unpackHeader(f *os.File, info []byte) ([]byte, error) {
+	p := &parser{b: info}
+	a := &archive{}
+	if err := p.streams(a); err != nil {
+		return nil, err
+	}
+	if p.err != nil {
+		return nil, p.err
+	}
+	if len(a.folders) != 1 || len(a.packSizes) != 1 || a.folders[0].unpack > 64<<20 {
+		return nil, fmt.Errorf("%w: header streams", ErrUnsupported)
+	}
+	fo := a.folders[0]
+	src := io.NewSectionReader(f, int64(sigHeaderSize)+a.packPos, a.packSizes[0])
+	r, err := decoder(src, fo)
+	if err != nil {
+		return nil, err
+	}
+	hdr := make([]byte, fo.unpack)
+	if _, err := io.ReadFull(r, hdr); err != nil {
+		return nil, fmt.Errorf("7z header: %w", err)
+	}
+	if fo.hasCRC && crc32.ChecksumIEEE(hdr) != fo.crc {
+		return nil, errors.New("7z: header CRC mismatch")
+	}
+	return hdr, nil
 }
 
 // parser reads header fields; the first error sticks and later reads
@@ -262,8 +336,6 @@ func (p *parser) defined(n int) []bool {
 func (p *parser) header() (*archive, error) {
 	switch p.byte() {
 	case idHeader:
-	case idEncodedHeader:
-		return nil, fmt.Errorf("%w: compressed header", ErrUnsupported)
 	default:
 		return nil, errFormat
 	}

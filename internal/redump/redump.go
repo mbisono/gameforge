@@ -12,7 +12,6 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -20,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gameforge/internal/datfile"
 )
 
 // FileName is the name of the cache file.
@@ -27,8 +28,6 @@ const FileName = "redump.cache"
 
 // Source is where the databases come from, for the user.
 const Source = "github.com/libretro/libretro-database (Redump, CC BY-SA 4.0)"
-
-var baseURL = "https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/redump/"
 
 // Platforms lists the platforms with a database, in display order.
 var Platforms = []string{"PS1", "PS2", "PSP", "Saturn", "Sega CD", "Dreamcast", "GameCube", "Wii"}
@@ -185,7 +184,7 @@ func (db *DB) Lookup(platform, code string) []Game {
 
 // Progress reports the download of a database file; total is -1 if the
 // server did not state it.
-type Progress func(file string, done, total int64)
+type Progress = datfile.Progress
 
 // Download fetches the databases of the platforms and returns them merged
 // with old (which may be nil). Files that did not change since old are
@@ -207,7 +206,7 @@ func Download(ctx context.Context, old *DB, platforms []string, progress Progres
 			etag = l.ETag
 		}
 		var list *List
-		newTag, err := fetch(ctx, baseURL+url.PathEscape(file)+".dat", file+".dat", etag, progress, func(r io.Reader) error {
+		newTag, err := datfile.Fetch(ctx, datfile.BaseURL+"redump/"+url.PathEscape(file)+".dat", file+".dat", etag, progress, func(r io.Reader) error {
 			var err error
 			list, err = Parse(p, r)
 			return err
@@ -247,14 +246,14 @@ func Parse(platform string, r io.Reader) (*List, error) {
 			}
 			g = nil
 		case strings.HasPrefix(line, "version ") && g == nil:
-			l.Version = unquote(line[len("version "):])
+			l.Version = datfile.Unquote(line[len("version "):])
 		case g == nil:
 		case strings.HasPrefix(line, "name "):
-			g.Name = unquote(line[len("name "):])
+			g.Name = datfile.Unquote(line[len("name "):])
 		case strings.HasPrefix(line, "serial "):
-			addCodes(g, platform, unquote(line[len("serial "):]))
+			addCodes(g, platform, datfile.Unquote(line[len("serial "):]))
 		case strings.HasPrefix(line, "rom (") && g.Size == 0:
-			f := romFields(line)
+			f := datfile.RomFields(line)
 			g.Size, _ = strconv.ParseInt(f["size"], 10, 64)
 			if c, err := strconv.ParseUint(f["crc"], 16, 32); err == nil {
 				g.CRC = uint32(c)
@@ -289,91 +288,3 @@ func addCodes(g *Game, platform, s string) {
 		}
 	}
 }
-
-func unquote(s string) string {
-	s = strings.TrimSpace(s)
-	if u, err := strconv.Unquote(s); err == nil {
-		return u
-	}
-	return strings.Trim(s, `"`)
-}
-
-// romFields reads `rom ( name "x y" size 1 crc AB … )`.
-func romFields(line string) map[string]string {
-	out := map[string]string{}
-	s := strings.TrimSuffix(strings.TrimPrefix(line, "rom ("), ")")
-	for s = strings.TrimSpace(s); s != ""; s = strings.TrimSpace(s) {
-		key, rest, ok := strings.Cut(s, " ")
-		if !ok {
-			break
-		}
-		rest = strings.TrimSpace(rest)
-		var val string
-		if strings.HasPrefix(rest, `"`) {
-			end := strings.Index(rest[1:], `"`)
-			if end < 0 {
-				break
-			}
-			val, s = rest[1:end+1], rest[end+2:]
-		} else {
-			val, s, _ = strings.Cut(rest, " ")
-		}
-		out[key] = val
-	}
-	return out
-}
-
-var client = &http.Client{Transport: &http.Transport{
-	Proxy:                 http.ProxyFromEnvironment,
-	ResponseHeaderTimeout: 30 * time.Second,
-	TLSHandshakeTimeout:   30 * time.Second,
-}}
-
-// fetch downloads u and passes the body to parse. If the file still has
-// the ETag etag, it returns "" without downloading; otherwise the file's
-// ETag, or "-" if the server sent none.
-func fetch(ctx context.Context, u, name, etag string, progress Progress, parse func(io.Reader) error) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("User-Agent", "gameforge")
-	if etag != "" && etag != "-" {
-		req.Header.Set("If-None-Match", etag)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	switch resp.StatusCode {
-	case http.StatusNotModified:
-		return "", nil
-	case http.StatusOK:
-	default:
-		return "", fmt.Errorf("%s: %s", name, resp.Status)
-	}
-	var done int64
-	r := readerFunc(func(b []byte) (int, error) {
-		n, err := resp.Body.Read(b)
-		done += int64(n)
-		if progress != nil {
-			progress(name, done, resp.ContentLength)
-		}
-		return n, err
-	})
-	if err := parse(r); err != nil {
-		if ctx.Err() != nil {
-			return "", ctx.Err()
-		}
-		return "", fmt.Errorf("%s: %w", name, err)
-	}
-	if tag := resp.Header.Get("ETag"); tag != "" {
-		return tag, nil
-	}
-	return "-", nil
-}
-
-type readerFunc func([]byte) (int, error)
-
-func (f readerFunc) Read(b []byte) (int, error) { return f(b) }

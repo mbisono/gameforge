@@ -3,9 +3,10 @@
 // The writer puts all files in one solid LZMA stream (the LZMA SDK's
 // encoder, ported to Go) with a plain, uncompressed header, as 7-Zip does
 // with -mhc=off; 7-Zip and every 7z reader open it. The reader handles
-// what the writer produces and, more generally, archives with a plain
-// header whose folders each have a single LZMA, LZMA2 or copy coder; it is
-// used to verify written archives.
+// what the writer produces and, more generally, archives whose folders
+// each have a single LZMA, LZMA2 or copy coder; it is used to verify
+// written archives. List reads only the file list, with the sizes and
+// CRCs, of any 7z archive, including 7-Zip's with a compressed header.
 package sevenzip
 
 import (

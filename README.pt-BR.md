@@ -4,9 +4,9 @@
 
 Aplicativo com interface gráfica (Go + Tk, via [modernc.org/tk9.0](https://gitlab.com/cznic/tk9.0)) para Windows e Linux que junta o **jogo base**, a **atualização** e as **DLCs** de um jogo de Nintendo Switch (NSP, NSZ ou XCI) em um único arquivo, por padrão **comprimido em NSZ** para ocupar menos espaço, para fazer backup dos seus jogos comprados.
 
-Em outras abas, o app também cuida de imagens de disco de outros consoles: **Discos** (PS1, PS2, Saturn, Sega CD, Dreamcast, PSP…: conversão para CHD, informações do jogo e nomes do Redump), **Xbox → XISO** (Xbox e Xbox 360), **GameCube/Wii → RVZ** e **ISO → CSO/ZSO** (PSP e PS2), e **ROMs → 7z** comprime ROMs de cartucho ou recomprime arquivos ZIP em 7z.
+Em outras abas, o app também cuida de imagens de disco de outros consoles: **Discos** (PS1, PS2, Saturn, Sega CD, Dreamcast, PSP…: conversão para CHD, informações do jogo e nomes do Redump), **Xbox → XISO** (Xbox e Xbox 360), **GameCube/Wii → RVZ** e **ISO → CSO/ZSO** (PSP e PS2), e **ROMs → 7z** comprime ROMs de cartucho ou recomprime arquivos ZIP em 7z, e renomeia ROMs com os nomes do No-Intro.
 
-Versão atual: **2.7.1** (as versões 1.x eram o nspmerge, só para o Switch). O botão **Sobre…**, ao lado de idioma e tema, mostra a versão, o que o app faz e as bibliotecas usadas.
+Versão atual: **2.8.0** (as versões 1.x eram o nspmerge, só para o Switch). O botão **Sobre…**, ao lado de idioma e tema, mostra a versão, o que o app faz e as bibliotecas usadas.
 
 ## Download
 
@@ -140,6 +140,7 @@ Na aba **ROMs → 7z**, cada arquivo vira o seu próprio `.7z`, com o mesmo nome
 - **RetroArch:** save states e capturas têm o nome do jogo sem a extensão, então continuam valendo com o `.7z`. As playlists (`.lpl`) guardam o nome do arquivo com a extensão antiga: escaneie a pasta de novo no RetroArch. O FBNeo e o MAME leem 7z direto; para os outros núcleos, o RetroArch extrai o jogo numa pasta temporária antes.
 - Com **Verificar após gravar**, o app relê o arquivo, descomprime tudo e compara o tamanho e o CRC de cada arquivo com o que foi gravado.
 - Compatibilidade conferida com o 7-Zip 26: o `7z t` aceita os arquivos e o `7z x` extrai os arquivos originais, inclusive pastas dentro de um ZIP, arquivos vazios e nomes com acentos; o leitor do app também abre arquivos do 7-Zip com cabeçalho sem compressão.
+- **Renomear…** dá às ROMs, ZIPs e 7z da lista os nomes do [No-Intro](https://no-intro.org), os nomes mais usados em backups de cartucho: `pokemon crystal.gbc` → `Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc`, `pkmn.zip` → `Pokemon - Crystal Version (USA, Europe) (Rev 1).zip`. Cartuchos não trazem um código do jogo confiável, então a ROM é achada pelo CRC-32 e pelo tamanho: em ZIPs e 7z eles vêm do cabeçalho do arquivo compactado, sem descompactar (os 7z aparecem na aba para isso, mas não são comprimidos de novo; o app lê também os arquivos do próprio 7-Zip); ROMs soltas são lidas uma vez. Uma ROM com um cabeçalho que não faz parte do cartucho, ou em outra ordem de bytes, também é achada: cabeçalhos de NES (iNES), Famicom Disk System (fwNES), Lynx e Atari 7800, cabeçalhos de copiadora de SNES, e arquivos `.v64` e `.n64` de Nintendo 64. Só o arquivo é renomeado, com a mesma extensão; a ROM dentro de um arquivo compactado fica com o nome dela, e nada é recomprimido. Arquivos compactados com mais de um arquivo, como sets de arcade (`sf2.zip`, `ffight.zip`), nunca são renomeados, porque o MAME e o FBNeo acham o jogo por esse nome curto; ROMs que não estão na base (hacks, traduções, homebrew, dumps ruins) também ficam com o nome, e o log diz o motivo de cada uma. Os nomes vêm das bases do No-Intro publicadas pelo libretro ([libretro-database](https://github.com/libretro/libretro-database)), para 29 consoles (Nintendo do Game Boy ao DS, Sega do SG-1000 ao 32X, PC Engine, WonderSwan, Neo Geo Pocket, Atari, ColecoVision, Intellivision, Vectrex): na primeira vez que ROMs de um console são renomeadas, o app pergunta se pode baixar a base dele e guarda o que usa em `nointro.cache`, ao lado do `gameforge.json`; o menu **Base de nomes ▾** atualiza todas (uns 12 MB). Como na aba Discos, as mudanças aparecem antes de renomear, nenhum arquivo é substituído, cada mudança vai para o log, e os arquivos do RetroArch com o nome do jogo vão junto (`pokemon crystal.srm` → `Pokemon - Crystal Version (USA, Europe) (Rev 1).srm`…).
 
 ## Uso
 
@@ -304,7 +305,9 @@ O gravador e o leitor de 7z são testados com ida e volta byte a byte (dados com
 SEVENZIP=/caminho/para/7z.exe go test ./internal/sevenzip . -run "7Zip|SevenZip" -v
 ```
 
-Ele confere que o `7z t` aceita os arquivos, que o `7z x` extrai os arquivos originais e que o app lê um arquivo feito pelo 7-Zip.
+Ele confere que o `7z t` aceita os arquivos, que o `7z x` extrai os arquivos originais e que o app lê arquivos feitos pelo 7-Zip, inclusive a lista de arquivos dos arquivos padrão dele, com cabeçalho comprimido.
+
+A renomeação pelo No-Intro é testada com uma base de exemplo (entradas com e sem cabeçalho, download com um segundo download sem mudanças, o arquivo de cache), com ROMs diferentes da base (outro cabeçalho iNES, ordens de bytes `.v64` e `.n64`), com uma ROM solta, um ZIP, um 7z e um ZIP de arcade com vários arquivos, e com as bases reais quando `NOINTRO_DATS` aponta para uma pasta com elas.
 
 A compressão CSO/ZSO é testada com ida e volta byte a byte (dados compressíveis, aleatórios e um último bloco incompleto), com um índice deslocado com blocos alinhados, e com o decodificador LZ4 do app conferido contra a biblioteca LZ4; um CSO gerado também foi lido por um decodificador independente em Python (zlib), que chegou à imagem original.
 
@@ -327,4 +330,4 @@ Use apenas com jogos que você comprou e com chaves extraídas do seu próprio c
 
 ## Licença
 
-[MIT](LICENSE). As bibliotecas usadas têm as suas próprias licenças, reproduzidas em [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt) (MIT, BSD, Apache 2.0, ISC e MPL 2.0), todas compatíveis. As bases do Redump, baixadas pelo app quando você renomeia imagens de disco, são © Redump e libretro, sob CC BY-SA 4.0; elas não fazem parte deste repositório.
+[MIT](LICENSE). As bibliotecas usadas têm as suas próprias licenças, reproduzidas em [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt) (MIT, BSD, Apache 2.0, ISC e MPL 2.0), todas compatíveis. As bases do Redump, baixadas pelo app quando você renomeia imagens de disco, são © Redump e libretro, sob CC BY-SA 4.0, e as do No-Intro, baixadas quando você renomeia ROMs, são © No-Intro, publicadas pelo libretro; elas não fazem parte deste repositório.

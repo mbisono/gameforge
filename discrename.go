@@ -17,6 +17,7 @@ import (
 	. "modernc.org/tk9.0"
 
 	"gameforge/internal/chd"
+	"gameforge/internal/datfile"
 	"gameforge/internal/discinfo"
 	"gameforge/internal/i18n"
 	"gameforge/internal/redump"
@@ -141,22 +142,10 @@ func (t *convTab) renameDiscs(u *ui) {
 // background, then runs then on the GUI thread (also after a failure: the
 // names that can be found without them are still used).
 func (u *ui) downloadRedump(platforms []string, then func()) {
-	ctx, cancel := context.WithCancel(context.Background())
-	u.cancelMerge = cancel
-	u.setBusy(true)
-	enable(u.cancelBtn, true)
 	u.logf("redump.download_start", strings.Join(platforms, ", "))
 	old := u.redumpDB()
-	go func() {
-		defer cancel()
-		db, err := redump.Download(ctx, old, platforms, func(file string, done, total int64) {
-			totalText := "?"
-			if total > 0 {
-				u.setProgress(float64(done) / float64(total))
-				totalText = humanSize(total)
-			}
-			u.setStatus(T("status.downloading", file, humanSize(done), totalText))
-		})
+	u.runDownload(func(ctx context.Context, progress datfile.Progress) func() {
+		db, err := redump.Download(ctx, old, platforms, progress)
 		if err == nil {
 			if serr := db.Save(u.redumpPath()); serr != nil {
 				u.logf("redump.save_error", serr)
@@ -169,16 +158,42 @@ func (u *ui) downloadRedump(platforms []string, then func()) {
 		} else if ctx.Err() == nil {
 			u.logf("redump.download_error", err)
 		}
+		return func() {
+			if err == nil {
+				discDB.db, discDB.err = db, nil
+			}
+			u.showRedumpStatus()
+		}
+	}, then)
+}
+
+// runDownload runs work in the background with the progress bar and the
+// Cancel button. work gets a progress function for the download and
+// returns what to do on the GUI thread once it is over; then runs after
+// that unless the download was cancelled.
+func (u *ui) runDownload(work func(ctx context.Context, progress datfile.Progress) func(), then func()) {
+	ctx, cancel := context.WithCancel(context.Background())
+	u.cancelMerge = cancel
+	u.setBusy(true)
+	enable(u.cancelBtn, true)
+	go func() {
+		defer cancel()
+		apply := work(ctx, func(file string, done, total int64) {
+			totalText := "?"
+			if total > 0 {
+				u.setProgress(float64(done) / float64(total))
+				totalText = humanSize(total)
+			}
+			u.setStatus(T("status.downloading", file, humanSize(done), totalText))
+		})
 		u.setProgress(0)
+		u.setStatus("")
 		cancelled := ctx.Err() != nil
 		PostEvent(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
-			if err == nil {
-				discDB.db, discDB.err = db, nil
-			}
-			u.showRedumpStatus()
+			apply()
 			if cancelled {
 				u.logf("log.cancelled")
 				u.flush()
@@ -414,13 +429,10 @@ func (t *convTab) applyRenames(u *ui, plan []discRename) {
 				continue
 			}
 			u.logf("drename.companion", filepath.Base(c), filepath.Base(to))
+			t.moved(c, to)
 		}
 		renamed[from] = r.to
-		r.item.path = r.to
-		if v, ok := t.checked[from]; ok {
-			delete(t.checked, from)
-			t.checked[r.to] = v
-		}
+		t.moved(from, r.to)
 		done++
 	}
 	for _, p := range updatePlaylists(renamed) {
@@ -429,6 +441,25 @@ func (t *convTab) applyRenames(u *ui, plan []discRename) {
 	u.logf("log.rename_done", done, len(plan))
 	u.flush()
 	t.refresh(u)
+}
+
+// moved updates the tab after a file was renamed: its item, its check
+// box and, in a tab that keeps every file given (ROMs → 7z), the pool.
+func (t *convTab) moved(from, to string) {
+	for _, it := range t.items {
+		if it.path == from {
+			it.path = to
+		}
+	}
+	if v, ok := t.checked[from]; ok {
+		delete(t.checked, from)
+		t.checked[to] = v
+	}
+	for i, p := range t.pool {
+		if p == from {
+			t.pool[i] = to
+		}
+	}
 }
 
 // companionExts are the extensions of the files RetroArch names after a
