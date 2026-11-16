@@ -2,6 +2,11 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [Unreleased]
+
+### Changed
+- The note in the `keys` folder is now `keys/README.txt`, in English (it was `LEIA-ME.txt`, in Portuguese).
+
 ## [2.8.0] - 2026-11-15
 
 ### Added

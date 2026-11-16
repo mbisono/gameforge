@@ -12,7 +12,7 @@ titledb.cache*
 prod.keys
 *.keys
 keys/*
-!keys/LEIA-ME.txt
+!keys/README.txt
 
 # Game files
 *.nsp
