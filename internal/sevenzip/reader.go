@@ -41,6 +41,13 @@ type archive struct {
 // CRC. It returns the files in archive order. progress reports the bytes
 // decompressed out of the total.
 func Check(ctx context.Context, path string, progress func(done, total int64)) ([]Entry, error) {
+	return Extract(ctx, path, nil, progress)
+}
+
+// Extract is Check that also writes the files to the writers want returns
+// for them (want gets each file's name and the size the header records;
+// a nil writer skips the file).
+func Extract(ctx context.Context, path string, want func(name string, size int64) io.Writer, progress func(done, total int64)) ([]Entry, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -84,6 +91,10 @@ func Check(ctx context.Context, path string, progress func(done, total int64)) (
 			e := streams[si]
 			si++
 			h := crc32.NewIEEE()
+			var out io.Writer
+			if want != nil {
+				out = want(e.Name, size)
+			}
 			for left := size; left > 0; {
 				if err := ctx.Err(); err != nil {
 					return nil, err
@@ -91,6 +102,11 @@ func Check(ctx context.Context, path string, progress func(done, total int64)) (
 				n, err := io.ReadFull(r, buf[:min(left, int64(len(buf)))])
 				h.Write(buf[:n])
 				folderCRC.Write(buf[:n])
+				if out != nil {
+					if _, err := out.Write(buf[:n]); err != nil {
+						return nil, err
+					}
+				}
 				left -= int64(n)
 				done += int64(n)
 				if progress != nil {

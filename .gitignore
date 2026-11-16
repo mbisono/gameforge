@@ -38,3 +38,5 @@ keys/*
 .claude/
 redump.cache*
 nointro.cache*
+retroachievements.cache*
+cache/

@@ -104,6 +104,7 @@ func main() {
 	}
 	i18n.Set(cfg.Language)
 	os.MkdirAll(keysDir(), 0o755)
+	moveCaches(cfg.Path())
 
 	InitializeExtension("eval")
 	if runtime.GOOS != "windows" && runtime.GOOS != "darwin" {

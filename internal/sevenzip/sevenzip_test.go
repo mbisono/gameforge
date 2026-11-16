@@ -114,6 +114,30 @@ func TestList(t *testing.T) {
 	checkEntries(t, got, files)
 }
 
+func TestExtract(t *testing.T) {
+	files := testFiles()
+	out, _ := writeArchive(t, files)
+	got := map[string]*bytes.Buffer{}
+	_, err := Extract(context.Background(), out, func(name string, size int64) io.Writer {
+		if name == "empty.txt" {
+			return nil
+		}
+		got[name] = &bytes.Buffer{}
+		return got[name]
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		if f.name == "empty.txt" {
+			continue
+		}
+		if b := got[f.name]; b == nil || !bytes.Equal(b.Bytes(), f.data) {
+			t.Errorf("%s extracted differently", f.name)
+		}
+	}
+}
+
 func TestCorruption(t *testing.T) {
 	files := testFiles()
 	out, res := writeArchive(t, files)

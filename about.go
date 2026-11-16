@@ -23,8 +23,10 @@ import (
 // the clam theme and keeps one output folder per tab, 2.7.1 renames the
 // RetroArch saves, states and thumbnails of renamed disc images, keeps
 // Tk's message boxes from being resized and has an About window with a
-// link to the project's page, 2.8.0 renames ROMs with their No-Intro names.
-const appVersion = "2.8.0"
+// link to the project's page, 2.8.0 renames ROMs with their No-Intro names,
+// 2.9.0 checks ROMs against RetroAchievements and keeps the downloaded
+// databases in a cache folder.
+const appVersion = "2.9.0"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

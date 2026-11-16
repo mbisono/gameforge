@@ -1,6 +1,6 @@
 # GameForge — notes for Claude
 
-GameForge is a Go desktop app (Tk GUI via `modernc.org/tk9.0`, no CGO) for backups of games the user owns: Nintendo Switch NSP/NSZ merging and compression, disc images (CHD, XISO, RVZ, CSO/ZSO, Redump names), and ROMs → 7z with No-Intro names. Repository: https://github.com/tschertel/gameforge (MIT).
+GameForge is a Go desktop app (Tk GUI via `modernc.org/tk9.0`, no CGO) for backups of games the user owns: Nintendo Switch NSP/NSZ merging and compression, disc images (CHD, XISO, RVZ, CSO/ZSO, Redump names), and ROMs (7z, No-Intro names, RetroAchievements check). Repository: https://github.com/tschertel/gameforge (MIT).
 
 The user writes in Brazilian Portuguese; answer in Portuguese. Code, comments, commit messages, README.md and CHANGELOG.md are in English.
 
@@ -44,4 +44,5 @@ The user writes in Brazilian Portuguese; answer in Portuguese. Code, comments, c
 - No keys anywhere: not in the code, the repository, the packages or the output. `prod.keys` and the Wii keys are the user's own, in `keys/` (git-ignored except `keys/README.txt`). Never print or publish them.
 - The app contains no games. Do not help obtain games or ROMs.
 - Do not copy GPL code, for example from Game Format Converter. Write an independent implementation.
-- The Redump and No-Intro databases are downloaded at run time from libretro-database and cached in `redump.cache` and `nointro.cache`; they are not committed.
+- The downloaded databases (titledb, Redump and No-Intro from libretro-database, RetroAchievements game lists) live in the `cache/` folder next to `gameforge.json` and are never committed.
+- The RetroAchievements web API key is the user's own: it is stored only in `gameforge.json` (`retroachievements_key`), sent only to RetroAchievements, and must never appear in logs, errors or commits. Do not use it yourself; the RetroAchievements site is blocked on the user's work network, so real checks are done by the user.

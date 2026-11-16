@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/binary"
+	"hash/crc32"
+	"io"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -139,6 +141,46 @@ func TestRoundTrip(t *testing.T) {
 		if !bytes.Equal(got, img) {
 			t.Fatal("decompressed image differs")
 		}
+	}
+}
+
+func TestReadHeaderAndStream(t *testing.T) {
+	rng := rand.New(rand.NewPCG(5, 6))
+	dir := t.TempDir()
+	img := gcDisc(rng, 8<<20)
+	in, out := filepath.Join(dir, "game.iso"), filepath.Join(dir, "game.rvz")
+	os.WriteFile(in, img, 0o644)
+	if _, err := Compress(context.Background(), in, out, Options{Level: zstd.SpeedDefault}, nil); err != nil {
+		t.Fatal(err)
+	}
+	h, err := ReadHeader(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.ISOSize != int64(len(img)) || h.Wii || !bytes.Equal(h.Disc[:], img[:0x80]) {
+		t.Errorf("header: size %d, wii %v", h.ISOSize, h.Wii)
+	}
+	crc := crc32.NewIEEE()
+	if err := Stream(context.Background(), out, crc, nil); err != nil || crc.Sum32() != crc32.ChecksumIEEE(img) {
+		t.Errorf("stream: %v", err)
+	}
+	if _, err := ReadHeader(in); err == nil {
+		t.Error("an ISO read as an RVZ")
+	}
+
+	r, err := Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	for _, c := range [][2]int64{{0, 0x440}, {0x7f, 3}, {123456, 70000}, {int64(len(img)) - 100, 100}, {1 << 20, 3 << 20}} {
+		b := make([]byte, c[1])
+		if n, err := r.ReadAt(b, c[0]); err != nil || n != len(b) || !bytes.Equal(b, img[c[0]:c[0]+c[1]]) {
+			t.Errorf("ReadAt(%d, %d): %d, %v", c[0], c[1], n, err)
+		}
+	}
+	if n, err := r.ReadAt(make([]byte, 10), int64(len(img))-4); n != 4 || err != io.EOF {
+		t.Errorf("past the end: %d, %v", n, err)
 	}
 }
 

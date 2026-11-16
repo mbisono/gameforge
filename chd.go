@@ -92,15 +92,30 @@ var chdConverter = &converter{
 			}
 		}))
 		setTooltip(rename, T("drename.tip"))
+		raBtn := parent.TButton(Txt(T("btn.ra")), Command(func() {
+			for _, t := range u.tabs {
+				if t.conv.id == "chd" {
+					t.checkRADiscs(u)
+				}
+			}
+		}))
+		setTooltip(raBtn, T("ra.tip_discs"))
 		dbBtn := parent.TMenubutton(Txt(T("redump.menu")))
 		menu := dbBtn.Menu(Tearoff(false))
 		menu.AddCommand(Lbl(T("redump.update")), Command(u.updateRedump))
+		menu.AddSeparator()
+		menu.AddCommand(Lbl(T("ra.update")), Command(u.updateRA))
+		menu.AddCommand(Lbl(T("ra.key_menu")), Command(func() {
+			if !u.busy {
+				u.askRAKey()
+			}
+		}))
 		dbBtn.Configure(Mnu(menu))
 		discDB.status = parent.TLabel()
 		setTooltip(dbBtn, T("redump.menu.tip"))
 		setTooltip(discDB.status, T("redump.menu.tip"))
 		u.showRedumpStatus()
-		return []Widget{check, rename, parent.TSeparator(Orient("vertical")), dbBtn, discDB.status}
+		return []Widget{check, rename, raBtn, parent.TSeparator(Orient("vertical")), dbBtn, discDB.status}
 	},
 	options: func(u *ui, parent *TFrameWidget) []Widget {
 		v := Variable(tclBool(!u.cfg.ChdNoM3U))

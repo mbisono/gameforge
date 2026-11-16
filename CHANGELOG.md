@@ -2,10 +2,24 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
-## [Unreleased]
+## [2.9.0] - 2026-11-16
+
+### Added
+- **Check RetroAchievements** in the ROMs tab tells, in the status column, whether each ROM, ZIP or 7z is a version RetroAchievements recognizes (with the game's name and number of achievements), from the hash RetroAchievements identifies games by, computed with its rules per console. The game lists come from the RetroAchievements web API, with the user's own API key, kept in `gameforge.json` (`retroachievements_key`) and set in the **Names database ▾** menu; they are cached in `retroachievements.cache`.
+- When RetroAchievements has a game but not the version checked, the status says so ("only another version is supported") and the log links to the supported versions.
+- **Check RetroAchievements** in the Discs tab does the same for CHD, ISO, CUE and GDI images of PS1, PS2, PSP, Dreamcast, Saturn and Sega CD discs, with the disc hashes of rcheevos (boot executable, PARAM.SFO and EBOOT.BIN, IP.BIN and boot file, or the disc header), reading only those files.
+- **Rename…** in the GameCube/Wii → RVZ tab gives ISO, GCM and RVZ files their Redump names, with the Discs tab's databases. RVZ files are listed in the tab (game ID, title and image size from the RVZ header), not converted.
+- GameCube games show their banner (`opening.bnr`) next to their name in the GameCube/Wii → RVZ tab, for ISO, GCM and RVZ files; the RVZ reader can read any part of a GameCube RVZ without decompressing the whole disc.
+- The 7z reader can unpack files, not only check them.
 
 ### Changed
+- The **ROMs → 7z** tab is now called **ROMs**, since it also renames and checks; it and the **Discs** tab are the last tabs.
+- The downloaded databases (`titledb.cache`, `redump.cache`, `nointro.cache`) are kept in a `cache` folder next to `gameforge.json`; older ones are moved there at startup.
+- `gameforge.json` is written readable by the user only (Linux), since it may hold the API key.
 - The note in the `keys` folder is now `keys/README.txt`, in English (it was `LEIA-ME.txt`, in Portuguese).
+
+### Fixed
+- A ZIP or 7z with a ROM and a note or image (such as a download site's `.txt`) was taken for an arcade set and not renamed; such files inside an archive no longer count.
 
 ## [2.8.0] - 2026-11-15
 
@@ -105,6 +119,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.9.0]: https://github.com/tschertel/gameforge/releases/tag/v2.9.0
 [2.8.0]: https://github.com/tschertel/gameforge/releases/tag/v2.8.0
 [2.7.1]: https://github.com/tschertel/gameforge/releases/tag/v2.7.1
 [2.7.0]: https://github.com/tschertel/gameforge/releases/tag/v2.7.0

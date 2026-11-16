@@ -43,6 +43,7 @@ func TestRomName(t *testing.T) {
 	headered := write("other.nes", append([]byte("NES\x1a\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"), nes...))
 	zipped := zipOf("pkmn.zip", map[string][]byte{"whatever.gbc": rom})
 	arcade := zipOf("sf2.zip", map[string][]byte{"sf2.01": rom, "sf2.02": nes})
+	noted := zipOf("noted.zip", map[string][]byte{"x.gbc": rom, "Vimm's Lair.txt": []byte("downloaded from…")})
 	unknown := write("hack.gbc", []byte("a translated hack"))
 	seven := filepath.Join(dir, "x.7z")
 	if _, err := sevenzip.Write(context.Background(), seven, []sevenzip.Source{{Name: "x.gbc", Size: int64(len(rom)),
@@ -57,6 +58,7 @@ func TestRomName(t *testing.T) {
 		{zipped, "Some Game (USA, Europe) (Rev 1).zip", ""},
 		{seven, "Some Game (USA, Europe) (Rev 1).7z", ""},
 		{arcade, "", "2"},
+		{noted, "Some Game (USA, Europe) (Rev 1).zip", ""},
 		{unknown, "", "No-Intro"},
 	} {
 		got, skip := romName(context.Background(), u, db, scanRom(&convItem{path: c.path}))

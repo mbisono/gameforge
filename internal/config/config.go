@@ -62,6 +62,9 @@ type Config struct {
 	// ShowHidden shows hidden files and folders (names starting with a
 	// dot) in Tk's file dialogs; they are hidden by default.
 	ShowHidden bool `json:"show_hidden,omitempty"`
+	// RAKey is the user's RetroAchievements web API key, used to check
+	// games against RetroAchievements; it stays in this file.
+	RAKey string `json:"retroachievements_key,omitempty"`
 
 	// Window layout of the last run: geometry "WxH+X+Y" of the normal
 	// (not maximized) window, whether it was maximized, the widths of the
@@ -186,5 +189,6 @@ func (c *Config) Save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(c.path, append(b, '\n'), 0o644)
+	// Readable by the user only: it may hold the RetroAchievements key.
+	return os.WriteFile(c.path, append(b, '\n'), 0o600)
 }

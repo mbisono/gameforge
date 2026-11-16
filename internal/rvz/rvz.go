@@ -534,6 +534,14 @@ type Reader struct {
 	regions   []*region
 	groups    []rvzGroup
 	firstData [0x80]byte
+
+	// ReadAt: decoder and last chunk decoded.
+	dec   *zstd.Decoder
+	cache struct {
+		reg  *region
+		k    int
+		data []byte
+	}
 }
 
 type rvzGroup struct {
@@ -557,7 +565,12 @@ func Open(path string) (*Reader, error) {
 	return r, nil
 }
 
-func (r *Reader) Close() error { return r.f.Close() }
+func (r *Reader) Close() error {
+	if r.dec != nil {
+		r.dec.Close()
+	}
+	return r.f.Close()
+}
 
 // Wii reports whether the RVZ holds a Wii disc.
 func (r *Reader) Wii() bool { return r.DiscType == discWii }
@@ -987,4 +1000,111 @@ func Decompress(ctx context.Context, in, out string, progress func(done, total i
 		res.OutputSize = st.Size()
 	}
 	return res, nil
+}
+
+// Header is what the start of an RVZ tells without decompressing: the
+// first 0x80 bytes of the disc (game ID, disc number, version, title),
+// the size of the disc image and whether it is a Wii disc.
+type Header struct {
+	Disc    [0x80]byte
+	ISOSize int64
+	Wii     bool
+}
+
+// ReadHeader reads and checks the headers of an RVZ.
+func ReadHeader(path string) (*Header, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	h := make([]byte, head1Size+head2Size)
+	if _, err := f.ReadAt(h, 0); err != nil {
+		return nil, fmt.Errorf("reading header: %w", err)
+	}
+	h1, h2 := h[:head1Size], h[head1Size:]
+	if string(h1[:4]) != "RVZ\x01" {
+		return nil, errors.New("not an RVZ file")
+	}
+	if sha1.Sum(h1[:head1Size-sha1.Size]) != [sha1.Size]byte(h1[52:72]) || sha1.Sum(h2) != [sha1.Size]byte(h1[16:36]) {
+		return nil, errors.New("damaged RVZ header")
+	}
+	out := &Header{ISOSize: int64(binary.BigEndian.Uint64(h1[36:])), Wii: binary.BigEndian.Uint32(h2[0:]) == discWii}
+	copy(out.Disc[:], h2[16:])
+	return out, nil
+}
+
+// Stream writes the disc image stored in an RVZ to w.
+func Stream(ctx context.Context, path string, w io.Writer, progress func(done, total int64)) error {
+	_, err := decode(ctx, path, w, progress)
+	return err
+}
+
+// ReadAt reads the disc image of a GameCube RVZ at off, decompressing
+// only the chunks it needs (the last one is kept for the next read). Wii
+// partitions are not supported.
+func (r *Reader) ReadAt(p []byte, off int64) (int, error) {
+	if r.Wii() {
+		return 0, errors.New("RVZ: random access to Wii discs is not supported")
+	}
+	if off >= r.ISOSize {
+		return 0, io.EOF
+	}
+	n := 0
+	for n < len(p) && off < r.ISOSize {
+		m := min(int64(len(p)-n), r.ISOSize-off)
+		out := p[n : n+int(m)]
+		clear(out)
+		// The region holding off, if any; gaps between regions are zeros.
+		var reg *region
+		next := r.ISOSize
+		for _, g := range r.regions {
+			if off >= g.start && off < g.start+g.size {
+				reg = g
+				break
+			}
+			if g.start > off && g.start < next {
+				next = g.start
+			}
+		}
+		if reg == nil {
+			m = min(m, next-off)
+		} else {
+			k := int((off - reg.start) / r.chunk)
+			chunk, err := r.cachedChunk(reg, k)
+			if err != nil {
+				return n, err
+			}
+			in := off - (reg.start + int64(k)*r.chunk)
+			m = int64(copy(out[:m], chunk[in:]))
+		}
+		if off < 0x80 { // kept in the header, not in the data
+			copy(out[:m], r.firstData[off:])
+		}
+		n += int(m)
+		off += m
+	}
+	if n < len(p) {
+		return n, io.EOF
+	}
+	return n, nil
+}
+
+func (r *Reader) cachedChunk(reg *region, k int) ([]byte, error) {
+	if r.cache.reg == reg && r.cache.k == k && r.cache.data != nil {
+		return r.cache.data, nil
+	}
+	if r.dec == nil {
+		dec, err := zstd.NewReader(nil, zstd.WithDecoderConcurrency(1))
+		if err != nil {
+			return nil, err
+		}
+		r.dec = dec
+	}
+	data, err := r.rawChunk(r.dec, reg, k)
+	if err != nil {
+		return nil, err
+	}
+	r.cache.reg, r.cache.k, r.cache.data = reg, k, data
+	return data, nil
 }

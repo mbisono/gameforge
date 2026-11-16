@@ -29,6 +29,8 @@ type Track struct {
 	// Split is, on a GD-ROM multi-cue, the number of frames at the end of
 	// Frames read from the start of the next track's file (its pregap).
 	Split int
+	// LBA is, in a GDI file, the track's first sector on the disc.
+	LBA   int
 	swap  bool // audio stored little endian: CHD stores it big endian
 	gdrom bool // part of a GD-ROM (Dreamcast): stored with GD-ROM metadata
 	area  int  // GD-ROM area in a Redump multi-cue: 1 single, 2 high density

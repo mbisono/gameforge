@@ -21,6 +21,7 @@ import (
 	"gameforge/internal/discinfo"
 	"gameforge/internal/i18n"
 	"gameforge/internal/redump"
+	"gameforge/internal/rvz"
 )
 
 // discDB is the local copy of the Redump databases, loaded on first use,
@@ -36,7 +37,7 @@ var discDB struct {
 const redumpMaxAge = 30 * 24 * time.Hour
 
 func (u *ui) redumpPath() string {
-	return filepath.Join(filepath.Dir(u.cfg.Path()), redump.FileName)
+	return cachePath(u.cfg.Path(), redump.FileName)
 }
 
 func (u *ui) redumpDB() *redump.DB {
@@ -77,6 +78,8 @@ func (u *ui) showRedumpStatus() {
 	switch {
 	case len(have) > 0 && time.Since(db.Downloaded) > redumpMaxAge:
 		text = T("redump.status_old", consoles, newest, int(time.Since(db.Downloaded).Hours()/24))
+	case len(have) == len(redump.Platforms):
+		text = T("redump.status_all", newest) // short: the row is wide
 	case len(have) > 0:
 		text = T("redump.status", consoles, newest)
 	case discDB.err != nil:
@@ -112,12 +115,16 @@ func (t *convTab) renameDiscs(u *ui) {
 	}
 	var items []*convItem
 	for _, it := range t.items {
-		if (isCHD(it.path) || isISO(it.path)) && it.platform != "" {
+		if (isCHD(it.path) || isISO(it.path) || isRVZ(it.path) || hasExt(it.path, []string{".gcm"})) && it.platform != "" {
 			items = append(items, it)
 		}
 	}
 	if len(items) == 0 {
-		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T("drename.empty")))
+		empty := "drename.empty"
+		if t.conv.id == "rvz" {
+			empty = "drename.empty_rvz"
+		}
+		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T(empty)))
 		return
 	}
 	db := u.redumpDB()
@@ -257,9 +264,12 @@ func discName(ctx context.Context, u *ui, db *redump.DB, it *convItem) (string, 
 	ext := strings.ToLower(filepath.Ext(it.path))
 	var info discinfo.Info
 	var err error
-	if isCHD(it.path) {
+	switch {
+	case isCHD(it.path):
 		info, err = discinfo.InfoFromCHD(it.path)
-	} else {
+	case isRVZ(it.path):
+		info, err = discinfo.InfoFromRVZ(it.path)
+	default:
 		info, err = discinfo.InfoFromISO(it.path)
 	}
 	if err != nil {
@@ -332,6 +342,24 @@ func discTracks(ctx context.Context, u *ui, it *convItem, name string) (redump.T
 			Size: d.Size,
 			CRC:  func(n int) (uint32, error) { return d.CRC(ctx, n, progress) },
 		}, func() { d.Close() }
+	}
+	if isRVZ(it.path) {
+		// The image's size is in the header; its CRC needs the whole disc
+		// decompressed, done only when the size does not decide.
+		return redump.Track{
+			Size: func(n int) (int64, bool) {
+				h, err := rvz.ReadHeader(it.path)
+				if err != nil || n != 0 {
+					return 0, false
+				}
+				return h.ISOSize, true
+			},
+			CRC: func(n int) (uint32, error) {
+				h := crc32.NewIEEE()
+				err := rvz.Stream(ctx, it.path, h, progress)
+				return h.Sum32(), err
+			},
+		}, func() {}
 	}
 	return redump.Track{
 		Size: func(n int) (int64, bool) {
@@ -444,7 +472,7 @@ func (t *convTab) applyRenames(u *ui, plan []discRename) {
 }
 
 // moved updates the tab after a file was renamed: its item, its check
-// box and, in a tab that keeps every file given (ROMs → 7z), the pool.
+// box and, in a tab that keeps every file given (ROMs), the pool.
 func (t *convTab) moved(from, to string) {
 	for _, it := range t.items {
 		if it.path == from {

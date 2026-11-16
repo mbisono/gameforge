@@ -173,15 +173,30 @@ var sevenZipConverter = &converter{
 			}
 		}))
 		setTooltip(rename, T("rrename.tip"))
+		check := parent.TButton(Txt(T("btn.ra")), Command(func() {
+			for _, t := range u.tabs {
+				if t.conv.id == "7z" {
+					t.checkRA(u)
+				}
+			}
+		}))
+		setTooltip(check, T("ra.tip"))
 		dbBtn := parent.TMenubutton(Txt(T("redump.menu")))
 		menu := dbBtn.Menu(Tearoff(false))
 		menu.AddCommand(Lbl(T("nointro.update")), Command(u.updateNoIntro))
+		menu.AddSeparator()
+		menu.AddCommand(Lbl(T("ra.update")), Command(u.updateRA))
+		menu.AddCommand(Lbl(T("ra.key_menu")), Command(func() {
+			if !u.busy {
+				u.askRAKey()
+			}
+		}))
 		dbBtn.Configure(Mnu(menu))
 		romDB.status = parent.TLabel()
 		setTooltip(dbBtn, T("nointro.menu.tip"))
 		setTooltip(romDB.status, T("nointro.menu.tip"))
 		u.showNoIntroStatus()
-		return []Widget{rename, parent.TSeparator(Orient("vertical")), dbBtn, romDB.status}
+		return []Widget{rename, check, parent.TSeparator(Orient("vertical")), dbBtn, romDB.status}
 	},
 	options: func(u *ui, parent *TFrameWidget) []Widget {
 		sevenZip.ui = u

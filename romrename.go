@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"context"
 	"errors"
 	"fmt"
@@ -30,7 +31,7 @@ var romDB struct {
 }
 
 func (u *ui) noIntroPath() string {
-	return filepath.Join(filepath.Dir(u.cfg.Path()), nointro.FileName)
+	return cachePath(u.cfg.Path(), nointro.FileName)
 }
 
 func (u *ui) noIntroDB() *nointro.DB {
@@ -82,6 +83,8 @@ func (u *ui) showNoIntroStatus() {
 	switch {
 	case len(have) > 0 && time.Since(db.Downloaded) > redumpMaxAge:
 		text = T("redump.status_old", consoles, newest, int(time.Since(db.Downloaded).Hours()/24))
+	case len(have) == len(nointro.Systems):
+		text = T("redump.status_all", newest) // short: the row is wide
 	case len(have) > 0:
 		text = T("redump.status", consoles, newest)
 	case romDB.err != nil:
@@ -163,11 +166,12 @@ func (r romFile) open() func() (io.ReadCloser, error) {
 			if err != nil {
 				return nil, err
 			}
-			if len(files) != 1 {
+			i := slices.IndexFunc(files, func(f *zip.File) bool { return f.Name == r.inner })
+			if i < 0 {
 				zr.Close()
-				return nil, fmt.Errorf("%d files", len(files))
+				return nil, fmt.Errorf("%s: not found", r.inner)
 			}
-			rc, err := files[0].Open()
+			rc, err := files[i].Open()
 			if err != nil {
 				zr.Close()
 				return nil, err
@@ -192,6 +196,8 @@ func (c closers) Close() error {
 }
 
 // scanRom reads what a file holds; for archives, only their headers.
+// Inside an archive, notes, images and other side files (such as a
+// download site's .txt) do not count: one ROM with them is one ROM.
 func scanRom(it *convItem) romFile {
 	r := romFile{item: it, files: 1}
 	switch strings.ToLower(filepath.Ext(it.path)) {
@@ -202,6 +208,7 @@ func scanRom(it *convItem) romFile {
 			return r
 		}
 		zr.Close()
+		files = slices.DeleteFunc(files, func(f *zip.File) bool { return sideExts[extOf(f.Name)] })
 		r.files = len(files)
 		if len(files) == 1 {
 			f := files[0]
@@ -215,7 +222,7 @@ func scanRom(it *convItem) romFile {
 		}
 		var files []sevenzip.Entry
 		for _, e := range entries {
-			if !e.Dir {
+			if !e.Dir && !sideExts[extOf(e.Name)] {
 				files = append(files, e)
 			}
 		}

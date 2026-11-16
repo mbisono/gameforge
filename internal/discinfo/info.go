@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"gameforge/internal/chd"
+	"gameforge/internal/rvz"
 )
 
 // Info is what a game disc says about itself.
@@ -51,6 +52,23 @@ func InfoFromISO(path string) (Info, error) {
 		_, err := f.ReadAt(b, int64(lba)*2048)
 		return b, err
 	}), nil
+}
+
+// InfoFromRVZ reads the game information of an RVZ (GameCube or Wii), from
+// the start of the disc that its header keeps uncompressed.
+func InfoFromRVZ(path string) (Info, error) {
+	h, err := rvz.ReadHeader(path)
+	if err != nil {
+		return Info{}, err
+	}
+	info := Info{Platform: GameCube}
+	if h.Wii {
+		info.Platform = Wii
+	}
+	head := make([]byte, 0x100) // the title runs past what the header keeps
+	copy(head, h.Disc[:])
+	nintendoInfo(&info, head)
+	return info, nil
 }
 
 // InfoFromCue reads the game information of the disc of a CUE sheet or a

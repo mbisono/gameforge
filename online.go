@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,9 +18,8 @@ import (
 // A database older than this gets a hint to update it.
 const dbMaxAge = 14 * 24 * time.Hour
 
-// dbPath is the cache file, next to the configuration file (the program
-// folder, or the user configuration folder if that is not writable).
-func (u *ui) dbPath() string { return filepath.Join(filepath.Dir(u.cfg.Path()), titledb.FileName) }
+// dbPath is the cache file of the game database.
+func (u *ui) dbPath() string { return cachePath(u.cfg.Path(), titledb.FileName) }
 
 // loadDB reads the local game database, if there is one; the network is
 // used only when the user asks for it. Its state is shown next to the

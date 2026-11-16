@@ -49,7 +49,7 @@ func ParseGDI(path string) ([]*Track, error) {
 		if err1 != nil || err2 != nil || err3 != nil || err4 != nil || num < 1 || num > count {
 			return nil, fmt.Errorf("%s:%d: invalid track line", name, lineNo)
 		}
-		t := &Track{Number: num, File: f[4], gdrom: true}
+		t := &Track{Number: num, File: f[4], gdrom: true, LBA: lba}
 		if !filepath.IsAbs(t.File) {
 			t.File = filepath.Join(dir, t.File)
 		}

@@ -31,6 +31,8 @@ type DiscTrack struct {
 	Number int
 	Type   string // CD track type, e.g. MODE2_RAW or AUDIO
 	Frames int    // data frames, without a pregap stored with the track
+	Pregap int    // frames of pregap before the data (stored or not)
+	Pad    int    // empty frames after the data (GD-ROM: up to the high-density area)
 	start  int    // first data frame in the CHD
 }
 
@@ -84,7 +86,7 @@ func OpenDisc(path string) (*Disc, error) {
 			r.Close()
 			return nil, fmt.Errorf("chd: invalid track metadata %q", s)
 		}
-		t := DiscTrack{Number: n, Type: f["TYPE"], Frames: frames, start: chdFrame}
+		t := DiscTrack{Number: n, Type: f["TYPE"], Frames: frames, Pregap: pregap, start: chdFrame}
 		if strings.HasPrefix(f["PGTYPE"], "V") && pregap <= frames {
 			t.start += pregap
 			t.Frames -= pregap
@@ -93,6 +95,7 @@ func OpenDisc(path string) (*Disc, error) {
 		// high-density area are not part of the track's file.
 		if pad, err := strconv.Atoi(f["PAD"]); err == nil && pad > 0 && pad <= t.Frames {
 			t.Frames -= pad
+			t.Pad = pad
 		}
 		d.Tracks = append(d.Tracks, t)
 		chdFrame += (frames + 3) &^ 3

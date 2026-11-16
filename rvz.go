@@ -14,6 +14,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 	. "modernc.org/tk9.0"
 
+	"gameforge/internal/discinfo"
 	"gameforge/internal/rvz"
 )
 
@@ -25,6 +26,49 @@ func nintendoDisc(path string) (gc, wii bool) {
 	}
 	defer f.Close()
 	return rvz.IsGameCube(f), rvz.IsWii(f)
+}
+
+func isRVZ(path string) bool { return strings.EqualFold(filepath.Ext(path), ".rvz") }
+
+// describeRVZ tells what game an RVZ holds; it is listed, not converted.
+func describeRVZ(it *convItem) {
+	it.infoOnly = true
+	info, err := discinfo.InfoFromRVZ(it.path)
+	if err != nil {
+		it.detail = lazyf("⚠ %v", err)
+		return
+	}
+	it.platform = info.Platform
+	size := int64(0)
+	if h, err := rvz.ReadHeader(it.path); err == nil {
+		size = h.ISOSize
+		if !h.Wii {
+			it.icon = gcBanner(it.path)
+		}
+	}
+	it.detail = msg("rvz.row_rvz", info.Serial, info.Title, humanSize(size), humanSize(discSize(it.path)))
+}
+
+// gcBanner returns the banner of a GameCube disc image (ISO, GCM or RVZ)
+// as PNG, or nil.
+func gcBanner(path string) []byte {
+	var png []byte
+	if isRVZ(path) {
+		r, err := rvz.Open(path)
+		if err != nil {
+			return nil
+		}
+		defer r.Close()
+		png, _ = discinfo.GameCubeBanner(r, r.ISOSize)
+		return png
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	png, _ = discinfo.GameCubeBanner(f, discSize(path))
+	return png
 }
 
 func isNintendoDisc(path string) bool {
@@ -185,11 +229,19 @@ var rvzConverter = &converter{
 	info:   "tab.rvz.info",
 	button: "btn.rvz",
 	tip:    "btn.rvz.tip",
-	exts:   []string{".iso", ".gcm"},
-	accept: isNintendoDisc,
-	types:  []FileType{{TypeName: "GameCube/Wii ISO", Extensions: []string{".iso", ".gcm"}}},
+	exts:   []string{".iso", ".gcm", ".rvz"},
+	// RVZ files are listed too, to be renamed, but not converted.
+	accept: func(path string) bool { return isRVZ(path) || isNintendoDisc(path) },
+	types: []FileType{
+		{TypeName: "GameCube/Wii ISO", Extensions: []string{".iso", ".gcm"}},
+		{TypeName: "RVZ", Extensions: []string{".rvz"}},
+	},
 	describe: func(it *convItem) {
 		it.ok = false
+		if isRVZ(it.path) {
+			describeRVZ(it)
+			return
+		}
 		gc, wii := nintendoDisc(it.path)
 		if !gc && !wii {
 			it.detail = msg("rvz.not_gc")
@@ -197,6 +249,9 @@ var rvzConverter = &converter{
 		}
 		id, title := gcTitle(it.path)
 		it.platform = map[bool]string{true: "Wii", false: "GameCube"}[wii]
+		if gc {
+			it.icon = gcBanner(it.path)
+		}
 		if wii && wiiKeys == nil {
 			it.detail = msg("rvz.need_key")
 			return
@@ -235,6 +290,17 @@ var rvzConverter = &converter{
 			}
 		}
 		return res.InputSize, res.OutputSize, nil
+	},
+	extra: func(u *ui, parent *TFrameWidget) []Widget {
+		rename := parent.TButton(Txt(T("btn.rename")), Command(func() {
+			for _, t := range u.tabs {
+				if t.conv.id == "rvz" {
+					t.renameDiscs(u)
+				}
+			}
+		}))
+		setTooltip(rename, T("drename.tip_rvz"))
+		return []Widget{rename}
 	},
 	options: func(u *ui, parent *TFrameWidget) []Widget {
 		rvzChunk = 128
