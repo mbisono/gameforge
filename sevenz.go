@@ -13,6 +13,7 @@ import (
 
 	. "modernc.org/tk9.0"
 
+	"gameforge/internal/gameart"
 	"gameforge/internal/i18n"
 	"gameforge/internal/sevenzip"
 )
@@ -114,10 +115,16 @@ var sevenZipConverter = &converter{
 				}
 			}
 			it.detail = msg("sz.row_7z", n, size)
+			if hasNDS(entries) {
+				it.iconLater = func() []byte { return ndsIconIn7z(it.path) }
+			}
 			return
 		}
 		if ext != ".zip" {
 			it.platform = romPlatforms[ext]
+			if ext == ".nds" {
+				it.icon = ndsIcon(it.path)
+			}
 			it.ok = true
 			it.detail = msg("sz.row", size)
 			return
@@ -127,6 +134,15 @@ var sevenZipConverter = &converter{
 		if err != nil {
 			it.detail = lazyf("%v", err)
 			return
+		}
+		for _, zf := range files {
+			if strings.EqualFold(filepath.Ext(zf.Name), ".nds") {
+				if r, err := zf.Open(); err == nil {
+					it.icon, _ = gameart.NDS(r)
+					r.Close()
+				}
+				break
+			}
 		}
 		zr.Close()
 		it.ok = true
@@ -361,4 +377,36 @@ func checkSevenZip(ctx context.Context, path string, want []sevenzip.Entry, prog
 		}
 	}
 	return nil
+}
+
+// ndsIcon reads the banner icon of a Nintendo DS ROM, or returns nil.
+func ndsIcon(path string) []byte {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	icon, _ := gameart.NDS(f)
+	return icon
+}
+
+// hasNDS tells whether an archive holds a Nintendo DS ROM.
+func hasNDS(entries []sevenzip.Entry) bool {
+	return slices.ContainsFunc(entries, func(e sevenzip.Entry) bool { return strings.EqualFold(filepath.Ext(e.Name), ".nds") })
+}
+
+// ndsIconIn7z reads the banner icon of the first Nintendo DS ROM in a 7z
+// archive, decompressing only up to the icon, or returns nil.
+func ndsIconIn7z(path string) []byte {
+	var icon gameart.NDSIcon
+	used := false
+	sevenzip.Extract(context.Background(), path, func(name string, size int64) io.Writer {
+		if used || !strings.EqualFold(filepath.Ext(name), ".nds") {
+			return nil
+		}
+		used = true
+		return &icon
+	}, nil)
+	png, _ := icon.PNG()
+	return png
 }

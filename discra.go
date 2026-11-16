@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"gameforge/internal/chd"
+	"gameforge/internal/discinfo"
 	"gameforge/internal/retroach"
 )
 
@@ -168,6 +169,18 @@ func cueReader(path string) (retroach.Disc, func(), error) {
 		return retroach.Disc{Read: read}, func() { f.Close() }, nil
 	}
 	return retroach.Disc{}, nil, errors.New("no data track")
+}
+
+// dreamcastIcon reads the disc label of a Dreamcast CHD or GDI, or
+// returns nil.
+func dreamcastIcon(path string) []byte {
+	d, done, err := discReader(path)
+	if err != nil {
+		return nil
+	}
+	defer done()
+	icon, _ := discinfo.DreamcastLabel(d.Read, d.Start)
+	return icon
 }
 
 // raDiscJobs are the disc images of the Discs tab to check, with their

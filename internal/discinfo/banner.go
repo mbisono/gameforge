@@ -9,6 +9,8 @@ import (
 	"image/png"
 	"io"
 	"strings"
+
+	"gameforge/internal/gameart"
 )
 
 // GameCube banners (opening.bnr) hold a 96×32 image in RGB5A3 format,
@@ -133,4 +135,33 @@ func decodeRGB5A3(b []byte, w, h int) *image.NRGBA {
 func scale5(v uint16) uint8 {
 	v &= 0x1f
 	return uint8(v<<3 | v>>2)
+}
+
+// DreamcastLabel reads the disc label of a Dreamcast game, the file
+// 0GDTEX.PVR in the root of its file system, and returns it as PNG. read
+// returns a sector's 2048 bytes by its address on the disc, and start is
+// the first sector of the file system's track (45000 on a GD-ROM).
+func DreamcastLabel(read func(lba int64) ([]byte, error), start int64) ([]byte, error) {
+	abs := func(lba int) ([]byte, error) { return read(int64(lba)) }
+	pvd, err := read(start + 16)
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.HasPrefix(pvd, []byte("\x01CD001")) {
+		return nil, errors.New("no ISO 9660 file system")
+	}
+	root := extent{int(binary.LittleEndian.Uint32(pvd[158:])), int(binary.LittleEndian.Uint32(pvd[166:]))}
+	dir, err := listDir(abs, root)
+	if err != nil {
+		return nil, err
+	}
+	e, ok := dir["0GDTEX.PVR"]
+	if !ok {
+		return nil, errors.New("the disc has no label image")
+	}
+	b, err := readFileMax(abs, e, 4<<20)
+	if err != nil {
+		return nil, err
+	}
+	return gameart.PVR(b)
 }

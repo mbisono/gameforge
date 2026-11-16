@@ -74,11 +74,14 @@ type convItem struct {
 	ok       bool
 	infoOnly bool   // listed for what it is, not to convert (e.g. a CHD)
 	icon     []byte // PNG shown next to the check box (PSP games)
-	platform string
-	detail   fmt.Stringer
-	status   fmt.Stringer
-	tab      *convTab
-	id       string // row in the list
+	// iconLater, if set, reads an icon that takes long to read (a DS ROM
+	// in a 7z archive); it runs in the background after the file is listed.
+	iconLater func() []byte
+	platform  string
+	detail    fmt.Stringer
+	status    fmt.Stringer
+	tab       *convTab
+	id        string // row in the list
 }
 
 // convTab holds a converter's file list; the widgets are rebuilt with the
@@ -162,6 +165,9 @@ func (t *convTab) add(u *ui, paths []string) int {
 func (t *convTab) list(u *ui, path string) {
 	it := &convItem{path: path, tab: t}
 	t.conv.describe(it)
+	if it.iconLater != nil {
+		u.loadIconLater(it)
+	}
 	t.items = append(t.items, it)
 	t.checked[path] = it.ok
 	if !it.ok && !it.infoOnly {
@@ -381,6 +387,13 @@ func (t *convTab) refresh(u *ui) {
 	yview := strings.Fields(tcl(path, "yview"))
 	t.tree.Delete(t.tree.Children(""))
 	var size int64
+	// Icons are drawn as wide as the widest one, so that the names line up.
+	width := 0
+	for _, it := range t.items {
+		if len(it.icon) > 0 && rowHeight > 0 {
+			width = max(width, iconWidth(it.icon, rowHeight-4))
+		}
+	}
 	for i, it := range t.items {
 		it.id = fmt.Sprintf("c%d", i)
 		values := Values(tclList([]string{it.platform, stringOf(it.detail), stringOf(it.status)}))
@@ -391,7 +404,7 @@ func (t *convTab) refresh(u *ui) {
 		case !it.ok:
 			state = -1
 		}
-		mark, hasIcon := discMark(it.icon, state, it.path)
+		mark, hasIcon := discMark(it.icon, state, it.path, width)
 		switch {
 		case it.infoOnly && hasIcon:
 			t.tree.Insert("", "end", Id(it.id), mark, Txt(filepath.Base(it.path)), values)

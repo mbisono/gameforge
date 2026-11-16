@@ -45,6 +45,10 @@ type row struct {
 type ui struct {
 	cfg *config.Config
 
+	iconMu      sync.Mutex
+	iconJobs    []*convItem // icons waiting to be read in the background
+	iconRunning bool
+
 	keysEntry   *TEntryWidget
 	keysStatus  *TLabelWidget
 	langBox     *TComboboxWidget

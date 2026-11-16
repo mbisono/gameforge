@@ -9,6 +9,8 @@ import (
 	"image/jpeg"
 	"image/png"
 	"math"
+	"slices"
+	"time"
 
 	. "modernc.org/tk9.0"
 
@@ -62,29 +64,54 @@ func gameMark(g *merge.Game, checked bool) Opt {
 	return Image(img)
 }
 
+// iconWidth is how wide an icon is drawn in a list row, keeping its
+// proportions; 0 if it is not a PNG.
+func iconWidth(icon []byte, h int) int {
+	c, err := png.DecodeConfig(bytes.NewReader(icon))
+	if err != nil || c.Height == 0 {
+		return 0
+	}
+	return max(1, h*c.Width/c.Height)
+}
+
 // discMark returns the image option of a disc row with an icon (a PSP
-// game's ICON0.PNG): the check box (state 1, 0 or -1 for disabled; -2
-// for none, leaving its space empty so that icons line up) and the icon,
-// keeping its proportions. key identifies the icon for the cache.
-func discMark(icon []byte, state int, key string) (Opt, bool) {
-	if len(icon) == 0 || rowHeight == 0 {
+// game's ICON0.PNG, a disc label): the check box (state 1, 0 or -1 for
+// disabled; -2 for none, leaving its space empty so that icons line up)
+// and the icon, keeping its proportions, centered in width pixels so that
+// the names line up. A row without an icon gets the empty space when the
+// list has other icons (width > 0). key identifies the icon for the cache.
+func discMark(icon []byte, state int, key string, width int) (Opt, bool) {
+	if rowHeight == 0 || width == 0 {
 		return nil, false
 	}
-	key = fmt.Sprintf("disc/%s/%d", key, state)
+	if len(icon) == 0 {
+		key = "none"
+	}
+	key = fmt.Sprintf("disc/%s/%d/%d", key, state, width)
 	if img := gameImgs[key]; img != nil {
 		return Image(img), true
 	}
-	out, err := discImage(icon, state, rowHeight-4)
+	out, err := discImage(icon, state, rowHeight-4, width)
 	if err != nil {
-		return nil, false
+		out, _ = discImage(nil, state, rowHeight-4, width)
 	}
 	img := NewPhoto(Data(out))
 	gameImgs[key] = img
 	return Image(img), true
 }
 
-// discImage draws a disc row's image h pixels high: see discMark.
-func discImage(icon []byte, state, h int) (image.Image, error) {
+// discImage draws a disc row's image h pixels high with the icon (or
+// nothing, for nil) in width pixels: see discMark.
+func discImage(icon []byte, state, h, width int) (image.Image, error) {
+	box := checkBoxImage(max(state, -1))
+	bb := box.Bounds()
+	out := image.NewRGBA(image.Rect(0, 0, bb.Dx()+width+4, h))
+	if state >= -1 {
+		draw.Draw(out, bb.Add(image.Pt(0, (h-bb.Dy())/2)), box, bb.Min, draw.Src)
+	}
+	if icon == nil {
+		return out, nil
+	}
 	src, err := png.Decode(bytes.NewReader(icon))
 	if err != nil {
 		return nil, err
@@ -92,14 +119,9 @@ func discImage(icon []byte, state, h int) (image.Image, error) {
 	if src.Bounds().Dy() == 0 {
 		return nil, fmt.Errorf("empty icon")
 	}
-	box := checkBoxImage(max(state, -1))
-	w := max(1, h*src.Bounds().Dx()/src.Bounds().Dy())
-	bb := box.Bounds()
-	out := image.NewRGBA(image.Rect(0, 0, bb.Dx()+w+4, h))
-	if state >= -1 {
-		draw.Draw(out, bb.Add(image.Pt(0, (h-bb.Dy())/2)), box, bb.Min, draw.Src)
-	}
-	draw.Draw(out, image.Rect(bb.Dx(), 0, bb.Dx()+w, h), scaleTo(src, w, h), image.Point{}, draw.Over)
+	w := min(width, max(1, h*src.Bounds().Dx()/src.Bounds().Dy()))
+	x := bb.Dx() + (width-w)/2
+	draw.Draw(out, image.Rect(x, 0, x+w, h), scaleTo(src, w, h), image.Point{}, draw.Over)
 	return out, nil
 }
 
@@ -128,4 +150,64 @@ func scaleTo(src image.Image, w, h int) image.Image {
 		}
 	}
 	return dst
+}
+
+// loadIconLater queues an item's slow icon, read in the background one at
+// a time; the lists are shown again as the icons come in.
+func (u *ui) loadIconLater(it *convItem) {
+	u.iconMu.Lock()
+	u.iconJobs = append(u.iconJobs, it)
+	run := !u.iconRunning
+	u.iconRunning = true
+	u.iconMu.Unlock()
+	if run {
+		go u.readIcons()
+	}
+}
+
+func (u *ui) readIcons() {
+	type found struct {
+		it   *convItem
+		icon []byte
+	}
+	var batch []found
+	last := time.Now()
+	show := func() {
+		b := batch
+		batch = nil
+		last = time.Now()
+		PostEvent(func() {
+			// Only lists that still hold an item are shown again.
+			tabs := map[*convTab]bool{}
+			for _, f := range b {
+				f.it.icon = f.icon
+				if slices.Contains(f.it.tab.items, f.it) {
+					tabs[f.it.tab] = true
+				}
+			}
+			for t := range tabs {
+				t.refresh(u)
+			}
+		}, false)
+	}
+	for {
+		u.iconMu.Lock()
+		if len(u.iconJobs) == 0 {
+			u.iconRunning = false
+			u.iconMu.Unlock()
+			if len(batch) > 0 {
+				show()
+			}
+			return
+		}
+		it := u.iconJobs[0]
+		u.iconJobs = u.iconJobs[1:]
+		u.iconMu.Unlock()
+		if icon := it.iconLater(); icon != nil {
+			batch = append(batch, found{it, icon})
+		}
+		if len(batch) > 0 && time.Since(last) > 500*time.Millisecond {
+			show()
+		}
+	}
 }

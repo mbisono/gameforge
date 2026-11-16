@@ -25,8 +25,9 @@ import (
 // Tk's message boxes from being resized and has an About window with a
 // link to the project's page, 2.8.0 renames ROMs with their No-Intro names,
 // 2.9.0 checks ROMs against RetroAchievements and keeps the downloaded
-// databases in a cache folder.
-const appVersion = "2.9.0"
+// databases in a cache folder, 2.10.0 shows the icons of DS games, the
+// labels of Dreamcast discs and the title images of Xbox games.
+const appVersion = "2.10.0"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

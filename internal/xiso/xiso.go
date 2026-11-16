@@ -224,6 +224,17 @@ func (im *Image) file(e *Entry) io.Reader {
 	return io.NewSectionReader(im.f, im.base+int64(e.Sector)*SectorSize, int64(e.Size))
 }
 
+// RootFile returns a reader of a file in the root folder, found by its
+// name with case ignored, and the file's size.
+func (im *Image) RootFile(name string) (io.ReaderAt, int64, bool) {
+	for _, e := range im.root.entries {
+		if !e.IsDir() && strings.EqualFold(e.Name, name) {
+			return io.NewSectionReader(im.f, im.base+int64(e.Sector)*SectorSize, int64(e.Size)), int64(e.Size), true
+		}
+	}
+	return nil, 0, false
+}
+
 // walk calls fn for every file, with its path, directories first in table
 // order.
 func (im *Image) walk(fn func(path string, e *Entry) error) error {

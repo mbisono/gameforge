@@ -8,6 +8,7 @@ import (
 
 	. "modernc.org/tk9.0"
 
+	"gameforge/internal/gameart"
 	"gameforge/internal/xiso"
 )
 
@@ -30,6 +31,9 @@ var xisoConverter = &converter{
 		defer im.Close()
 		k, files, size := im.Kind, im.Files, im.Bytes
 		it.ok, it.platform = true, xboxPlatform(im.Xbox360)
+		if r, n, ok := im.RootFile("default.xbe"); ok {
+			it.icon, _ = gameart.XBE(r, n)
+		}
 		it.detail = lazyLine(func() string { return T("xiso.row", xisoLayout(k), files, humanSize(size)) })
 	},
 	outName: func(it *convItem) string {

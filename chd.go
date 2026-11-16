@@ -244,6 +244,9 @@ func describeCHD(it *convItem) {
 	d.Close()
 	info, _ := discinfo.InfoFromCHD(it.path)
 	it.platform, it.icon = info.Platform, info.Icon
+	if it.platform == discinfo.Dreamcast {
+		it.icon = dreamcastIcon(it.path)
+	}
 	size := humanSize(st.Size())
 	it.detail = withGame(info, lazyLine(func() string { return T("chd.row_chd", stringOf(kind), size) }))
 }
@@ -280,6 +283,9 @@ func describeDisc(it *convItem) {
 		info, _ := discinfo.InfoFromCue(it.path)
 		if chd.IsGDROM(tracks) {
 			it.ok, it.kind, it.platform = true, "gd", discinfo.Dreamcast
+			if isGDI(it.path) {
+				it.icon = dreamcastIcon(it.path)
+			}
 			it.detail = withGame(info, msg("chd.row_gd", len(tracks), humanSize(size)))
 			return
 		}

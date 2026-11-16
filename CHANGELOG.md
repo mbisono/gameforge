@@ -2,6 +2,17 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.10.0] - 2026-11-16
+
+### Added
+- Nintendo DS ROMs show their icon (the 32 × 32 picture of the DS menu, from the ROM's banner) next to their name in the ROMs tab, loose or in a ZIP or 7z; in a 7z only the start of the ROM is decompressed, in the background, so the list appears at once and the icons follow.
+- Dreamcast games in a CHD or GDI show their disc label (`0GDTEX.PVR`, the picture printed on the disc) in the Discs tab, when the disc has one; the app reads the PVR texture formats used for it (twiddled, VQ-compressed or plain, with or without mipmaps).
+- Xbox games show their title image (from `default.xbe`, in DXT or plain texture formats) in the Xbox → XISO tab.
+
+### Changed
+- In lists with icons, every icon takes the width of the widest one and rows without an icon keep the same space, so the names line up (for example Wii rows next to GameCube banners, or PSP icons next to Dreamcast labels).
+- The README notes that the disc hashes of the RetroAchievements check were confirmed with real Dreamcast, PS1 and PSP games.
+
 ## [2.9.0] - 2026-11-16
 
 ### Added
@@ -119,6 +130,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.10.0]: https://github.com/tschertel/gameforge/releases/tag/v2.10.0
 [2.9.0]: https://github.com/tschertel/gameforge/releases/tag/v2.9.0
 [2.8.0]: https://github.com/tschertel/gameforge/releases/tag/v2.8.0
 [2.7.1]: https://github.com/tschertel/gameforge/releases/tag/v2.7.1
