@@ -134,3 +134,21 @@ func (u *ui) openUpdatePage() {
 		openURL(u.updatePage())
 	}
 }
+
+// whenShown calls f once the window manager has shown the main window: when
+// it has the focus (3 seconds at most), and a moment later. A modal dialog
+// opened at startup from PostEvent, before that, got no mouse or keyboard
+// input on KDE Wayland (XWayland) and could not even be closed, although Tk
+// already reported the window as mapped.
+func whenShown(f func()) {
+	start := time.Now()
+	var poll func()
+	poll = func() {
+		if tcl("focus") == "" && time.Since(start) < 3*time.Second {
+			TclAfter(100*time.Millisecond, poll)
+			return
+		}
+		TclAfter(250*time.Millisecond, f)
+	}
+	TclAfterIdle(poll)
+}

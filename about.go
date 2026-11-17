@@ -37,8 +37,10 @@ import (
 // the ROMs tab (the same game in several files, such as a .neo, a .7z and
 // MAME's .zip set), checks the extra copies and deletes the checked files,
 // 2.13.0 checks for new versions daily, weekly or monthly, chosen in the
-// About window, which can also check at once.
-const appVersion = "2.13.0"
+// About window, which can also check at once, 2.13.1 waits for the window
+// to be shown before asking about the check, since on KDE Wayland the
+// question got no input and could be neither answered nor closed.
+const appVersion = "2.13.1"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

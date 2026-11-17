@@ -2,6 +2,11 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.13.1] - 2026-11-17
+
+### Fixed
+- On the first run on Linux (seen on KDE Plasma with Wayland), the question whether to check for new versions did not respond: **Yes** and **No** did nothing and the window could not be closed. The question was opened before the window manager had shown the main window; it now waits until the main window is on screen.
+
 ## [2.13.0] - 2026-11-17
 
 ### Changed
@@ -161,6 +166,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.13.1]: https://github.com/tschertel/gameforge/releases/tag/v2.13.1
 [2.13.0]: https://github.com/tschertel/gameforge/releases/tag/v2.13.0
 [2.12.0]: https://github.com/tschertel/gameforge/releases/tag/v2.12.0
 [2.11.1]: https://github.com/tschertel/gameforge/releases/tag/v2.11.1

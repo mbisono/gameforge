@@ -148,7 +148,7 @@ func main() {
 	u.loadKeys(u.initialKeysPath())
 	u.loadWiiKeys()
 	u.loadDB()
-	PostEvent(u.startUpdateCheck, false) // once the window is shown
+	whenShown(u.startUpdateCheck) // a dialog opened earlier gets no input
 	// Files given on the command line (dropped on the program, "Open
 	// with") are added as if dropped on the window.
 	if len(os.Args) > 1 {
