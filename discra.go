@@ -183,15 +183,10 @@ func dreamcastIcon(path string) []byte {
 	return icon
 }
 
-// raDiscJobs are the disc images of the Discs tab to check, with their
-// consoles.
-func raDiscJobs(t *convTab) []raJob {
+// raDiscJobs are the checks of disc images, with their consoles.
+func raDiscJobs(items []*convItem) []raJob {
 	var jobs []raJob
-	for _, it := range t.items {
-		if !(isCHD(it.path) || isISO(it.path) || hasExt(it.path, []string{".cue", ".gdi"})) {
-			continue
-		}
-		it := it
+	for _, it := range items {
 		console := retroach.DiscConsoles[it.platform]
 		jobs = append(jobs, raJob{item: it, console: console, system: it.platform,
 			run: func(ctx context.Context, db *retroach.DB) (fmt.Stringer, fmt.Stringer, bool) {

@@ -138,8 +138,8 @@ func (u *ui) checkOnline() {
 	u.reportOnline()
 }
 
-// reportOnline writes what each game lacks, compared with the game
-// database, to the log.
+// reportOnline writes what each game with a checked file lacks, compared
+// with the game database, to the log.
 func (u *ui) reportOnline() {
 	db := u.db
 	if len(u.games) == 0 {
@@ -147,9 +147,18 @@ func (u *ui) reportOnline() {
 		u.flush()
 		return
 	}
+	selected := u.selectedFiles()
+	if len(selected) == 0 {
+		u.logf("list.none_checked")
+		u.flush()
+		return
+	}
 	u.logf("online.start", db.DataDate())
 	var newer, missing, outdated, unknown int
 	for _, g := range u.games {
+		if len(selected[g]) == 0 {
+			continue // no file of the game is checked
+		}
 		s := g.Online(db)
 		name := fmt.Sprintf("%s [%016X]", g.Title(), g.AppID)
 		if !s.Known {

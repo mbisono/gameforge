@@ -216,45 +216,52 @@ type raJob struct {
 	run     func(ctx context.Context, db *retroach.DB) (status, line fmt.Stringer, ok bool)
 }
 
-// checkRA tells, in the status column and the log, whether each ROM of
+// checkRA tells, in the status column and the log, whether each checked ROM of
 // the ROMs tab is a version RetroAchievements recognizes, downloading the
 // game lists of their consoles first.
 func (t *convTab) checkRA(u *ui) {
 	if u.busy {
 		return
 	}
-	var jobs []raJob
-	for _, it := range t.items {
-		if (it.ok || it.infoOnly) && !sideExts[extOf(it.path)] {
-			r := scanRom(it)
-			console, system := raConsole(r)
-			if r.files != 1 {
-				console = 0 // not looked up: no list needed
-			}
-			jobs = append(jobs, raJob{item: it, console: console, system: system,
-				run: func(ctx context.Context, db *retroach.DB) (fmt.Stringer, fmt.Stringer, bool) {
-					return raCheck(ctx, db, r)
-				}})
-		}
-	}
-	if len(jobs) == 0 {
-		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T("rrename.empty")))
+	items, ok := t.romItems()
+	if !ok {
 		return
+	}
+	var jobs []raJob
+	for _, it := range items {
+		r := scanRom(it)
+		console, system := raConsole(r)
+		if r.files != 1 {
+			console = 0 // not looked up: no list needed
+		}
+		jobs = append(jobs, raJob{item: it, console: console, system: system,
+			run: func(ctx context.Context, db *retroach.DB) (fmt.Stringer, fmt.Stringer, bool) {
+				return raCheck(ctx, db, r)
+			}})
 	}
 	u.startRA(jobs)
 }
 
-// checkRADiscs does the same for the disc images of the Discs tab.
+// checkRADiscs does the same for the checked disc images of the Discs tab.
 func (t *convTab) checkRADiscs(u *ui) {
 	if u.busy {
 		return
 	}
-	jobs := raDiscJobs(t)
-	if len(jobs) == 0 {
+	var items []*convItem
+	for _, it := range t.items {
+		if isCHD(it.path) || isISO(it.path) || hasExt(it.path, []string{".cue", ".gdi"}) {
+			items = append(items, it)
+		}
+	}
+	if len(items) == 0 {
 		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T("ra.empty_discs")))
 		return
 	}
-	u.startRA(jobs)
+	items, ok := t.keepChecked(items)
+	if !ok {
+		return
+	}
+	u.startRA(raDiscJobs(items))
 }
 
 // startRA asks for the key if needed, downloads the missing game lists and

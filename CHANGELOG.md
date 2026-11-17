@@ -2,6 +2,15 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.11.1] - 2026-11-17
+
+### Fixed
+- **Rename…** in the Nintendo Switch tab renamed every file in the list, checked or not; it now renames only the checked files. The same goes for **Rename…** and **Check RetroAchievements** in the Discs, GameCube/Wii → RVZ and ROMs tabs, and for the online check with the game database, which looks only at games with a checked file. When none of the files an action works on is checked, the app says so.
+
+### Changed
+- CHDs in the Discs tab, RVZs in the RVZ tab and 7z files in the ROMs tab, which are listed to be renamed or checked but not converted, now have a check box like the other files, checked at first.
+- The file lists scroll sideways: each column is at least as wide as its longest text, and a horizontal scroll bar shows what does not fit in the window.
+
 ## [2.11.0] - 2026-11-17
 
 ### Added
@@ -140,6 +149,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.11.1]: https://github.com/tschertel/gameforge/releases/tag/v2.11.1
 [2.11.0]: https://github.com/tschertel/gameforge/releases/tag/v2.11.0
 [2.10.0]: https://github.com/tschertel/gameforge/releases/tag/v2.10.0
 [2.9.0]: https://github.com/tschertel/gameforge/releases/tag/v2.9.0

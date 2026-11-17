@@ -172,7 +172,7 @@ func (t *convTab) list(u *ui, path string) {
 		u.loadIconLater(it)
 	}
 	t.items = append(t.items, it)
-	t.checked[path] = it.ok
+	t.checked[path] = it.ok || it.infoOnly
 	if !it.ok && !it.infoOnly {
 		u.println(lazyf("✗ %s: %s", filepath.Base(path), it.detail))
 	}
@@ -198,6 +198,30 @@ func (t *convTab) refilter(u *ui) {
 		}
 	}
 	t.refresh(u)
+}
+
+// markable reports whether an item has a check box: a file to convert, or
+// one listed for what it is (a CHD, an RVZ, a 7z), which the tab's other
+// actions (renaming, the RetroAchievements check) still work on.
+func markable(it *convItem) bool { return it.ok || it.infoOnly }
+
+// marked reports whether an item is checked.
+func (t *convTab) marked(it *convItem) bool { return markable(it) && t.checked[it.path] }
+
+// keepChecked keeps the checked items among those an action works on. If
+// there are some but none is checked, it says so and returns false.
+func (t *convTab) keepChecked(items []*convItem) ([]*convItem, bool) {
+	var out []*convItem
+	for _, it := range items {
+		if t.marked(it) {
+			out = append(out, it)
+		}
+	}
+	if len(out) == 0 && len(items) > 0 {
+		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T("list.none_checked")))
+		return nil, false
+	}
+	return out, true
 }
 
 func (t *convTab) checkedItems() []*convItem {
@@ -281,14 +305,7 @@ func (t *convTab) build(u *ui, tab *TFrameWidget) *TFrameWidget {
 }
 
 func (t *convTab) buildTree(u *ui, parent *TFrameWidget) *TTreeviewWidget {
-	var sb *TScrollbarWidget
-	tv := parent.TTreeview(Columns("platform detail status"), Selectmode("browse"), Height(12),
-		Yscrollcommand(func(e *Event) { e.ScrollSet(sb) }))
-	sb = parent.TScrollbar(Command(func(e *Event) { e.Yview(tv) }))
-	Grid(tv, Row(0), Column(0), Sticky("news"))
-	Grid(sb, Row(0), Column(1), Sticky("ns"))
-	GridColumnConfigure(parent.Window, 0, Weight(1))
-	GridRowConfigure(parent.Window, 0, Weight(1))
+	tv := scrolledTree(parent, Columns("platform detail status"), Selectmode("browse"), Height(12))
 	tv.Heading("#0", Txt(T("list.file")), Anchor("w"))
 	tv.Heading("platform", Txt(T("list.platform")), Anchor("w"))
 	tv.Heading("detail", Txt(T("list.detail")), Anchor("w"))
@@ -323,7 +340,7 @@ func (t *convTab) item(id string) *convItem {
 
 func (t *convTab) toggle(u *ui, id string) {
 	it := t.item(id)
-	if u.busy || it == nil || !it.ok {
+	if u.busy || it == nil || !markable(it) {
 		return
 	}
 	t.checked[it.path] = !t.checked[it.path]
@@ -357,7 +374,7 @@ func (t *convTab) popup(u *ui, id string, x, y int) {
 
 func (t *convTab) checkAll(u *ui, v bool) {
 	for _, it := range t.items {
-		t.checked[it.path] = v && it.ok
+		t.checked[it.path] = v && markable(it)
 	}
 	t.refresh(u)
 }
@@ -401,27 +418,14 @@ func (t *convTab) refresh(u *ui) {
 		it.id = fmt.Sprintf("c%d", i)
 		values := Values(tclList([]string{it.platform, stringOf(it.detail), stringOf(it.status)}))
 		state := map[bool]int{true: 1, false: 0}[t.checked[it.path]]
-		switch {
-		case it.infoOnly:
-			state = -2
-		case !it.ok:
+		if !markable(it) {
 			state = -1
 		}
 		mark, hasIcon := discMark(it.icon, state, it.path, width)
-		switch {
-		case it.infoOnly && hasIcon:
-			t.tree.Insert("", "end", Id(it.id), mark, Txt(filepath.Base(it.path)), values)
-			continue
-		case it.infoOnly:
-			t.tree.Insert("", "end", Id(it.id), Txt(filepath.Base(it.path)), values)
-			continue
-		case !hasIcon:
-			mark = checkMark(t.checked[it.path])
-			if !it.ok {
-				mark = Image(checkImage(-1))
-			}
+		if !hasIcon {
+			mark = Image(checkImage(state))
 		}
-		if !it.ok {
+		if !markable(it) {
 			t.tree.Insert("", "end", Id(it.id), mark, Txt(filepath.Base(it.path)), values, Tags("unknown"))
 			continue
 		}
@@ -434,10 +438,17 @@ func (t *convTab) refresh(u *ui) {
 			}
 		}
 	}
+	fitColumns(t.tree)
 	if len(yview) > 0 {
 		tcl(path, "yview", "moveto", yview[0])
 	}
-	t.summary.Configure(Txt(T("summary.conv", len(t.items), len(t.checkedItems()), humanSize(size))))
+	marked := 0
+	for _, it := range t.items {
+		if t.marked(it) {
+			marked++
+		}
+	}
+	t.summary.Configure(Txt(T("summary.conv", len(t.items), marked, humanSize(size))))
 	t.setBusy(u, u.busy)
 	if t.conv.refreshed != nil {
 		t.conv.refreshed(u, t)
@@ -478,6 +489,7 @@ func (u *ui) flushItems(pending map[*convItem]fmt.Stringer) {
 		it.status = s
 		if it.tab.tree != nil && it.id != "" && tcl(it.tab.tree.String(), "exists", it.id) == "1" {
 			tcl(it.tab.tree.String(), "set", it.id, "status", stringOf(s))
+			growColumn(it.tab.tree, "status", stringOf(s))
 		}
 	}
 }

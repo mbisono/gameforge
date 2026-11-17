@@ -106,7 +106,7 @@ type discRename struct {
 	to   string
 }
 
-// renameDiscs gives the CHD and ISO files of the Discs tab their Redump
+// renameDiscs gives the checked CHD and ISO files of the Discs tab their Redump
 // names, downloading the databases of their platforms first if the user
 // agrees, and showing the changes before renaming.
 func (t *convTab) renameDiscs(u *ui) {
@@ -125,6 +125,10 @@ func (t *convTab) renameDiscs(u *ui) {
 			empty = "drename.empty_rvz"
 		}
 		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T(empty)))
+		return
+	}
+	items, ok := t.keepChecked(items)
+	if !ok {
 		return
 	}
 	db := u.redumpDB()

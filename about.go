@@ -31,8 +31,10 @@ import (
 // labels of Dreamcast discs and the title images of Xbox games, 2.11.0
 // renames Neo Geo games in the .neo format and compresses several files at
 // a time in the 7z tab, and checks once a day (if the user agrees) whether
-// a newer version is out.
-const appVersion = "2.11.0"
+// a newer version is out, 2.11.1 renames and checks only the checked
+// files, gives CHDs, RVZs and 7z files in the conversion tabs a check box
+// and lets the file lists scroll sideways.
+const appVersion = "2.11.1"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

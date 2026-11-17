@@ -31,8 +31,8 @@ func (u *ui) officialTitle(g *merge.Game) string {
 	return ""
 }
 
-// renamePlan lists the files of the Switch list whose name differs from
-// the standard one.
+// renamePlan lists the checked files of the Switch list whose name differs
+// from the standard one.
 func (u *ui) renamePlan() []renaming {
 	var plan []renaming
 	for _, g := range u.games {
@@ -41,6 +41,9 @@ func (u *ui) renamePlan() []renaming {
 			continue
 		}
 		for _, n := range g.Files() {
+			if !u.checked[n.Path] {
+				continue
+			}
 			dlc := ""
 			if n.Kind == merge.KindDLC && u.db != nil {
 				dlc = u.db.Name(n.TitleID)
@@ -55,7 +58,7 @@ func (u *ui) renamePlan() []renaming {
 	return plan
 }
 
-// renameFiles gives the files of the Switch list their standard names,
+// renameFiles gives the checked files of the Switch list their standard names,
 // after showing what changes.
 func (u *ui) renameFiles() {
 	if u.busy {
@@ -63,6 +66,10 @@ func (u *ui) renameFiles() {
 	}
 	if len(u.games) == 0 {
 		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T("rename.empty")))
+		return
+	}
+	if len(u.selectedFiles()) == 0 {
+		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T("list.none_checked")))
 		return
 	}
 	plan := u.renamePlan()

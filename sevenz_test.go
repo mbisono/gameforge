@@ -135,3 +135,24 @@ func TestConvertAllJobs(t *testing.T) {
 		}
 	}
 }
+
+// TestInfoOnlyChecked checks that files listed only for what they are (a
+// 7z in the ROMs tab) get a check box, checked at first, and that only
+// checked files count as marked.
+func TestInfoOnlyChecked(t *testing.T) {
+	tab := &convTab{checked: map[string]bool{}}
+	a := &convItem{path: "a.7z", infoOnly: true}
+	b := &convItem{path: "b.gbc", ok: true}
+	c := &convItem{path: "c.bin"} // could not be read: no check box
+	tab.items = []*convItem{a, b, c}
+	for _, it := range tab.items {
+		tab.checked[it.path] = markable(it)
+	}
+	if !tab.marked(a) || !tab.marked(b) || tab.marked(c) {
+		t.Fatalf("marked: %v %v %v", tab.marked(a), tab.marked(b), tab.marked(c))
+	}
+	tab.checked["a.7z"] = false
+	if tab.marked(a) || len(tab.checkedItems()) != 1 {
+		t.Errorf("after unchecking: %v %d", tab.marked(a), len(tab.checkedItems()))
+	}
+}

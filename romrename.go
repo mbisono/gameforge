@@ -242,22 +242,37 @@ func scanRom(it *convItem) romFile {
 	return r
 }
 
-// renameRoms gives the ROMs, ZIPs and 7z files of the ROMs tab their
+// romItems returns the checked ROMs, ZIPs and 7z files of the ROMs tab
+// (not saves and other side files), or false after telling the user that
+// there are none.
+func (t *convTab) romItems() ([]*convItem, bool) {
+	var items []*convItem
+	for _, it := range t.items {
+		if markable(it) && !sideExts[extOf(it.path)] {
+			items = append(items, it)
+		}
+	}
+	if len(items) == 0 {
+		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T("rrename.empty")))
+		return nil, false
+	}
+	return t.keepChecked(items)
+}
+
+// renameRoms gives the checked ROMs, ZIPs and 7z files of the ROMs tab their
 // No-Intro names, downloading the databases of their consoles first if
 // the user agrees, and showing the changes before renaming.
 func (t *convTab) renameRoms(u *ui) {
 	if u.busy {
 		return
 	}
-	var roms []romFile
-	for _, it := range t.items {
-		if (it.ok || it.infoOnly) && !sideExts[extOf(it.path)] {
-			roms = append(roms, scanRom(it))
-		}
-	}
-	if len(roms) == 0 {
-		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T("rrename.empty")))
+	items, ok := t.romItems()
+	if !ok {
 		return
+	}
+	var roms []romFile
+	for _, it := range items {
+		roms = append(roms, scanRom(it))
 	}
 	db := u.noIntroDB()
 	var missing []string

@@ -632,14 +632,7 @@ func (u *ui) buildThemeBox(parent *TFrameWidget) *TComboboxWidget {
 // buildTree creates the file list: game headers with their files below, each
 // with a check mark that is toggled by clicking it or pressing space.
 func (u *ui) buildTree(parent *TFrameWidget) *TTreeviewWidget {
-	var sb *TScrollbarWidget
-	tv := parent.TTreeview(Columns("detail"), Selectmode("browse"), Height(12),
-		Yscrollcommand(func(e *Event) { e.ScrollSet(sb) }))
-	sb = parent.TScrollbar(Command(func(e *Event) { e.Yview(tv) }))
-	Grid(tv, Row(0), Column(0), Sticky("news"))
-	Grid(sb, Row(0), Column(1), Sticky("ns"))
-	GridColumnConfigure(parent.Window, 0, Weight(1))
-	GridRowConfigure(parent.Window, 0, Weight(1))
+	tv := scrolledTree(parent, Columns("detail"), Selectmode("browse"), Height(12))
 
 	setRowHeight()
 	tv.Heading("#0", Txt(T("list.file")), Anchor("w"))
@@ -1323,6 +1316,7 @@ func (u *ui) fillTree() {
 				Values(tclList([]string{describeFile(r.game, r.nsp)})), Tags(tclList(tags)))
 		}
 	}
+	fitColumns(u.tree)
 	if len(yview) > 0 {
 		tcl(path, "yview", "moveto", yview[0])
 	}
