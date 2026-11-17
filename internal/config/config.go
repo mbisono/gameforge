@@ -62,6 +62,10 @@ type Config struct {
 	SevenZipDelete bool `json:"sevenzip_delete,omitempty"`
 	// SevenZipJobs is how many files the 7z tab compresses at a time (0: 1).
 	SevenZipJobs int `json:"sevenzip_jobs,omitempty"`
+	// DupesKeep is the order of the extensions whose file is kept of the
+	// duplicates of a game in the ROMs tab, such as "7z, neo, zip" (the
+	// default when empty).
+	DupesKeep string `json:"dupes_keep,omitempty"`
 	// UpdateCheck turns on the daily check for a new version on GitHub;
 	// nil until the user has been asked.
 	UpdateCheck *bool `json:"update_check,omitempty"`

@@ -7,6 +7,7 @@ The user writes in Brazilian Portuguese; answer in Portuguese. Code, comments, c
 ## Build and test
 
 - Windows: `./build.ps1` (PowerShell) → `gameforge.exe`, built with `-H windowsgui`. Linux: `./build.sh`, or `CGO_ENABLED=0 GOOS=linux go build -ldflags '-s -w' -o gameforge .`
+- macOS (experimental): `CGO_ENABLED=0 GOOS=darwin GOARCH=arm64` (or `amd64`) cross-compiles from Windows. There is no Mac to test on, so the macOS builds are compiled but never run; say so whenever they come up.
 - Tests: `go vet ./... && go test ./...`. Optional tests run when an environment variable is set:
   - `SEVENZIP` points to `7z.exe` (7-Zip compatibility);
   - `CHDMAN` points to `chdman`;
@@ -31,13 +32,14 @@ The user writes in Brazilian Portuguese; answer in Portuguese. Code, comments, c
 
 1. Write the version's CHANGELOG section, and regenerate THIRD_PARTY_LICENSES.txt if dependencies changed.
 2. Commit, push, then create an annotated tag `vX.Y.Z` and push it.
-3. Build from the tag with `CGO_ENABLED=0` and `-trimpath`, for Windows (`-H windowsgui -s -w`) and Linux (`-s -w`).
+3. Build from the tag with `CGO_ENABLED=0` and `-trimpath`, for Windows (`-H windowsgui -s -w`), Linux (`-s -w`) and macOS arm64 and amd64 (`-s -w`, experimental).
 4. Package the builds:
    - Windows: `gameforge-X.Y.Z-windows-amd64.zip` with `gameforge.exe`.
    - Linux: `gameforge-X.Y.Z-linux-amd64.tar.gz` with `gameforge`, mode 755.
-   - Both, inside a `gameforge-X.Y.Z/` folder: README.md, README.pt-BR.md, CHANGELOG.md, LICENSE, THIRD_PARTY_LICENSES.txt, `keys/README.txt`.
+   - macOS: `gameforge-X.Y.Z-macos-arm64.tar.gz` and `gameforge-X.Y.Z-macos-amd64.tar.gz` with `gameforge`, mode 755.
+   - All, inside a `gameforge-X.Y.Z/` folder: README.md, README.pt-BR.md, CHANGELOG.md, LICENSE, THIRD_PARTY_LICENSES.txt, `keys/README.txt`.
    - Also write `SHA256SUMS.txt`.
-5. Publish with `gh release create vX.Y.Z --repo tschertel/gameforge`, with notes taken from the changelog (downloads, the keys note, what's new). The user handles GitHub and `gh` logins.
+5. Publish with `gh release create vX.Y.Z --repo tschertel/gameforge`, with notes taken from the changelog (downloads, the keys note, what's new). The macOS downloads are marked experimental and untested, with how to get past Gatekeeper (unsigned: System Settings → Privacy & Security → Open Anyway, or `xattr -d com.apple.quarantine gameforge`). The user handles GitHub and `gh` logins.
 
 ## Hard rules
 

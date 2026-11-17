@@ -207,6 +207,26 @@ var sevenZipConverter = &converter{
 			}
 		}))
 		setTooltip(check, T("ra.tip"))
+		dupes := parent.TButton(Txt(T("btn.dupes")), Command(func() {
+			for _, t := range u.tabs {
+				if t.conv.id == "7z" {
+					t.findDupes(u)
+				}
+			}
+		}))
+		setTooltip(dupes, T("dupes.tip"))
+		del := parent.TButton(Txt(T("btn.delete")), Command(func() {
+			for _, t := range u.tabs {
+				if t.conv.id == "7z" {
+					t.deleteChecked(u)
+				}
+			}
+		}))
+		tip := T("del.tip")
+		if usesTrash {
+			tip += "\n\n" + T("del.trash")
+		}
+		setTooltip(del, tip)
 		dbBtn := parent.TMenubutton(Txt(T("redump.menu")))
 		menu := dbBtn.Menu(Tearoff(false))
 		menu.AddCommand(Lbl(T("nointro.update")), Command(u.updateNoIntro))
@@ -222,7 +242,7 @@ var sevenZipConverter = &converter{
 		setTooltip(dbBtn, T("nointro.menu.tip"))
 		setTooltip(romDB.status, T("nointro.menu.tip"))
 		u.showNoIntroStatus()
-		return []Widget{rename, check, parent.TSeparator(Orient("vertical")), dbBtn, romDB.status}
+		return []Widget{rename, check, dupes, del, parent.TSeparator(Orient("vertical")), dbBtn, romDB.status}
 	},
 	options: func(u *ui, parent *TFrameWidget) []Widget {
 		sevenZip.ui = u
@@ -245,6 +265,7 @@ var sevenZipConverter = &converter{
 		setTooltip(del, tip)
 		Grid(del, Row(1), Column(0), Columnspan(2), Sticky("w"), pad)
 		Grid(jobsBox(u, box), Row(2), Column(0), Columnspan(2), Sticky("w"), pad)
+		Grid(keepBox(u, box), Row(3), Column(0), Columnspan(2), Sticky("w"), pad)
 		return []Widget{box}
 	},
 	refreshed: func(u *ui, t *convTab) { fillExtBoxes(u, t) },

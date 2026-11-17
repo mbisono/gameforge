@@ -2,6 +2,13 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.12.0] - 2026-11-17
+
+### Added
+- **Find duplicates** in the ROMs tab finds the checked ROMs, ZIPs and 7z files that hold the same game, such as a Neo Geo game as a `.neo`, inside a `.7z` and as MAME's `.zip` set. Files count as the same game when the No-Intro database gives them the same name (by the ROM's CRC), when they hold the same ROM, or when they have the same name; MAME's Neo Geo sets are found by their short names (`blazstar.zip` is Blazing Star). The status column tells which file of each game stays and which are extra copies, and the log lists each group with the files' sizes and how much space the extra copies take. The app then offers to check only the extra copies. The file that stays is the first format in an order set in the tab (by default `7z, neo, zip`: a 7z with the `.neo` inside, then a loose `.neo`, then MAME's ZIP), then the one that already has the database name, then the largest.
+- **Delete checked…** in the ROMs tab deletes the checked files, after showing them and asking: to the Recycle Bin on Windows, for good on Linux and macOS. RetroArch saves and states are left alone.
+- Experimental macOS builds, for Apple Silicon and Intel Macs, compiled from the same code but not tested on a Mac. They are not signed by Apple; the README explains how to open them.
+
 ## [2.11.1] - 2026-11-17
 
 ### Fixed
@@ -149,6 +156,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.12.0]: https://github.com/tschertel/gameforge/releases/tag/v2.12.0
 [2.11.1]: https://github.com/tschertel/gameforge/releases/tag/v2.11.1
 [2.11.0]: https://github.com/tschertel/gameforge/releases/tag/v2.11.0
 [2.10.0]: https://github.com/tschertel/gameforge/releases/tag/v2.10.0

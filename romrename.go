@@ -274,13 +274,7 @@ func (t *convTab) renameRoms(u *ui) {
 	for _, it := range items {
 		roms = append(roms, scanRom(it))
 	}
-	db := u.noIntroDB()
-	var missing []string
-	for _, r := range roms {
-		if s := nointro.SystemOf(r.ext()); s != "" && r.files == 1 && !db.Has(s) && !slices.Contains(missing, s) {
-			missing = append(missing, s)
-		}
-	}
+	missing := missingLists(u.noIntroDB(), roms)
 	if len(missing) > 0 {
 		answer := MessageBox(Parent(App), Icon("question"), Type("yesno"), Title(T("app.title")),
 			Msg(T("rrename.ask_db", strings.Join(missing, ", "))), Detail(T("rrename.ask_db.detail", nointro.Source)))
@@ -291,6 +285,18 @@ func (t *convTab) renameRoms(u *ui) {
 		}
 	}
 	t.planRomRenames(u, roms)
+}
+
+// missingLists returns the consoles of the ROMs whose database is not
+// there yet.
+func missingLists(db *nointro.DB, roms []romFile) []string {
+	var missing []string
+	for _, r := range roms {
+		if s := nointro.SystemOf(r.ext()); s != "" && r.files == 1 && !db.Has(s) && !slices.Contains(missing, s) {
+			missing = append(missing, s)
+		}
+	}
+	return missing
 }
 
 // planRomRenames finds the new names in the background (loose ROMs are
@@ -341,14 +347,25 @@ func (t *convTab) planRomRenames(u *ui, roms []romFile) {
 // romName returns the new file name of a ROM or archive, or why it keeps
 // its name.
 func romName(ctx context.Context, u *ui, db *nointro.DB, r romFile) (string, fmt.Stringer) {
+	m, skip := romGame(ctx, u, db, &r)
+	if m.Name == "" {
+		return "", skip
+	}
+	return fileSafe(m.Name) + filepath.Ext(r.item.path), nil
+}
+
+// romGame identifies a ROM or archive in the databases, reading a loose ROM
+// whole for its CRC (which it then keeps in r), or tells why it cannot.
+// Both are empty if ctx was cancelled.
+func romGame(ctx context.Context, u *ui, db *nointro.DB, r *romFile) (nointro.Match, fmt.Stringer) {
 	base := filepath.Base(r.item.path)
 	switch {
 	case r.err != nil:
-		return "", i18n.M("drename.skip_error", base, r.err)
+		return nointro.Match{}, i18n.M("drename.skip_error", base, r.err)
 	case r.files == 0:
-		return "", i18n.M("rrename.skip_empty", base)
+		return nointro.Match{}, i18n.M("rrename.skip_empty", base)
 	case r.files > 1:
-		return "", i18n.M("rrename.skip_set", base, r.files)
+		return nointro.Match{}, i18n.M("rrename.skip_set", base, r.files)
 	}
 	progress := func(done int64) {
 		u.setProgress(float64(done) / float64(max(r.size, 1)))
@@ -358,37 +375,38 @@ func romName(ctx context.Context, u *ui, db *nointro.DB, r romFile) (string, fmt
 	if !r.haveCRC {
 		rc, err := open()
 		if err != nil {
-			return "", i18n.M("drename.skip_error", base, err)
+			return nointro.Match{}, i18n.M("drename.skip_error", base, err)
 		}
 		r.crc, r.size, err = nointro.CRC(ctx, rc, nointro.Fix{}, progress)
 		rc.Close()
 		if err != nil {
 			if ctx.Err() != nil {
-				return "", nil
+				return nointro.Match{}, nil
 			}
-			return "", i18n.M("drename.skip_error", base, err)
+			return nointro.Match{}, i18n.M("drename.skip_error", base, err)
 		}
+		r.haveCRC = true
 	}
 	matches, _, err := db.Identify(ctx, r.crc, r.size, r.ext(), open, progress)
 	u.setProgress(0)
 	if err != nil {
 		if ctx.Err() != nil {
-			return "", nil
+			return nointro.Match{}, nil
 		}
-		return "", i18n.M("drename.skip_error", base, err)
+		return nointro.Match{}, i18n.M("drename.skip_error", base, err)
 	}
 	system := nointro.SystemOf(r.ext())
 	switch {
 	case len(matches) == 0 && system != "" && !db.Has(system):
-		return "", i18n.M("rrename.skip_nodb", base, system)
+		return nointro.Match{}, i18n.M("rrename.skip_nodb", base, system)
 	case len(matches) == 0:
-		return "", i18n.M("rrename.skip_unknown", base)
+		return nointro.Match{}, i18n.M("rrename.skip_unknown", base)
 	case len(matches) > 1 && !(system != "" && matches[0].System == system && matches[1].System != system):
 		var names []string
 		for _, m := range matches {
 			names = append(names, m.Name)
 		}
-		return "", i18n.M("rrename.skip_ambiguous", base, strings.Join(names, " / "))
+		return nointro.Match{}, i18n.M("rrename.skip_ambiguous", base, strings.Join(names, " / "))
 	}
-	return fileSafe(matches[0].Name) + filepath.Ext(r.item.path), nil
+	return matches[0], nil
 }

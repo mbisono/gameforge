@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -105,9 +106,10 @@ func fileOf(system string) string {
 
 // Game is a ROM in a database.
 type Game struct {
-	Name string // No-Intro name, without extension, e.g. "Tetris (World) (Rev 1)"
-	Size int64
-	CRC  uint32
+	Name  string // No-Intro name, without extension, e.g. "Tetris (World) (Rev 1)"
+	Size  int64
+	CRC   uint32
+	Short string // in libretro's own lists, the emulator's short name, e.g. "mslug"
 }
 
 // List is the database of one console.
@@ -123,6 +125,7 @@ type DB struct {
 	Lists      map[string]*List // by console
 
 	index map[uint32][]ref
+	short map[string]map[string]string // console → short name → game name
 }
 
 type ref struct {
@@ -179,11 +182,45 @@ func New(lists map[string]*List) *DB {
 
 func (db *DB) build() {
 	db.index = map[uint32][]ref{}
+	db.short = map[string]map[string]string{}
 	for s, l := range db.Lists {
 		for i, g := range l.Games {
 			db.index[g.CRC] = append(db.index[g.CRC], ref{s, i})
+			if g.Short != "" {
+				if db.short[s] == nil {
+					db.short[s] = map[string]string{}
+				}
+				db.short[s][strings.ToLower(g.Short)] = g.Name
+			}
 		}
 	}
+}
+
+// HasShort reports whether the database of a console has the emulator's
+// short names (only libretro's own lists do, once downloaded by version
+// 2.12.0 or later).
+func (db *DB) HasShort(system string) bool {
+	return db != nil && len(db.short[system]) > 0
+}
+
+// ByShort returns the name of the game whose short name ("mslug", as in
+// MAME's mslug.zip) this is, or "".
+func (db *DB) ByShort(system, short string) string {
+	if db == nil {
+		return ""
+	}
+	return db.short[system][strings.ToLower(short)]
+}
+
+// ShortNames lists the consoles whose files may be named by their short names.
+func ShortNames() []string {
+	var out []string
+	for _, s := range Systems {
+		if libretroLists[s.Name] {
+			out = append(out, s.Name)
+		}
+	}
+	return out
 }
 
 // Has reports whether the database of a console is there.
@@ -240,8 +277,8 @@ func Download(ctx context.Context, old *DB, systems []string, progress datfile.P
 			dir = "dat/"
 		}
 		etag := ""
-		if l := db.Lists[s]; l != nil {
-			etag = l.ETag
+		if l := db.Lists[s]; l != nil && (!libretroLists[s] || hasShort(l)) {
+			etag = l.ETag // a list saved without short names is fetched again
 		}
 		var list *List
 		newTag, err := datfile.Fetch(ctx, datfile.BaseURL+dir+url.PathEscape(file)+".dat", file+".dat", etag, progress, func(r io.Reader) error {
@@ -261,6 +298,10 @@ func Download(ctx context.Context, old *DB, systems []string, progress datfile.P
 	db.Downloaded = time.Now()
 	db.build()
 	return db, nil
+}
+
+func hasShort(l *List) bool {
+	return slices.ContainsFunc(l.Games, func(g Game) bool { return g.Short != "" })
 }
 
 // Parse reads a clrmamepro database: every ROM, with the name of its file
@@ -301,13 +342,15 @@ func parse(r io.Reader, gameNames bool) (*List, error) {
 			if ext := filepath.Ext(name); len(ext) > 1 && len(ext) <= 6 && !strings.Contains(ext, " ") {
 				name = strings.TrimSuffix(name, ext)
 			}
+			short := ""
 			if gameNames {
+				short = name
 				// Japanese and Western titles are joined by " / ", which
 				// some entries already show as " _ ".
 				name = strings.NewReplacer(" / ", " - ", " _ ", " - ").Replace(game)
 			}
 			if name != "" {
-				l.Games = append(l.Games, Game{Name: name, Size: size, CRC: uint32(crc)})
+				l.Games = append(l.Games, Game{Name: name, Size: size, CRC: uint32(crc), Short: short})
 			}
 		}
 	}

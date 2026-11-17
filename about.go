@@ -33,8 +33,10 @@ import (
 // a time in the 7z tab, and checks once a day (if the user agrees) whether
 // a newer version is out, 2.11.1 renames and checks only the checked
 // files, gives CHDs, RVZs and 7z files in the conversion tabs a check box
-// and lets the file lists scroll sideways.
-const appVersion = "2.11.1"
+// and lets the file lists scroll sideways, 2.12.0 finds the duplicates in
+// the ROMs tab (the same game in several files, such as a .neo, a .7z and
+// MAME's .zip set), checks the extra copies and deletes the checked files.
+const appVersion = "2.12.0"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

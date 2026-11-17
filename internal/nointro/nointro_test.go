@@ -196,4 +196,25 @@ func TestNeoGeo(t *testing.T) {
 	if len(m) != 1 || m[0].Name != "Aero Fighters 2 - Sonic Wings 2" {
 		t.Errorf("found %+v", m)
 	}
+	if !db.HasShort("Neo Geo") || db.ByShort("Neo Geo", "SonicWi2") != "Aero Fighters 2 - Sonic Wings 2" {
+		t.Errorf("short name not found")
+	}
+
+	// A list saved without short names (before 2.12.0) is fetched again
+	// even if the server says it did not change.
+	db.Lists["Neo Geo"].ETag = "x"
+	for i := range db.Lists["Neo Geo"].Games {
+		db.Lists["Neo Geo"].Games[i].Short = ""
+	}
+	db.build()
+	if db.HasShort("Neo Geo") {
+		t.Fatal("short names left")
+	}
+	db, err = Download(context.Background(), db, []string{"Neo Geo"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !db.HasShort("Neo Geo") {
+		t.Errorf("list without short names not fetched again")
+	}
 }
