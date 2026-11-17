@@ -57,6 +57,9 @@ var Systems = []System{
 	{"WonderSwan Color", "Bandai - WonderSwan Color", []string{".wsc"}},
 	{"Neo Geo Pocket", "SNK - Neo Geo Pocket", []string{".ngp"}},
 	{"Neo Geo Pocket Color", "SNK - Neo Geo Pocket Color", []string{".ngc"}},
+	// The single-file .neo format of the NeoSD, the MiSTer and Geolith,
+	// whose names do not matter to the emulator (unlike MAME's zip sets).
+	{"Neo Geo", "SNK - Neo Geo", []string{".neo"}},
 	{"Lynx", "Atari - Lynx", []string{".lnx", ".lyx"}},
 	{"Atari 2600", "Atari - 2600", []string{".a26"}},
 	{"Atari 5200", "Atari - 5200", []string{".a52"}},
@@ -81,13 +84,23 @@ func SystemOf(ext string) string {
 	return ""
 }
 
-func fileOf(system string) string {
+// libretroLists are the consoles whose database is not No-Intro's but one
+// libretro keeps itself, in its dat folder. Their files have the
+// emulator's short names ("mslug.neo"), so the ROMs take the games' names.
+var libretroLists = map[string]bool{"Neo Geo": true}
+
+func systemOf(name string) (System, bool) {
 	for _, s := range Systems {
-		if s.Name == system {
-			return s.File
+		if s.Name == name {
+			return s, true
 		}
 	}
-	return ""
+	return System{}, false
+}
+
+func fileOf(system string) string {
+	s, _ := systemOf(system)
+	return s.File
 }
 
 // Game is a ROM in a database.
@@ -218,18 +231,22 @@ func Download(ctx context.Context, old *DB, systems []string, progress datfile.P
 		}
 	}
 	for _, s := range systems {
-		file := fileOf(s)
-		if file == "" {
+		sys, ok := systemOf(s)
+		if !ok {
 			continue
+		}
+		file, dir := sys.File, "metadat/no-intro/"
+		if libretroLists[s] {
+			dir = "dat/"
 		}
 		etag := ""
 		if l := db.Lists[s]; l != nil {
 			etag = l.ETag
 		}
 		var list *List
-		newTag, err := datfile.Fetch(ctx, datfile.BaseURL+"no-intro/"+url.PathEscape(file)+".dat", file+".dat", etag, progress, func(r io.Reader) error {
+		newTag, err := datfile.Fetch(ctx, datfile.BaseURL+dir+url.PathEscape(file)+".dat", file+".dat", etag, progress, func(r io.Reader) error {
 			var err error
-			list, err = Parse(r)
+			list, err = parse(r, libretroLists[s])
 			return err
 		})
 		if err != nil {
@@ -249,8 +266,13 @@ func Download(ctx context.Context, old *DB, systems []string, progress datfile.P
 // Parse reads a clrmamepro database: every ROM, with the name of its file
 // (the full No-Intro name; the game's name may leave out flags such as
 // "(Unl)") without the extension.
-func Parse(r io.Reader) (*List, error) {
+func Parse(r io.Reader) (*List, error) { return parse(r, false) }
+
+// parse reads a database as Parse does; with gameNames, each ROM gets the
+// name of its game instead.
+func parse(r io.Reader, gameNames bool) (*List, error) {
 	l := &List{}
+	game := ""
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 64<<10), 1<<20)
 	inGame := false
@@ -258,7 +280,9 @@ func Parse(r io.Reader) (*List, error) {
 		line := strings.TrimSpace(sc.Text())
 		switch {
 		case line == "game (":
-			inGame = true
+			inGame, game = true, ""
+		case inGame && strings.HasPrefix(line, "name "):
+			game = datfile.Unquote(line[len("name "):])
 		case line == ")":
 			inGame = false
 		case strings.HasPrefix(line, "version ") && !inGame:
@@ -276,6 +300,11 @@ func Parse(r io.Reader) (*List, error) {
 			name := f["name"]
 			if ext := filepath.Ext(name); len(ext) > 1 && len(ext) <= 6 && !strings.Contains(ext, " ") {
 				name = strings.TrimSuffix(name, ext)
+			}
+			if gameNames {
+				// Japanese and Western titles are joined by " / ", which
+				// some entries already show as " _ ".
+				name = strings.NewReplacer(" / ", " - ", " _ ", " - ").Replace(game)
 			}
 			if name != "" {
 				l.Games = append(l.Games, Game{Name: name, Size: size, CRC: uint32(crc)})

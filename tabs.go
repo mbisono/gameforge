@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	. "modernc.org/tk9.0"
@@ -50,6 +51,8 @@ type converter struct {
 	after   func(u *ui, done []converted)
 	// refreshed, if set, runs after the tab's list is shown again.
 	refreshed func(u *ui, t *convTab)
+	// jobs, if set, is how many files are converted at a time (else 1).
+	jobs func(u *ui) int
 }
 
 // menuEntry is an entry of an item's right-click menu.
@@ -480,7 +483,8 @@ func (u *ui) flushItems(pending map[*convItem]fmt.Stringer) {
 }
 
 // start converts the checked files in the background, one after the
-// other, into the output folder or next to each file.
+// other (or several at a time, see converter.jobs), into the output folder
+// or next to each file.
 func (t *convTab) start(u *ui) {
 	items := t.checkedItems()
 	if u.busy || len(items) == 0 {
@@ -502,87 +506,13 @@ func (t *convTab) start(u *ui) {
 		u.setItemStatus(it, i18n.M("st.queued"))
 	}
 
+	jobs := 1
+	if t.conv.jobs != nil {
+		jobs = max(1, min(t.conv.jobs(u), len(items)))
+	}
 	go func() {
 		defer cancel()
-		var done []converted
-		for i, it := range items {
-			if ctx.Err() != nil {
-				u.setItemStatus(it, i18n.M("st.cancelled"))
-				continue
-			}
-			in := it.path
-			dir := outDir
-			if dir == "" {
-				dir = filepath.Dir(in)
-			}
-			out := filepath.Join(dir, t.conv.outName(it))
-			name := filepath.Base(out)
-			u.separate()
-			if strings.EqualFold(filepath.Clean(out), filepath.Clean(in)) {
-				u.logf("log.same_file", filepath.Base(in))
-				u.setItemStatus(it, i18n.M("st.same"))
-				continue
-			}
-			if _, err := os.Stat(out); err == nil {
-				u.logf("log.exists", name)
-				u.setItemStatus(it, i18n.M("st.exists"))
-				continue
-			}
-			u.println(lazyf("▶ [%d/%d] %s → %s", i+1, len(items), filepath.Base(in), name))
-			u.setItemStatus(it, i18n.M("st.converting", 0))
-
-			start := time.Now()
-			phase, phaseStart, lastPct := false, start, -1
-			inSize, outSize, err := t.conv.run(ctx, u, it, out, verify, func(verifying bool, done, total int64) {
-				if verifying != phase {
-					phase, phaseStart, lastPct = verifying, time.Now(), -1
-				}
-				u.setProgress(float64(done) / float64(max(total, 1)))
-				pct := int(done * 100 / max(total, 1))
-				key := "st.converting"
-				if verifying {
-					key = "st.verifying"
-				}
-				if pct != lastPct {
-					lastPct = pct
-					u.setItemStatus(it, i18n.M(key, pct))
-				}
-				if verifying {
-					u.setStatus(T("status.verifying", name, humanSize(done), humanSize(total)) + eta(phaseStart, done, total))
-					return
-				}
-				speed := int64(float64(done) / max(time.Since(phaseStart).Seconds(), 0.001))
-				u.setStatus(name + " — " + humanSize(done) + " / " + humanSize(total) +
-					" (" + humanSize(speed) + "/s)" + eta(phaseStart, done, total))
-			})
-			if err != nil {
-				os.Remove(out) // incomplete or not verified
-				if ctx.Err() != nil {
-					u.logf("log.cancelled")
-					u.setItemStatus(it, i18n.M("st.cancelled"))
-					continue
-				}
-				u.logf("log.merge_error", err)
-				u.setItemStatus(it, lazyf("✗ %v", err))
-				continue
-			}
-			took := time.Since(start).Round(time.Second)
-			saved := 0
-			if inSize > 0 {
-				saved = int(100 - outSize*100/inSize)
-			}
-			if saved >= 0 {
-				u.setItemStatus(it, i18n.M("st.done", humanSize(outSize), saved, took))
-			} else {
-				u.setItemStatus(it, i18n.M("st.done_larger", humanSize(outSize), -saved, took))
-			}
-			key := "log.done"
-			if saved < 0 { // decompressed
-				key, saved = "log.done_larger", -saved
-			}
-			u.logf(key, took, name, humanSize(inSize), humanSize(outSize), saved)
-			done = append(done, converted{it, out})
-		}
+		done := t.convertAll(ctx, u, items, outDir, verify, jobs)
 		if t.conv.after != nil && len(done) > 0 {
 			t.conv.after(u, done)
 		}
@@ -595,6 +525,163 @@ func (t *convTab) start(u *ui) {
 			u.setBusy(false)
 		}, false)
 	}()
+}
+
+// convertAll converts the items, jobs at a time, and returns those done,
+// in order. It runs in the background.
+func (t *convTab) convertAll(ctx context.Context, u *ui, items []*convItem, outDir string, verify bool, jobs int) []converted {
+	results := make([]*converted, len(items))
+	// With several files at a time, the progress bar shows the share of the
+	// whole batch done: a verified file is half conversion, half
+	// verification.
+	var share sync.Mutex
+	shares := make([]float64, len(items))
+	finished, running := 0, 0
+	showShare := func(i int, verifying bool, done, total int64) {
+		f := float64(done) / float64(max(total, 1))
+		switch {
+		case verify:
+			f /= 2
+			if verifying {
+				f += 0.5
+			}
+		case verifying: // checked before removing the original: done
+			f = 1
+		}
+		share.Lock()
+		shares[i] = f
+		sum := 0.0
+		for _, v := range shares {
+			sum += v
+		}
+		u.setProgress(sum / float64(len(items)))
+		u.setStatus(T("status.parallel", finished, len(items), running))
+		share.Unlock()
+	}
+	convert := func(i int, it *convItem) {
+		if jobs > 1 {
+			share.Lock()
+			running++
+			share.Unlock()
+			defer func() {
+				share.Lock()
+				running--
+				finished++
+				share.Unlock()
+				showShare(i, true, 1, 1)
+			}()
+		}
+		if ctx.Err() != nil {
+			u.setItemStatus(it, i18n.M("st.cancelled"))
+			return
+		}
+		in := it.path
+		dir := outDir
+		if dir == "" {
+			dir = filepath.Dir(in)
+		}
+		out := filepath.Join(dir, t.conv.outName(it))
+		name := filepath.Base(out)
+		u.separate()
+		if strings.EqualFold(filepath.Clean(out), filepath.Clean(in)) {
+			u.logf("log.same_file", filepath.Base(in))
+			u.setItemStatus(it, i18n.M("st.same"))
+			return
+		}
+		if _, err := os.Stat(out); err == nil {
+			u.logf("log.exists", name)
+			u.setItemStatus(it, i18n.M("st.exists"))
+			return
+		}
+		u.println(lazyf("▶ [%d/%d] %s → %s", i+1, len(items), filepath.Base(in), name))
+		u.setItemStatus(it, i18n.M("st.converting", 0))
+
+		start := time.Now()
+		phase, phaseStart, lastPct := false, start, -1
+		inSize, outSize, err := t.conv.run(ctx, u, it, out, verify, func(verifying bool, done, total int64) {
+			if verifying != phase {
+				phase, phaseStart, lastPct = verifying, time.Now(), -1
+			}
+			pct := int(done * 100 / max(total, 1))
+			key := "st.converting"
+			if verifying {
+				key = "st.verifying"
+			}
+			if pct != lastPct {
+				lastPct = pct
+				u.setItemStatus(it, i18n.M(key, pct))
+			}
+			if jobs > 1 {
+				showShare(i, verifying, done, total)
+				return
+			}
+			u.setProgress(float64(done) / float64(max(total, 1)))
+			if verifying {
+				u.setStatus(T("status.verifying", name, humanSize(done), humanSize(total)) + eta(phaseStart, done, total))
+				return
+			}
+			speed := int64(float64(done) / max(time.Since(phaseStart).Seconds(), 0.001))
+			u.setStatus(name + " — " + humanSize(done) + " / " + humanSize(total) +
+				" (" + humanSize(speed) + "/s)" + eta(phaseStart, done, total))
+		})
+		if err != nil {
+			os.Remove(out) // incomplete or not verified
+			if ctx.Err() != nil {
+				u.logf("log.cancelled")
+				u.setItemStatus(it, i18n.M("st.cancelled"))
+				return
+			}
+			u.setItemStatus(it, lazyf("✗ %v", err))
+			if jobs > 1 { // the log lines of other files come in between
+				err = fmt.Errorf("%s: %w", filepath.Base(in), err)
+			}
+			u.logf("log.merge_error", err)
+			return
+		}
+		took := time.Since(start).Round(time.Second)
+		saved := 0
+		if inSize > 0 {
+			saved = int(100 - outSize*100/inSize)
+		}
+		if saved >= 0 {
+			u.setItemStatus(it, i18n.M("st.done", humanSize(outSize), saved, took))
+		} else {
+			u.setItemStatus(it, i18n.M("st.done_larger", humanSize(outSize), -saved, took))
+		}
+		key := "log.done"
+		if saved < 0 { // decompressed
+			key, saved = "log.done_larger", -saved
+		}
+		u.logf(key, took, name, humanSize(inSize), humanSize(outSize), saved)
+		results[i] = &converted{it, out}
+	}
+	if jobs <= 1 {
+		for i, it := range items {
+			convert(i, it)
+		}
+	} else {
+		var wg sync.WaitGroup
+		slots := make(chan struct{}, jobs)
+		for i, it := range items {
+			slots <- struct{}{}
+			wg.Add(1)
+			go func() {
+				defer func() {
+					<-slots
+					wg.Done()
+				}()
+				convert(i, it)
+			}()
+		}
+		wg.Wait()
+	}
+	var done []converted
+	for _, c := range results {
+		if c != nil {
+			done = append(done, *c)
+		}
+	}
+	return done
 }
 
 // dropPaths sends dropped files to the tabs of their formats: to the tab

@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -100,5 +101,37 @@ func TestSevenZipConverter(t *testing.T) {
 	}
 	if !removed["Game (USA).gbc"] || !removed["sf2.zip"] || len(removed) != 2 {
 		t.Errorf("removed %v", removed)
+	}
+}
+
+// TestConvertAllJobs compresses several files at a time: every archive is
+// written and verified, and the results keep the order of the list.
+func TestConvertAllJobs(t *testing.T) {
+	dir := t.TempDir()
+	var paths []string
+	for i := range 7 {
+		p := filepath.Join(dir, fmt.Sprintf("game %d.gba", i))
+		os.WriteFile(p, bytes.Repeat([]byte(fmt.Sprintf("ROM %d ", i)), 50_000+i*1000), 0o644)
+		paths = append(paths, p)
+	}
+	u := &ui{cfg: &config.Config{SevenZipJobs: 3}}
+	sevenZip.ui = u
+	defer func() { sevenZip.ui = nil }()
+	tab := &convTab{conv: sevenZipConverter, checked: map[string]bool{}}
+	tab.add(u, paths)
+	if len(tab.items) != 7 {
+		t.Fatalf("%d items", len(tab.items))
+	}
+	done := tab.convertAll(context.Background(), u, tab.items, "", true, sevenZipJobs(u))
+	if len(done) != 7 {
+		t.Fatalf("%d of 7 done", len(done))
+	}
+	for i, c := range done {
+		if c.item != tab.items[i] {
+			t.Errorf("result %d is %s", i, c.item.path)
+		}
+		if _, err := sevenzip.Check(context.Background(), c.out, func(int64, int64) {}); err != nil {
+			t.Errorf("%s: %v", c.out, err)
+		}
 	}
 }

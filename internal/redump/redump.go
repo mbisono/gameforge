@@ -206,7 +206,7 @@ func Download(ctx context.Context, old *DB, platforms []string, progress Progres
 			etag = l.ETag
 		}
 		var list *List
-		newTag, err := datfile.Fetch(ctx, datfile.BaseURL+"redump/"+url.PathEscape(file)+".dat", file+".dat", etag, progress, func(r io.Reader) error {
+		newTag, err := datfile.Fetch(ctx, datfile.BaseURL+"metadat/redump/"+url.PathEscape(file)+".dat", file+".dat", etag, progress, func(r io.Reader) error {
 			var err error
 			list, err = Parse(p, r)
 			return err

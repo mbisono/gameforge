@@ -108,7 +108,7 @@ func TestDownloadAndCache(t *testing.T) {
 	hits := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hits++
-		if r.URL.Path != "/no-intro/Nintendo - Nintendo Entertainment System.dat" {
+		if r.URL.Path != "/metadat/no-intro/Nintendo - Nintendo Entertainment System.dat" {
 			http.NotFound(w, r)
 			return
 		}
@@ -166,5 +166,34 @@ func TestRealDats(t *testing.T) {
 			continue
 		}
 		t.Logf("%s: %d ROMs, %s", s.Name, len(l.Games), l.Version)
+	}
+}
+
+// TestNeoGeo reads libretro's own Neo Geo list, whose files have the
+// emulator's short names: a ROM gets the name of its game.
+func TestNeoGeo(t *testing.T) {
+	const dat = "clrmamepro (\n\tname \"SNK - Neo Geo\"\n)\n\ngame (\n\tname \"Aero Fighters 2 / Sonic Wings 2\"\n\tpublisher \"Video System Co.\"\n\trom ( name \"sonicwi2.neo\" size 13897728 crc AC1851BB )\n)\n"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/dat/SNK - Neo Geo.dat" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Write([]byte(dat))
+	}))
+	defer srv.Close()
+	old := datfile.BaseURL
+	datfile.BaseURL = srv.URL + "/"
+	defer func() { datfile.BaseURL = old }()
+
+	if s := SystemOf(".NEO"); s != "Neo Geo" {
+		t.Fatalf("SystemOf(.neo) = %q", s)
+	}
+	db, err := Download(context.Background(), nil, []string{"Neo Geo"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := db.Find(0xAC1851BB, 13897728, "Neo Geo")
+	if len(m) != 1 || m[0].Name != "Aero Fighters 2 - Sonic Wings 2" {
+		t.Errorf("found %+v", m)
 	}
 }

@@ -8,8 +8,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
 
 	. "modernc.org/tk9.0"
 
@@ -40,7 +43,7 @@ var romPlatforms = map[string]string{
 	".md": "Mega Drive", ".gen": "Mega Drive", ".smd": "Mega Drive", ".32x": "32X",
 	".sms": "Master System", ".gg": "Game Gear", ".sg": "SG-1000",
 	".pce": "PC Engine", ".ws": "WonderSwan", ".wsc": "WonderSwan Color",
-	".ngp": "Neo Geo Pocket", ".ngc": "Neo Geo Pocket Color",
+	".ngp": "Neo Geo Pocket", ".ngc": "Neo Geo Pocket Color", ".neo": "Neo Geo",
 	".lnx": "Lynx", ".a26": "Atari 2600", ".a78": "Atari 7800", ".col": "ColecoVision",
 }
 
@@ -56,6 +59,10 @@ func extOf(path string) string {
 
 // removeFile removes an original after its archive is verified; tests replace it.
 var removeFile = removeOriginal
+
+// removeMu lets one file at a time go to the Recycle Bin when several are
+// compressed at a time.
+var removeMu sync.Mutex
 
 // sevenZip holds the 7z tab's choices; ui is set when the tab is built.
 var sevenZip struct {
@@ -172,7 +179,10 @@ var sevenZipConverter = &converter{
 		}
 		if del {
 			// A failure here keeps the archive: it is complete and verified.
-			if err := removeFile(it.path); err != nil {
+			removeMu.Lock()
+			err := removeFile(it.path)
+			removeMu.Unlock()
+			if err != nil {
 				u.logf("sz.delete_error", filepath.Base(it.path), err)
 			} else {
 				u.logf("sz.deleted", filepath.Base(it.path))
@@ -234,9 +244,54 @@ var sevenZipConverter = &converter{
 		}
 		setTooltip(del, tip)
 		Grid(del, Row(1), Column(0), Columnspan(2), Sticky("w"), pad)
+		Grid(jobsBox(u, box), Row(2), Column(0), Columnspan(2), Sticky("w"), pad)
 		return []Widget{box}
 	},
 	refreshed: func(u *ui, t *convTab) { fillExtBoxes(u, t) },
+	jobs:      sevenZipJobs,
+}
+
+// sevenZipJobLimits are the most files the 7z tab compresses at a time
+// and the number it recommends: half the processor's threads, up to 4,
+// which leaves the computer usable.
+func sevenZipJobLimits() (most, recommended int) {
+	n := runtime.NumCPU()
+	return min(max(n, 1), 8), min(max(n/2, 1), 4)
+}
+
+// sevenZipJobs is how many files the 7z tab compresses at a time.
+func sevenZipJobs(u *ui) int {
+	most, _ := sevenZipJobLimits()
+	return min(max(u.cfg.SevenZipJobs, 1), most)
+}
+
+// jobsBox is the choice of how many files are compressed at a time.
+func jobsBox(u *ui, parent *TFrameWidget) *TFrameWidget {
+	f := parent.TFrame()
+	most, rec := sevenZipJobLimits()
+	var options []string
+	width := 0
+	for n := 1; n <= most; n++ {
+		o := strconv.Itoa(n)
+		if n == rec && rec > 1 {
+			o = T("sz.jobs.recommended", n)
+		}
+		options = append(options, o)
+		width = max(width, len([]rune(o)))
+	}
+	label := f.TLabel(Txt(T("sz.jobs")))
+	box := f.TCombobox(State("readonly"), Values(tclList(options)), Width(width+1))
+	box.Current(sevenZipJobs(u) - 1)
+	Bind(box, "<<ComboboxSelected>>", Command(func() {
+		i, _ := strconv.Atoi(box.Current(nil))
+		u.cfg.SevenZipJobs = i + 1
+		u.saveConfig()
+	}))
+	setTooltip(label, T("sz.jobs.tip"))
+	setTooltip(box, T("sz.jobs.tip"))
+	Grid(label, Row(0), Column(0), Sticky("w"))
+	Grid(box, Row(0), Column(1), Sticky("w"), Padx("1m"))
+	return f
 }
 
 // fillExtBoxes shows one box per extension among the tab's files, with

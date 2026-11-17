@@ -13,8 +13,9 @@ import (
 	"time"
 )
 
-// BaseURL is where the databases are, by folder ("redump/", "no-intro/").
-var BaseURL = "https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/"
+// BaseURL is libretro-database, whose folders hold the databases
+// ("metadat/redump/", "metadat/no-intro/", "dat/").
+var BaseURL = "https://raw.githubusercontent.com/libretro/libretro-database/master/"
 
 // Progress reports the download of a database file; total is -1 if the
 // server did not state it.

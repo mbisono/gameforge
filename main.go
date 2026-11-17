@@ -52,6 +52,7 @@ type ui struct {
 	keysEntry   *TEntryWidget
 	keysStatus  *TLabelWidget
 	langBox     *TComboboxWidget
+	updateNote  *TLabelWidget // the notice of a new version, in the top row
 	themeBox    *TComboboxWidget
 	compress    *TCheckbuttonWidget
 	compressVar *VariableOpt
@@ -147,6 +148,7 @@ func main() {
 	u.loadKeys(u.initialKeysPath())
 	u.loadWiiKeys()
 	u.loadDB()
+	PostEvent(u.startUpdateCheck, false) // once the window is shown
 	// Files given on the command line (dropped on the program, "Open
 	// with") are added as if dropped on the window.
 	if len(os.Args) > 1 {
@@ -296,6 +298,10 @@ func (u *ui) build() {
 	u.themeBox = u.buildThemeBox(top)
 	Grid(u.themeBox, Row(0), Column(4), pad)
 	Grid(top.TButton(Txt(T("btn.about")), Command(u.showAbout)), Row(0), Column(5), pad)
+	u.updateNote = top.TLabel(Foreground(linkColor()), Font("GameForgeLink"))
+	Bind(u.updateNote, "<Button-1>", Command(u.openUpdatePage))
+	Grid(u.updateNote, Row(0), Column(0), Sticky("w"), pad)
+	u.showUpdateNote()
 
 	// One tab per platform above the log, with a movable divider.
 	panes := TPanedwindow(Orient("vertical"))

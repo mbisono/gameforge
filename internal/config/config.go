@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // FileName is the name of the configuration file.
@@ -59,6 +60,16 @@ type Config struct {
 	// SevenZipDelete removes the original files after their 7z archive is
 	// written and verified.
 	SevenZipDelete bool `json:"sevenzip_delete,omitempty"`
+	// SevenZipJobs is how many files the 7z tab compresses at a time (0: 1).
+	SevenZipJobs int `json:"sevenzip_jobs,omitempty"`
+	// UpdateCheck turns on the daily check for a new version on GitHub;
+	// nil until the user has been asked.
+	UpdateCheck *bool `json:"update_check,omitempty"`
+	// UpdateChecked is when the last check was tried; UpdateLatest and
+	// UpdatePage are the newest version found and its web page.
+	UpdateChecked time.Time `json:"update_checked,omitempty"`
+	UpdateLatest  string    `json:"update_latest,omitempty"`
+	UpdatePage    string    `json:"update_page,omitempty"`
 	// ShowHidden shows hidden files and folders (names starting with a
 	// dot) in Tk's file dialogs; they are hidden by default.
 	ShowHidden bool `json:"show_hidden,omitempty"`

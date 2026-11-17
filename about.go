@@ -7,6 +7,8 @@ import (
 	"strconv"
 
 	. "modernc.org/tk9.0"
+
+	"gameforge/internal/update"
 )
 
 // appVersion is the version of the app: 1.x was nspmerge (Switch only),
@@ -26,8 +28,11 @@ import (
 // link to the project's page, 2.8.0 renames ROMs with their No-Intro names,
 // 2.9.0 checks ROMs against RetroAchievements and keeps the downloaded
 // databases in a cache folder, 2.10.0 shows the icons of DS games, the
-// labels of Dreamcast discs and the title images of Xbox games.
-const appVersion = "2.10.0"
+// labels of Dreamcast discs and the title images of Xbox games, 2.11.0
+// renames Neo Geo games in the .neo format and compresses several files at
+// a time in the 7z tab, and checks once a day (if the user agrees) whether
+// a newer version is out.
+const appVersion = "2.11.0"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"
@@ -62,14 +67,25 @@ func (u *ui) showAbout() {
 	text := T("about.text", runtime.Version(), runtime.GOOS+"/"+runtime.GOARCH)
 	Grid(f.TLabel(Txt(text), Wraplength("110m"), Justify("left")), Row(1), Column(1), Sticky("w"), Pady("3m 0"))
 
-	tcl("catch", "font create GameForgeLink {*}[font configure TkDefaultFont] -underline 1")
-	color := "#0b5cad"
-	if darkTheme {
-		color = "#6cb6ff"
-	}
-	link := f.TLabel(Txt(repoURL), Foreground(color), Font("GameForgeLink"), Cursor("hand2"))
+	link := f.TLabel(Txt(repoURL), Foreground(linkColor()), Font("GameForgeLink"), Cursor("hand2"))
 	Bind(link, "<Button-1>", Command(func() { openURL(repoURL) }))
 	Grid(link, Row(2), Column(1), Sticky("w"), Pady("3m 0"))
+
+	// The daily check for a new version, and the version found.
+	checkV := Variable(tclBool(u.cfg.UpdateCheck != nil && *u.cfg.UpdateCheck))
+	check := f.TCheckbutton(Txt(T("upd.option")), checkV, Command(func() {
+		on := checkV.Get() == "1"
+		u.cfg.UpdateCheck = &on
+		u.saveConfig()
+		u.checkUpdate()
+	}))
+	setTooltip(check, T("upd.option.tip"))
+	Grid(check, Row(3), Column(1), Sticky("w"), Pady("3m 0"))
+	if update.Newer(u.cfg.UpdateLatest, appVersion) {
+		note := f.TLabel(Txt(T("upd.note", u.cfg.UpdateLatest)), Foreground(linkColor()), Font("GameForgeLink"), Cursor("hand2"))
+		Bind(note, "<Button-1>", Command(u.openUpdatePage))
+		Grid(note, Row(4), Column(1), Sticky("w"), Pady("1m 0"))
+	}
 
 	closeWin := func() {
 		tcl("grab", "release", path)
@@ -77,7 +93,7 @@ func (u *ui) showAbout() {
 		aboutWin = nil
 	}
 	ok := f.TButton(Txt("OK"), Default("active"), Command(closeWin))
-	Grid(ok, Row(3), Column(0), Columnspan(2), Pady("5m 0"))
+	Grid(ok, Row(5), Column(0), Columnspan(2), Pady("5m 0"))
 	Bind(top, "<Escape>", Command(closeWin))
 	Bind(top, "<Return>", Command(closeWin))
 	WmProtocol(top.Window, WM_DELETE_WINDOW, Command(closeWin))
@@ -91,6 +107,15 @@ func (u *ui) showAbout() {
 	tcl("wm", "deiconify", path)
 	tcl("focus", ok.String())
 	tcl("catch", "grab set "+path)
+}
+
+// linkColor is the color of links; it also creates their font.
+func linkColor() string {
+	tcl("catch", "font create GameForgeLink {*}[font configure TkDefaultFont] -underline 1")
+	if darkTheme {
+		return "#6cb6ff"
+	}
+	return "#0b5cad"
 }
 
 // openURL opens a web page in the user's browser.

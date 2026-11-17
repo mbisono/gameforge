@@ -2,6 +2,16 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.11.0] - 2026-11-17
+
+### Added
+- **Rename…** in the ROMs tab also renames Neo Geo games in the single-file `.neo` format (NeoSD, MiSTer, Geolith), loose or in a ZIP or 7z, with the names of libretro's own Neo Geo list (`dat/SNK - Neo Geo.dat`), downloaded on demand like the No-Intro lists: `sonicwi2.neo` → `Aero Fighters 2 - Sonic Wings 2.neo`. Western and Japanese titles are joined by " - ". MAME and FBNeo zip sets still keep their short names.
+- **Files at a time** in the ROMs tab compresses several files at once (1 by default; half the processor's threads, up to 4, are recommended). The progress bar shows the whole batch, and error lines name their file.
+- The app can check once a day on GitHub whether a newer version is out. It asks the first time it starts; when there is a newer version, a link to it appears at the top of the window. Only the app's name and version are sent, and nothing is downloaded or installed. The check can be turned on or off in **About…**.
+
+### Changed
+- The databases are downloaded from the root of libretro-database, since the Neo Geo list is in another folder than the No-Intro and Redump lists.
+
 ## [2.10.0] - 2026-11-16
 
 ### Added
@@ -130,6 +140,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.11.0]: https://github.com/tschertel/gameforge/releases/tag/v2.11.0
 [2.10.0]: https://github.com/tschertel/gameforge/releases/tag/v2.10.0
 [2.9.0]: https://github.com/tschertel/gameforge/releases/tag/v2.9.0
 [2.8.0]: https://github.com/tschertel/gameforge/releases/tag/v2.8.0
