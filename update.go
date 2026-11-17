@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	. "modernc.org/tk9.0"
@@ -9,12 +10,54 @@ import (
 	"gameforge/internal/update"
 )
 
-// The app can check once a day on GitHub whether a newer version is out:
-// the user is asked once, and can change it in the About window. Only the
-// app's name and version are sent; nothing is downloaded or installed.
+// The app can check on GitHub whether a newer version is out, daily (the
+// default), weekly or monthly: the user is asked once, and can change it
+// or check at once in the About window. Only the app's name and version
+// are sent; nothing is downloaded or installed.
+
+type updateInterval struct {
+	id    string
+	every time.Duration
+	key   string
+}
+
+// updateIntervals are the choices of how often the check runs, as kept in
+// the settings, with their message keys.
+var updateIntervals = []updateInterval{
+	{"daily", 24 * time.Hour, "upd.daily"},
+	{"weekly", 7 * 24 * time.Hour, "upd.weekly"},
+	{"monthly", 30 * 24 * time.Hour, "upd.monthly"},
+}
+
+// updateChoice is the position of the current setting in the About
+// window's list: 0 is off, then the intervals.
+func (u *ui) updateChoice() int {
+	if u.cfg.UpdateCheck == nil || !*u.cfg.UpdateCheck {
+		return 0
+	}
+	i := slices.IndexFunc(updateIntervals, func(v updateInterval) bool { return v.id == u.cfg.UpdateEvery })
+	return max(i, 0) + 1
+}
+
+// setUpdateChoice stores a choice of the About window's list and checks
+// if it is now time to.
+func (u *ui) setUpdateChoice(i int) {
+	on := i > 0
+	u.cfg.UpdateCheck = &on
+	if on {
+		u.cfg.UpdateEvery = updateIntervals[min(i, len(updateIntervals))-1].id
+		if u.cfg.UpdateEvery == "daily" {
+			u.cfg.UpdateEvery = ""
+		}
+	}
+	u.saveConfig()
+	u.checkUpdate()
+}
 
 // updateEvery is how often the check runs.
-const updateEvery = 24 * time.Hour
+func (u *ui) updateEvery() time.Duration {
+	return updateIntervals[max(u.updateChoice(), 1)-1].every
+}
 
 // startUpdateCheck asks the first time whether to check for new versions,
 // then checks if it is time to.
@@ -30,26 +73,34 @@ func (u *ui) startUpdateCheck() {
 }
 
 // checkUpdate asks GitHub in the background for the newest version, if the
-// check is on and the last one was tried a day ago or more. Errors (no
-// network, GitHub blocked) are silent: the check is tried again a day later.
+// check is on and the last one was tried long enough ago. Errors (no
+// network, GitHub blocked) are silent: the check is tried again later.
 func (u *ui) checkUpdate() {
-	if u.cfg.UpdateCheck == nil || !*u.cfg.UpdateCheck || time.Since(u.cfg.UpdateChecked) < updateEvery {
+	if u.updateChoice() == 0 || time.Since(u.cfg.UpdateChecked) < u.updateEvery() {
 		return
 	}
+	u.fetchUpdate(nil)
+}
+
+// fetchUpdate asks GitHub for the newest version now, keeps and shows it,
+// then calls done (if any) on the GUI thread.
+func (u *ui) fetchUpdate(done func(update.Release, error)) {
 	u.cfg.UpdateChecked = time.Now()
 	u.saveConfig()
 	go func() {
 		r, err := update.Latest(context.Background(), "GameForge/"+appVersion)
-		if err != nil {
-			return
-		}
 		PostEvent(func() {
-			u.cfg.UpdateLatest, u.cfg.UpdatePage = r.Version, r.Page
-			u.saveConfig()
-			u.showUpdateNote()
-			if update.Newer(r.Version, appVersion) {
-				u.logf("upd.log", r.Version, u.updatePage())
-				u.flush()
+			if err == nil {
+				u.cfg.UpdateLatest, u.cfg.UpdatePage = r.Version, r.Page
+				u.saveConfig()
+				u.showUpdateNote()
+				if update.Newer(r.Version, appVersion) {
+					u.logf("upd.log", r.Version, u.updatePage())
+					u.flush()
+				}
+			}
+			if done != nil {
+				done(r, err)
 			}
 		}, false)
 	}()

@@ -2,6 +2,11 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.13.0] - 2026-11-17
+
+### Changed
+- The **About…** window has an **Updates** box, as in Rufus: a list chooses how often the app checks for a new version (Never, Daily, the default, Weekly or Monthly), and **Check now** asks GitHub at once, even with the automatic check off, and tells whether a newer version is out, this one is the newest, or the check failed. The box also shows when the last check was made.
+
 ## [2.12.0] - 2026-11-17
 
 ### Added
@@ -156,6 +161,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.13.0]: https://github.com/tschertel/gameforge/releases/tag/v2.13.0
 [2.12.0]: https://github.com/tschertel/gameforge/releases/tag/v2.12.0
 [2.11.1]: https://github.com/tschertel/gameforge/releases/tag/v2.11.1
 [2.11.0]: https://github.com/tschertel/gameforge/releases/tag/v2.11.0
