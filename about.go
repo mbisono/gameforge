@@ -39,8 +39,11 @@ import (
 // 2.13.0 checks for new versions daily, weekly or monthly, chosen in the
 // About window, which can also check at once, 2.13.1 waits for the window
 // to be shown before asking about the check, since on KDE Wayland the
-// question got no input and could be neither answered nor closed.
-const appVersion = "2.13.1"
+// question got no input and could be neither answered nor closed, 2.14.0
+// checks arcade sets against the lists of sets of FBNeo and of RetroArch's
+// MAME cores (2000, 2003, 2003-Plus, 2010, 2015, 2016) and of Flycast
+// (Naomi, Atomiswave), with their CHDs.
+const appVersion = "2.14.0"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

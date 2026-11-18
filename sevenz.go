@@ -16,6 +16,7 @@ import (
 
 	. "modernc.org/tk9.0"
 
+	"gameforge/internal/arcade"
 	"gameforge/internal/gameart"
 	"gameforge/internal/i18n"
 	"gameforge/internal/sevenzip"
@@ -199,22 +200,29 @@ var sevenZipConverter = &converter{
 			}
 		}))
 		setTooltip(rename, T("rrename.tip"))
-		check := parent.TButton(Txt(T("btn.ra")), Command(func() {
-			for _, t := range u.tabs {
-				if t.conv.id == "7z" {
-					t.checkRA(u)
+		// The checks share one menu, which keeps the row narrow.
+		inTab := func(f func(t *convTab)) func() {
+			return func() {
+				for _, t := range u.tabs {
+					if t.conv.id == "7z" {
+						f(t)
+					}
 				}
 			}
-		}))
-		setTooltip(check, T("ra.tip"))
-		dupes := parent.TButton(Txt(T("btn.dupes")), Command(func() {
-			for _, t := range u.tabs {
-				if t.conv.id == "7z" {
-					t.findDupes(u)
-				}
-			}
-		}))
-		setTooltip(dupes, T("dupes.tip"))
+		}
+		check := parent.TMenubutton(Txt(T("check.menu")))
+		checkMenu := check.Menu(Tearoff(false))
+		// Three groups: RetroAchievements, duplicates, arcade sets.
+		checkMenu.AddCommand(Lbl(T("check.ra")), Command(inTab(func(t *convTab) { t.checkRA(u) })))
+		checkMenu.AddSeparator()
+		checkMenu.AddCommand(Lbl(T("check.dupes")), Command(inTab(func(t *convTab) { t.findDupes(u, false) })))
+		checkMenu.AddCommand(Lbl(T("check.dupes_mark")), Command(inTab(func(t *convTab) { t.markDupes(u) })))
+		checkMenu.AddSeparator()
+		for _, e := range arcade.Emulators() {
+			checkMenu.AddCommand(Lbl(T("arcade.check", e.Label())), Command(inTab(func(t *convTab) { t.checkArcade(u, e.ID) })))
+		}
+		check.Configure(Mnu(checkMenu))
+		setTooltip(check, T("check.tip"))
 		del := parent.TButton(Txt(T("btn.delete")), Command(func() {
 			for _, t := range u.tabs {
 				if t.conv.id == "7z" {
@@ -230,19 +238,20 @@ var sevenZipConverter = &converter{
 		dbBtn := parent.TMenubutton(Txt(T("redump.menu")))
 		menu := dbBtn.Menu(Tearoff(false))
 		menu.AddCommand(Lbl(T("nointro.update")), Command(u.updateNoIntro))
-		menu.AddSeparator()
+		menu.AddCommand(Lbl(T("arcade.update")), Command(u.updateArcade))
 		menu.AddCommand(Lbl(T("ra.update")), Command(u.updateRA))
+		menu.AddSeparator()
 		menu.AddCommand(Lbl(T("ra.key_menu")), Command(func() {
 			if !u.busy {
 				u.askRAKey()
 			}
 		}))
 		dbBtn.Configure(Mnu(menu))
-		romDB.status = parent.TLabel()
+		romDB.status = parent.TLabel(Wraplength("45m"), Justify("left"))
 		setTooltip(dbBtn, T("nointro.menu.tip"))
 		setTooltip(romDB.status, T("nointro.menu.tip"))
 		u.showNoIntroStatus()
-		return []Widget{rename, check, dupes, del, parent.TSeparator(Orient("vertical")), dbBtn, romDB.status}
+		return []Widget{rename, check, del, parent.TSeparator(Orient("vertical")), dbBtn, romDB.status}
 	},
 	options: func(u *ui, parent *TFrameWidget) []Widget {
 		sevenZip.ui = u

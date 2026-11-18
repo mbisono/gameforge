@@ -2,6 +2,16 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.14.0] - 2026-11-18
+
+### Added
+- **Check ▾ → Sets for FBNeo** (and **Sets for MAME 2000**, **2003**, **2003-Plus**, **2010**, **2015** and **2016**, the MAME cores of RetroArch, and **Sets for Flycast (Naomi, Atomiswave)**) in the ROMs tab checks the checked ZIPs and 7z files as arcade sets of that emulator, with its list of sets, downloaded from GitHub the first time it is used (FBNeo's own list, about 14 MB; for the MAME cores, the lists libretro keeps for them, from 2 to 53 MB): whether the list has the set's short name, and whether all its files are there with the right CRCs, in the set itself or in its parent and BIOS sets in the same folder (non-merged, split and merged sets all work). The status column shows `✓ FBNeo: Blazing Star`, or what is wrong: files missing, files with another CRC (usually a set made for another MAME version), or a clone's parent set the folder lacks (`needs blazstar.zip in this folder`). The CHDs a set needs (MAME's disks, the GD-ROMs of Naomi games) are looked for where the emulators look, `set/name.chd` next to the archive, and a missing one counts as missing. Flycast has no list of sets: its table of games (in its source, `naomi_roms.cpp`, about 300 KB) is downloaded and read as data. Only the folder of the ROMs is looked at, and no BIOS is needed: a BIOS set (`neogeo.zip`, `naomi.zip`, `awbios.zip`) in the folder is checked too, and one that is not there is only noted in the log; the game's own files decide. Sets the emulator marks as not working well and archives whose name is unknown but whose files are a known set are pointed out. Only the archives' headers are read; nothing is changed or rebuilt. **Names database ▾** updates the lists already downloaded.
+
+- **Check ▾ → Duplicates: check only the extra copies** in the ROMs tab checks the extra copies found by the last duplicate check at any time, not only when the check offers it, and unchecks all the other files; it runs the check first if there was none or the list changed.
+
+### Changed
+- The ROMs tab gathers its checks in one **Check ▾** menu (RetroAchievements, Duplicates, Sets for FBNeo, the MAME cores and Flycast), which keeps its row of buttons narrow enough for a 1366-pixel screen.
+
 ## [2.13.1] - 2026-11-17
 
 ### Fixed
@@ -166,6 +176,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.14.0]: https://github.com/tschertel/gameforge/releases/tag/v2.14.0
 [2.13.1]: https://github.com/tschertel/gameforge/releases/tag/v2.13.1
 [2.13.0]: https://github.com/tschertel/gameforge/releases/tag/v2.13.0
 [2.12.0]: https://github.com/tschertel/gameforge/releases/tag/v2.12.0

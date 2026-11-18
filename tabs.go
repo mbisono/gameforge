@@ -93,7 +93,8 @@ type convTab struct {
 	conv    *converter
 	items   []*convItem
 	checked map[string]bool
-	pool    []string // anyExt: every file given to the tab, listed or not
+	pool    []string    // anyExt: every file given to the tab, listed or not
+	dupes   []dupeGroup // the ROMs tab: what the last duplicate check found
 
 	tree    *TTreeviewWidget
 	summary *TLabelWidget

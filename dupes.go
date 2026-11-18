@@ -34,8 +34,8 @@ type dupeFile struct {
 
 // findDupes looks for duplicates among the checked ROMs, ZIPs and 7z
 // files of the ROMs tab, downloading the databases it needs first if the
-// user agrees.
-func (t *convTab) findDupes(u *ui) {
+// user agrees. With mark, it then checks the extra copies without asking.
+func (t *convTab) findDupes(u *ui, mark bool) {
 	if u.busy {
 		return
 	}
@@ -59,11 +59,42 @@ func (t *convTab) findDupes(u *ui) {
 			Msg(T("rrename.ask_db", strings.Join(missing, ", "))), Detail(T("dupes.ask_db.detail", nointro.Source)))
 		if answer == "yes" {
 			u.separate()
-			u.downloadNoIntro(missing, func() { u.runDupes(roms) })
+			u.downloadNoIntro(missing, func() { u.runDupes(roms, mark) })
 			return
 		}
 	}
-	u.runDupes(roms)
+	u.runDupes(roms, mark)
+}
+
+// markDupes checks only the extra copies that the last duplicate check
+// found, or runs the check first if there was none or the list changed
+// since.
+func (t *convTab) markDupes(u *ui) {
+	if u.busy {
+		return
+	}
+	if len(t.dupes) > 0 && t.dupesListed() {
+		markGroups(u, t.dupes)
+		return
+	}
+	t.findDupes(u, true)
+}
+
+// dupesListed reports whether every file of the last duplicate check is
+// still in the list.
+func (t *convTab) dupesListed() bool {
+	listed := map[*convItem]bool{}
+	for _, it := range t.items {
+		listed[it] = true
+	}
+	for _, g := range t.dupes {
+		for _, f := range g.files {
+			if !listed[f.item] {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // shortListsNeeded returns the consoles whose short names would tell what
@@ -86,7 +117,7 @@ func shortListsNeeded(db *nointro.DB, roms []romFile) []string {
 
 // runDupes identifies the files in the background (loose ROMs are read
 // whole for their CRC), then shows the groups.
-func (u *ui) runDupes(roms []romFile) {
+func (u *ui) runDupes(roms []romFile, mark bool) {
 	orderText := keepText(u.cfg.DupesKeep)
 	order := keepOrder(orderText)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -125,7 +156,13 @@ func (u *ui) runDupes(roms []romFile) {
 				u.logf("log.cancelled")
 			}
 			u.flush()
-			if !cancelled {
+			if cancelled {
+				return
+			}
+			roms[0].item.tab.dupes = groups
+			if mark {
+				markGroups(u, groups)
+			} else {
 				markExtras(u, groups, orderText)
 			}
 		}, false)
@@ -347,18 +384,38 @@ func markExtras(u *ui, groups []dupeGroup, order string) {
 	}
 	answer := MessageBox(Parent(App), Icon("question"), Type("yesno"), Title(T("app.title")),
 		Msg(T("dupes.ask_mark", n)), Detail(T("dupes.ask_mark.detail", order)))
-	if answer != "yes" {
+	if answer == "yes" {
+		markGroups(u, groups)
+	}
+}
+
+// markGroups checks the extra copies of each game, the file kept chosen by
+// the current order of formats, and unchecks all the other files.
+func markGroups(u *ui, groups []dupeGroup) {
+	if len(groups) == 0 {
 		return
 	}
+	order := keepOrder(keepText(u.cfg.DupesKeep))
 	t := groups[0].files[0].item.tab
 	for _, it := range t.items {
 		t.checked[it.path] = false
 	}
-	for _, g := range groups {
-		for i, f := range g.files {
-			t.checked[f.item.path] = i != g.keep
+	n := 0
+	for i := range groups {
+		g := &groups[i]
+		g.keep = keepIndex(g.files, order)
+		label, kept := dupeLabel(g.files), filepath.Base(g.files[g.keep].item.path)
+		for j, f := range g.files {
+			if j == g.keep {
+				f.item.status = i18n.M("dupes.st_keep", label, len(g.files))
+				continue
+			}
+			f.item.status = i18n.M("dupes.st_extra", kept)
+			t.checked[f.item.path] = true
+			n++
 		}
 	}
+	u.logf("dupes.marked", n)
 	t.refresh(u)
 }
 

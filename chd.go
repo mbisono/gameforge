@@ -103,15 +103,15 @@ var chdConverter = &converter{
 		dbBtn := parent.TMenubutton(Txt(T("redump.menu")))
 		menu := dbBtn.Menu(Tearoff(false))
 		menu.AddCommand(Lbl(T("redump.update")), Command(u.updateRedump))
-		menu.AddSeparator()
 		menu.AddCommand(Lbl(T("ra.update")), Command(u.updateRA))
+		menu.AddSeparator()
 		menu.AddCommand(Lbl(T("ra.key_menu")), Command(func() {
 			if !u.busy {
 				u.askRAKey()
 			}
 		}))
 		dbBtn.Configure(Mnu(menu))
-		discDB.status = parent.TLabel()
+		discDB.status = parent.TLabel(Wraplength("45m"), Justify("left"))
 		setTooltip(dbBtn, T("redump.menu.tip"))
 		setTooltip(discDB.status, T("redump.menu.tip"))
 		u.showRedumpStatus()

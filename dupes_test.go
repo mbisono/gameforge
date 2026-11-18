@@ -9,6 +9,7 @@ import (
 	"slices"
 	"testing"
 
+	"gameforge/internal/config"
 	"gameforge/internal/nointro"
 )
 
@@ -113,5 +114,36 @@ func TestKeep(t *testing.T) {
 	}
 	if got := keepIndex([]dupeFile{f("a.7z", "", 1), f("b.zip", "", 1)}, keepOrder("zip")); got != 1 {
 		t.Errorf("own order: kept %d", got)
+	}
+}
+
+// TestMarkGroups checks only the extra copies, by the order of formats
+// chosen now, and notices when the list changed since the check.
+func TestMarkGroups(t *testing.T) {
+	tab := &convTab{checked: map[string]bool{}}
+	item := func(p string) *convItem {
+		it := &convItem{path: p, ok: true, tab: tab}
+		tab.items = append(tab.items, it)
+		tab.checked[p] = true
+		return it
+	}
+	neo, sz, lone := item("Blazing Star.neo"), item("Blazing Star.7z"), item("Other.7z")
+	tab.dupes = []dupeGroup{{files: []dupeFile{{item: neo, game: "Blazing Star"}, {item: sz, game: "Blazing Star"}}}}
+	u := &ui{cfg: &config.Config{}}
+	if !tab.dupesListed() {
+		t.Fatal("not listed")
+	}
+	markGroups(u, tab.dupes)
+	if !tab.checked[neo.path] || tab.checked[sz.path] || tab.checked[lone.path] {
+		t.Errorf("default order: %v", tab.checked)
+	}
+	u.cfg.DupesKeep = "neo"
+	markGroups(u, tab.dupes)
+	if tab.checked[neo.path] || !tab.checked[sz.path] {
+		t.Errorf("own order: %v", tab.checked)
+	}
+	tab.items = tab.items[1:] // the .neo was deleted
+	if tab.dupesListed() {
+		t.Errorf("still listed")
 	}
 }
