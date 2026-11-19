@@ -218,6 +218,10 @@ var sevenZipConverter = &converter{
 		checkMenu.AddCommand(Lbl(T("check.dupes")), Command(inTab(func(t *convTab) { t.findDupes(u, false) })))
 		checkMenu.AddCommand(Lbl(T("check.dupes_mark")), Command(inTab(func(t *convTab) { t.markDupes(u) })))
 		checkMenu.AddSeparator()
+		checkMenu.AddCommand(Lbl(T("check.neo")), Command(inTab(func(t *convTab) { t.checkNeo(u, neoMarkNone) })))
+		checkMenu.AddCommand(Lbl(T("check.neo_mvs")), Command(inTab(func(t *convTab) { t.checkNeo(u, neoMarkMVS) })))
+		checkMenu.AddCommand(Lbl(T("check.neo_aes")), Command(inTab(func(t *convTab) { t.checkNeo(u, neoMarkAES) })))
+		checkMenu.AddSeparator()
 		for _, e := range arcade.Emulators() {
 			checkMenu.AddCommand(Lbl(T("arcade.check", e.Label())), Command(inTab(func(t *convTab) { t.checkArcade(u, e.ID) })))
 		}

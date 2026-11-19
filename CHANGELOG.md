@@ -2,6 +2,14 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.15.0] - 2026-11-19
+
+### Added
+- **Check ▾ → Neo Geo .neo games (Geolith)** in the ROMs tab checks the checked `.neo` files, loose or in a ZIP or 7z, against libretro's Neo Geo list by their CRC, and tells from the product code in the list's name whether each is the home version (`AES (NGH)`), the arcade version (`MVS (NGM)`), both (same ROMs) or has no code; files the list does not know show `✗ Neo Geo: unknown CRC`. **Neo Geo: check the MVS versions that have an AES version** and **Neo Geo: check the AES versions that have an MVS version** then check, for **Delete checked…**, the version you do not want of each game the folder has in both; games with one version are never checked.
+
+### Changed
+- **Check ▾ → Sets for …** tells a ZIP or 7z holding a `.neo` file (a whole Neo Geo game in one file, for the Geolith core or the NeoSD) apart from an unknown set: the status shows `– FBNeo: .neo file, not an arcade set` instead of `not in the list`, and the log explains why such a file cannot be checked as an arcade set and, if libretro's Neo Geo list is downloaded, whether it knows the file's CRC. **Rename…** checks `.neo` files against that list.
+
 ## [2.14.0] - 2026-11-18
 
 ### Added
@@ -176,6 +184,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.15.0]: https://github.com/tschertel/gameforge/releases/tag/v2.15.0
 [2.14.0]: https://github.com/tschertel/gameforge/releases/tag/v2.14.0
 [2.13.1]: https://github.com/tschertel/gameforge/releases/tag/v2.13.1
 [2.13.0]: https://github.com/tschertel/gameforge/releases/tag/v2.13.0

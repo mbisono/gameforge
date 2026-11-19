@@ -42,8 +42,10 @@ import (
 // question got no input and could be neither answered nor closed, 2.14.0
 // checks arcade sets against the lists of sets of FBNeo and of RetroArch's
 // MAME cores (2000, 2003, 2003-Plus, 2010, 2015, 2016) and of Flycast
-// (Naomi, Atomiswave), with their CHDs.
-const appVersion = "2.14.0"
+// (Naomi, Atomiswave), with their CHDs, 2.15.0 checks Neo Geo .neo files
+// (Geolith) and tells their AES and MVS versions, and tells .neo files
+// apart from arcade sets in the arcade check.
+const appVersion = "2.15.0"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

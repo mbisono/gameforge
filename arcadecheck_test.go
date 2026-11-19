@@ -9,6 +9,7 @@ import (
 
 	"gameforge/internal/arcade"
 	"gameforge/internal/i18n"
+	"gameforge/internal/nointro"
 )
 
 // TestArcadeFolder reads sets from ZIPs, finds the BIOS set next to them
@@ -94,5 +95,40 @@ func TestMissingChds(t *testing.T) {
 	st, _ := arcadeResult(emu, "radirgy.zip", arcade.Result{Set: l.Sets["radirgy"]}, []string{"radirgy/gdl-0032a.chd"})
 	if st.String() != "✗ Flycast: needs the CHD radirgy/gdl-0032a.chd" {
 		t.Errorf("status %q", st)
+	}
+}
+
+// TestNeoResult tells a .neo file from an arcade set, with and without
+// libretro's Neo Geo list.
+func TestNeoResult(t *testing.T) {
+	i18n.Set("en")
+	emu, _ := arcade.EmulatorByID("fbneo")
+	files := []arcade.File{{Name: "Aero Fighters 2.neo", Size: 13897728, CRC: 0xAC1851BB}}
+	if _, _, ok := neoResult(emu, "a.7z", []arcade.File{{Name: "075-p1.p1", Size: 1, CRC: 2}}, nil); ok {
+		t.Errorf("not a .neo file")
+	}
+	st, line, ok := neoResult(emu, "Aero Fighters 2.7z", files, nil)
+	if !ok || st.String() != "– FBNeo: .neo file, not an arcade set" || !strings.Contains(line.String(), "Rename…") {
+		t.Errorf("no list: %q, %q", st, line)
+	}
+	l, err := nointro.Parse(strings.NewReader(`clrmamepro (
+	name "SNK - Neo Geo"
+)
+
+game (
+	name "Aero Fighters 2 / Sonic Wings 2"
+	rom ( name "sonicwi2.neo" size 13897728 crc AC1851BB )
+)
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := nointro.New(map[string]*nointro.List{"Neo Geo": l})
+	if _, line, _ := neoResult(emu, "x.7z", files, db); !strings.Contains(line.String(), "knows its CRC: ") {
+		t.Errorf("known: %q", line)
+	}
+	files[0].CRC++
+	if _, line, _ := neoResult(emu, "x.7z", files, db); !strings.HasSuffix(line.String(), "not in libretro's Neo Geo list.") {
+		t.Errorf("unknown: %q", line)
 	}
 }

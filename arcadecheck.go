@@ -14,6 +14,7 @@ import (
 	"gameforge/internal/arcade"
 	"gameforge/internal/datfile"
 	"gameforge/internal/i18n"
+	"gameforge/internal/nointro"
 	"gameforge/internal/sevenzip"
 )
 
@@ -186,6 +187,7 @@ func (u *ui) runArcade(emu arcade.Emulator, items []*convItem) {
 	enable(u.cancelBtn, true)
 	list := u.arcadeLists().Lists[emu.ID]
 	u.logf("arcade.start", len(items), emu.Name, list.Version)
+	neo := u.noIntroDB() // for .neo files, which are not arcade sets
 	go func() {
 		defer cancel()
 		read := map[string][]arcade.File{} // other sets' archives, read once
@@ -223,6 +225,11 @@ func (u *ui) runArcade(emu arcade.Emulator, items []*convItem) {
 			r := list.Audit(strings.TrimSuffix(base, filepath.Ext(base)), files, other)
 			chds := missingChds(dir, r.Set, list)
 			status, line := arcadeResult(emu, base, r, chds)
+			if r.Set == nil && r.Like == nil {
+				if st, l, ok := neoResult(emu, base, files, neo); ok {
+					status, line = st, l
+				}
+			}
 			if r.OK() && len(chds) == 0 {
 				complete++
 			}
@@ -289,6 +296,31 @@ func (j joined) String() string {
 	}
 	return strings.Join(parts, ", ")
 }
+
+// neoResult tells, for an archive that holds a .neo file (Neo Geo games in
+// one file, as Geolith and the NeoSD use them), that it is not an arcade
+// set, and whether libretro's Neo Geo list, if downloaded, knows its CRC.
+func neoResult(emu arcade.Emulator, base string, files []arcade.File, db *nointro.DB) (fmt.Stringer, fmt.Stringer, bool) {
+	for _, f := range files {
+		if !strings.EqualFold(filepath.Ext(f.Name), ".neo") {
+			continue
+		}
+		var why fmt.Stringer = i18n.M("arcade.neo_nolist")
+		if db.Has(neoSystem) {
+			why = i18n.M("arcade.neo_unknown")
+			for _, m := range db.Find(f.CRC, f.Size, neoSystem) {
+				if m.System == neoSystem {
+					why = i18n.M("arcade.neo_known", m.Name)
+					break
+				}
+			}
+		}
+		return i18n.M("arcade.st_neo", emu.Name), i18n.M("arcade.neo", base, emu.Name, why), true
+	}
+	return nil, nil, false
+}
+
+const neoSystem = "Neo Geo"
 
 // arcadeResult is the status of a checked archive and its log line.
 func arcadeResult(emu arcade.Emulator, base string, r arcade.Result, chds []string) (fmt.Stringer, fmt.Stringer) {
