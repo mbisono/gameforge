@@ -44,8 +44,12 @@ import (
 // MAME cores (2000, 2003, 2003-Plus, 2010, 2015, 2016) and of Flycast
 // (Naomi, Atomiswave), with their CHDs, 2.15.0 checks Neo Geo .neo files
 // (Geolith) and tells their AES and MVS versions, and tells .neo files
-// apart from arcade sets in the arcade check.
-const appVersion = "2.15.0"
+// apart from arcade sets in the arcade check, 2.16.0 extracts CHDs back to
+// CUE/BIN (named as Redump's), GDI or ISO, and makes the ISO → CSO/ZSO tab
+// part of the Discs tab, which also lists and extracts CSO and ZSO files,
+// as well as the Xbox → XISO and GameCube/Wii → RVZ tabs, and renames Xbox
+// discs with Redump names.
+const appVersion = "2.16.0"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

@@ -46,8 +46,11 @@ type Config struct {
 	// ChdNoM3U turns off the .m3u playlists written for games on several
 	// discs converted to CHD.
 	ChdNoM3U bool `json:"chd_no_m3u,omitempty"`
-	// CisoFormat is the compressed ISO format written: "cso" (default) or
-	// "zso".
+	// IsoFormat is what the Discs tab converts ISO images to: "" (CHD),
+	// "cso" or "zso".
+	IsoFormat string `json:"iso_format,omitempty"`
+	// CisoFormat was the format of the ISO → CSO/ZSO tab, before it became
+	// part of the Discs tab; it is only read, to carry it over.
 	CisoFormat string `json:"ciso_format,omitempty"`
 	// WiiKeyPath is a Wii common key file chosen by the user (the keys
 	// folder is also searched).
@@ -91,8 +94,7 @@ type Config struct {
 	Maximized bool   `json:"maximized,omitempty"`
 	Columns   []int  `json:"columns,omitempty"`
 	Divider   int    `json:"divider,omitempty"`
-	// Tab is the tab shown last: "switch" or a converter id ("chd", "xiso",
-	// "rvz", "ciso", "7z").
+	// Tab is the tab shown last: "switch" or a converter id ("chd", "7z").
 	Tab string `json:"tab,omitempty"`
 
 	path string
@@ -169,6 +171,42 @@ func (c *Config) fillDefaults() {
 	case "fast", "normal", "max":
 	default:
 		c.Level = "normal"
+	}
+	// The Xbox → XISO and GameCube/Wii → RVZ tabs became part of the Discs
+	// tab: if one of them was the tab shown, the Discs tab is shown
+	// instead, with its output folder.
+	for _, old := range []string{"xiso", "rvz"} {
+		if c.Tab == old {
+			c.Tab = "chd"
+			if d, ok := c.OutputDirs[old]; ok {
+				if _, has := c.OutputDirs["chd"]; !has {
+					c.OutputDirs["chd"] = d
+				}
+			}
+		}
+		delete(c.OutputDirs, old)
+	}
+	// The ISO → CSO/ZSO tab became part of the Discs tab: if it was the
+	// tab shown, the Discs tab is shown instead and converts ISOs to its
+	// format, into its output folder.
+	if c.Tab == "ciso" {
+		c.Tab = "chd"
+		if c.IsoFormat == "" {
+			c.IsoFormat = "cso"
+			if c.CisoFormat == "zso" {
+				c.IsoFormat = "zso"
+			}
+		}
+		if d, ok := c.OutputDirs["ciso"]; ok {
+			if _, has := c.OutputDirs["chd"]; !has {
+				c.OutputDirs["chd"] = d
+			}
+		}
+	}
+	delete(c.OutputDirs, "ciso")
+	c.CisoFormat = ""
+	if c.IsoFormat != "cso" && c.IsoFormat != "zso" {
+		c.IsoFormat = ""
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"gameforge/internal/chd"
+	"gameforge/internal/ciso"
 	"gameforge/internal/discinfo"
 	"gameforge/internal/retroach"
 )
@@ -38,6 +39,12 @@ func discReader(path string) (retroach.Disc, func(), error) {
 			return b, err
 		}
 		return retroach.Disc{Read: read}, func() { f.Close() }, nil
+	case isCSO(path):
+		r, err := ciso.Open(path)
+		if err != nil {
+			return retroach.Disc{}, nil, err
+		}
+		return retroach.Disc{Read: r.Sector}, func() { r.Close() }, nil
 	case strings.EqualFold(filepath.Ext(path), ".gdi"):
 		return gdiReader(path)
 	}

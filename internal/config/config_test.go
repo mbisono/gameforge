@@ -53,3 +53,27 @@ func TestMigrate(t *testing.T) {
 		t.Errorf("new file replaced: %+v", c)
 	}
 }
+
+// TestCisoTab carries the settings of the ISO → CSO/ZSO, Xbox → XISO and
+// GameCube/Wii → RVZ tabs over to the Discs tab, which took their place.
+func TestCisoTab(t *testing.T) {
+	dir := t.TempDir()
+	for _, c := range []struct {
+		json, tab, format, out string
+	}{
+		{`{"tab":"ciso","ciso_format":"zso","output_dirs":{"ciso":"D:/cso"}}`, "chd", "zso", `D:/cso`},
+		{`{"tab":"ciso","output_dirs":{"ciso":"D:/cso","chd":"D:/chd"}}`, "chd", "cso", `D:/chd`},
+		{`{"tab":"7z","ciso_format":"zso","output_dirs":{"ciso":"D:/cso"}}`, "7z", "", ""},
+		{`{"tab":"rvz","output_dirs":{"rvz":"D:/wii","xiso":"D:/xbox"}}`, "chd", "", `D:/wii`},
+		{`{"tab":"chd","iso_format":"bad"}`, "chd", "", ""},
+		{`{"tab":"xiso","output_dirs":{"xiso":"D:/xbox"}}`, "chd", "", `D:/xbox`},
+	} {
+		path := filepath.Join(dir, FileName)
+		os.WriteFile(path, []byte(c.json), 0o644)
+		got, err := loadOrCreate(path)
+		if err != nil || got.Tab != c.tab || got.IsoFormat != c.format || got.OutputDirs["chd"] != c.out ||
+			got.CisoFormat != "" || got.OutputDirs["ciso"] != "" || got.OutputDirs["xiso"] != "" || got.OutputDirs["rvz"] != "" {
+			t.Errorf("%s: %+v %v", c.json, got, err)
+		}
+	}
+}

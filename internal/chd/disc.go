@@ -33,7 +33,10 @@ type DiscTrack struct {
 	Frames int    // data frames, without a pregap stored with the track
 	Pregap int    // frames of pregap before the data (stored or not)
 	Pad    int    // empty frames after the data (GD-ROM: up to the high-density area)
-	start  int    // first data frame in the CHD
+	// Postgap is the frames of postgap after the track (not stored).
+	Postgap int
+	start   int // first data frame in the CHD
+	stored  int // frames of pregap stored in the CHD before start
 }
 
 // Disc reads the sectors of a CD, GD-ROM or DVD CHD.
@@ -86,10 +89,12 @@ func OpenDisc(path string) (*Disc, error) {
 			r.Close()
 			return nil, fmt.Errorf("chd: invalid track metadata %q", s)
 		}
-		t := DiscTrack{Number: n, Type: f["TYPE"], Frames: frames, Pregap: pregap, start: chdFrame}
+		postgap, _ := strconv.Atoi(f["POSTGAP"])
+		t := DiscTrack{Number: n, Type: f["TYPE"], Frames: frames, Pregap: pregap, Postgap: max(postgap, 0), start: chdFrame}
 		if strings.HasPrefix(f["PGTYPE"], "V") && pregap <= frames {
 			t.start += pregap
 			t.Frames -= pregap
+			t.stored = pregap
 		}
 		// On a GD-ROM, empty frames filling the gap up to the
 		// high-density area are not part of the track's file.

@@ -163,3 +163,31 @@ func TestNotCSO(t *testing.T) {
 		t.Fatal("opened a non-CSO file")
 	}
 }
+
+// TestSector reads single sectors of a CSO.
+func TestSector(t *testing.T) {
+	dir := t.TempDir()
+	iso := make([]byte, 2048*40)
+	for i := range iso {
+		iso[i] = byte(i / 2048 * 7)
+	}
+	in := filepath.Join(dir, "a.iso")
+	os.WriteFile(in, iso, 0o644)
+	out := filepath.Join(dir, "a.cso")
+	if _, err := Compress(context.Background(), in, out, CSO, nil); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	for _, lba := range []int64{0, 1, 39} {
+		if b, err := r.Sector(lba); err != nil || !bytes.Equal(b, iso[lba*2048:(lba+1)*2048]) {
+			t.Errorf("sector %d: %v", lba, err)
+		}
+	}
+	if _, err := r.Sector(40); err == nil {
+		t.Error("sector past the end")
+	}
+}

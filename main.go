@@ -509,7 +509,9 @@ func gridRow(widgets ...Widget) {
 		if _, sep := w.(*TSeparatorWidget); sep {
 			Grid(w, Row(0), Column(i), Sticky("ns"), pad)
 		} else {
-			Grid(w, Row(0), Column(i), Sticky("ns"), pad, ipad)
+			// Not stretched: a label that wraps to several lines must
+			// not make the buttons taller.
+			Grid(w, Row(0), Column(i), pad, ipad)
 		}
 	}
 }

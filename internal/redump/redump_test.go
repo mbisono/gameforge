@@ -208,3 +208,59 @@ func contains(l []string, s string) bool {
 	}
 	return false
 }
+
+// TestXbox finds Xbox games by the code and regions of an XISO, which has
+// no size or CRC of the disc.
+func TestXbox(t *testing.T) {
+	const dat = `game (
+	name "Burnout 3 - Takedown (Europe) (En,Es,Nl,Sv)"
+	region "Europe"
+	serial "EA-091"
+	rom ( name "Burnout 3 - Takedown (Europe) (En,Es,Nl,Sv).iso" size 7825162240 crc 8ABB8436 serial "EA-091" )
+)
+game (
+	name "Burnout 3 - Takedown (Europe) (Fr,De,It)"
+	region "Europe"
+	serial "EA-091"
+	rom ( name "Burnout 3 - Takedown (Europe) (Fr,De,It).iso" size 7825162240 crc 6224448C serial "EA-091" )
+)
+game (
+	name "Burnout 3 - Takedown (USA)"
+	region "USA"
+	serial "EA-091"
+	rom ( name "Burnout 3 - Takedown (USA).iso" size 7825162240 crc 602C1D40 serial "EA-091" )
+)
+game (
+	name "Half-Life 2 (USA, Europe) (En,Fr,De,Es,It)"
+	serial "EA-145"
+	rom ( name "Half-Life 2 (USA, Europe) (En,Fr,De,Es,It).iso" size 7825162240 crc 2F9D3611 serial "EA-145" )
+)
+`
+	l, err := Parse("Xbox", strings.NewReader(dat))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := &DB{Lists: map[string]*List{"Xbox": l}}
+	db.build()
+	for _, c := range []struct {
+		code      string
+		regions   []string
+		want      string
+		ambiguous int
+	}{
+		{"EA-091", []string{"USA"}, "Burnout 3 - Takedown (USA)", 0},
+		{"EA-091", []string{"Europe"}, "", 2},
+		{"EA-145", []string{"USA", "Japan", "Europe"}, "Half-Life 2 (USA, Europe) (En,Fr,De,Es,It)", 0},
+	} {
+		name, amb, err := db.Match("Xbox", c.code, Track{Regions: c.regions, Rev: -1})
+		if err != nil || name != c.want || len(amb) != c.ambiguous {
+			t.Errorf("%s %v: %q %v %v", c.code, c.regions, name, amb, err)
+		}
+	}
+	// A disc dump's CRC tells the European versions apart.
+	crc := func(int) (uint32, error) { return 0x6224448C, nil }
+	size := func(int) (int64, bool) { return 7825162240, true }
+	if name, _, _ := db.Match("Xbox", "EA-091", Track{Regions: []string{"Europe"}, Size: size, CRC: crc, Rev: -1}); name != "Burnout 3 - Takedown (Europe) (Fr,De,It)" {
+		t.Errorf("dump: %q", name)
+	}
+}

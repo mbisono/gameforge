@@ -182,14 +182,17 @@ func (u *ui) showWiiKey() {
 	}
 }
 
-// redescribe describes the items of the RVZ tab again (after the key
-// changed) and shows them.
-func (u *ui) redescribeRVZ() {
+// redescribeNintendo describes the Wii discs of the Discs tab again (after
+// the key changed) and shows them.
+func (u *ui) redescribeNintendo() {
 	for _, t := range u.tabs {
-		if t.conv.id != "rvz" {
+		if t.conv.id != "chd" {
 			continue
 		}
 		for _, it := range t.items {
+			if it.platform != discinfo.Wii || isRVZ(it.path) {
+				continue
+			}
 			was := it.ok
 			t.conv.describe(it)
 			if it.ok && !was {
@@ -221,128 +224,96 @@ func discSize(path string) int64 {
 	return 0
 }
 
-// rvzConverter compresses GameCube and Wii disc images to RVZ, Dolphin's
+// describeNintendo tells what a GameCube or Wii disc image is; it becomes
+// an RVZ (a Wii disc only with the Wii common key).
+func describeNintendo(it *convItem, gc, wii bool) {
+	id, title := gcTitle(it.path)
+	it.platform = map[bool]string{true: discinfo.Wii, false: discinfo.GameCube}[wii]
+	if gc {
+		it.icon = gcBanner(it.path)
+	}
+	if wii && wiiKeys == nil {
+		it.detail = msg("rvz.need_key")
+		return
+	}
+	it.ok, it.kind = true, "rvz"
+	it.detail = msg("rvz.row_iso", id, title, humanSize(discSize(it.path)))
+}
+
+// compressRVZ compresses a GameCube or Wii disc image to RVZ, Dolphin's
 // format.
-var rvzConverter = &converter{
-	id:     "rvz",
-	title:  "tab.rvz",
-	info:   "tab.rvz.info",
-	button: "btn.rvz",
-	tip:    "btn.rvz.tip",
-	exts:   []string{".iso", ".gcm", ".rvz"},
-	// RVZ files are listed too, to be renamed, but not converted.
-	accept: func(path string) bool { return isRVZ(path) || isNintendoDisc(path) },
-	types: []FileType{
-		{TypeName: "GameCube/Wii ISO", Extensions: []string{".iso", ".gcm"}},
-		{TypeName: "RVZ", Extensions: []string{".rvz"}},
-	},
-	describe: func(it *convItem) {
-		it.ok = false
-		if isRVZ(it.path) {
-			describeRVZ(it)
-			return
+func compressRVZ(ctx context.Context, u *ui, it *convItem, out string, verify bool,
+	progress func(bool, int64, int64)) (int64, int64, error) {
+	res, err := rvz.Compress(ctx, it.path, out, rvz.Options{Level: zstd.SpeedBestCompression, CommonKeys: wiiKeys, ChunkSize: rvzChunk << 10},
+		func(done, total int64) { progress(false, done, total) })
+	switch {
+	case errors.Is(err, rvz.ErrWrongCommonKey):
+		return 0, 0, errors.New(T("rvz.wrong_key"))
+	case errors.Is(err, rvz.ErrNoCommonKey):
+		return 0, 0, errors.New(T("rvz.need_key"))
+	case err != nil:
+		return 0, 0, err
+	}
+	if res.Wii {
+		u.logf("rvz.wii_parts", res.Partitions)
+	}
+	if verify {
+		sum, err := rvz.Hash(ctx, out, func(done, total int64) { progress(true, done, total) })
+		if err == nil && sum != res.SHA1 {
+			err = fmt.Errorf("content differs")
 		}
-		gc, wii := nintendoDisc(it.path)
-		if !gc && !wii {
-			it.detail = msg("rvz.not_gc")
-			return
-		}
-		id, title := gcTitle(it.path)
-		it.platform = map[bool]string{true: "Wii", false: "GameCube"}[wii]
-		if gc {
-			it.icon = gcBanner(it.path)
-		}
-		if wii && wiiKeys == nil {
-			it.detail = msg("rvz.need_key")
-			return
-		}
-		it.ok = true
-		it.detail = msg("rvz.row_iso", id, title, humanSize(discSize(it.path)))
-	},
-	outName: func(it *convItem) string {
-		return strings.TrimSuffix(filepath.Base(it.path), filepath.Ext(it.path)) + ".rvz"
-	},
-	run: func(ctx context.Context, u *ui, it *convItem, out string, verify bool,
-		progress func(bool, int64, int64)) (int64, int64, error) {
-		res, err := rvz.Compress(ctx, it.path, out, rvz.Options{Level: zstd.SpeedBestCompression, CommonKeys: wiiKeys, ChunkSize: rvzChunk << 10},
-			func(done, total int64) { progress(false, done, total) })
-		switch {
-		case errors.Is(err, rvz.ErrWrongCommonKey):
-			return 0, 0, errors.New(T("rvz.wrong_key"))
-		case errors.Is(err, rvz.ErrNoCommonKey):
-			return 0, 0, errors.New(T("rvz.need_key"))
-		case err != nil:
+		if err != nil {
+			if ctx.Err() == nil {
+				err = fmt.Errorf("%s: %w", T("log.verify_failed"), err)
+			}
 			return 0, 0, err
 		}
-		if res.Wii {
-			u.logf("rvz.wii_parts", res.Partitions)
+	}
+	return res.InputSize, res.OutputSize, nil
+}
+
+// rvzOptions are the Discs tab's options for GameCube and Wii discs: the
+// RVZ block size and the Wii common key.
+func rvzOptions(u *ui, parent *TFrameWidget) []Widget {
+	rvzChunk = 128
+	if slices.Contains(rvzChunks, u.cfg.RvzChunk) {
+		rvzChunk = u.cfg.RvzChunk
+	}
+	v := Variable(strconv.Itoa(rvzChunk))
+	widgets := []Widget{parent.TLabel(Txt(T("opt.rvz_row"))), parent.TLabel(Txt(T("opt.rvz_chunk")))}
+	for _, kib := range rvzChunks {
+		text := chunkLabel(kib)
+		if kib == 128 {
+			text = T("opt.rvz_chunk_default", text)
 		}
-		if verify {
-			sum, err := rvz.Hash(ctx, out, func(done, total int64) { progress(true, done, total) })
-			if err == nil && sum != res.SHA1 {
-				err = fmt.Errorf("content differs")
-			}
-			if err != nil {
-				if ctx.Err() == nil {
-					err = fmt.Errorf("%s: %w", T("log.verify_failed"), err)
-				}
-				return 0, 0, err
-			}
-		}
-		return res.InputSize, res.OutputSize, nil
-	},
-	extra: func(u *ui, parent *TFrameWidget) []Widget {
-		rename := parent.TButton(Txt(T("btn.rename")), Command(func() {
-			for _, t := range u.tabs {
-				if t.conv.id == "rvz" {
-					t.renameDiscs(u)
-				}
-			}
-		}))
-		setTooltip(rename, T("drename.tip_rvz"))
-		return []Widget{rename}
-	},
-	options: func(u *ui, parent *TFrameWidget) []Widget {
-		rvzChunk = 128
-		if slices.Contains(rvzChunks, u.cfg.RvzChunk) {
-			rvzChunk = u.cfg.RvzChunk
-		}
-		v := Variable(strconv.Itoa(rvzChunk))
-		widgets := []Widget{parent.TLabel(Txt(T("opt.rvz_chunk")))}
-		for _, kib := range rvzChunks {
-			text := chunkLabel(kib)
-			if kib == 128 {
-				text = T("opt.rvz_chunk_default", text)
-			}
-			rb := parent.TRadiobutton(Txt(text), v, Value(strconv.Itoa(kib)), Command(func() {
-				rvzChunk, _ = strconv.Atoi(v.Get())
-				u.cfg.RvzChunk = rvzChunk
-				u.saveConfig()
-			}))
-			setTooltip(rb, T("opt.rvz_chunk.tip"))
-			widgets = append(widgets, rb)
-		}
-		widgets = append(widgets, parent.TLabel(Txt("   ")))
-		label := parent.TLabel(Txt(T("opt.wii_key")))
-		wiiStatus = parent.TLabel()
-		browse := parent.TButton(Txt(T("btn.browse")), Command(func() {
-			types := []FileType{{TypeName: T("opt.wii_key"), Extensions: []string{".bin", ".txt"}}}
-			p := u.openFile(types, keysDir(), false)
-			if p == "" {
-				return
-			}
-			if _, err := readKey(p); err != nil {
-				MessageBox(Parent(App), Icon("error"), Title(T("app.title")), Msg(err.Error()))
-				return
-			}
-			u.cfg.WiiKeyPath = p
+		rb := parent.TRadiobutton(Txt(text), v, Value(strconv.Itoa(kib)), Command(func() {
+			rvzChunk, _ = strconv.Atoi(v.Get())
+			u.cfg.RvzChunk = rvzChunk
 			u.saveConfig()
-			u.loadWiiKeys()
-			u.redescribeRVZ()
 		}))
-		setTooltip(label, T("opt.wii_key.tip"))
-		setTooltip(wiiStatus, T("opt.wii_key.tip"))
-		u.showWiiKey()
-		return append(widgets, label, wiiStatus, browse)
-	},
+		setTooltip(rb, T("opt.rvz_chunk.tip"))
+		widgets = append(widgets, rb)
+	}
+	widgets = append(widgets, parent.TLabel(Txt("   ")))
+	label := parent.TLabel(Txt(T("opt.wii_key")))
+	wiiStatus = parent.TLabel()
+	browse := parent.TButton(Txt(T("btn.browse")), Command(func() {
+		types := []FileType{{TypeName: T("opt.wii_key"), Extensions: []string{".bin", ".txt"}}}
+		p := u.openFile(types, keysDir(), false)
+		if p == "" {
+			return
+		}
+		if _, err := readKey(p); err != nil {
+			MessageBox(Parent(App), Icon("error"), Title(T("app.title")), Msg(err.Error()))
+			return
+		}
+		u.cfg.WiiKeyPath = p
+		u.saveConfig()
+		u.loadWiiKeys()
+		u.redescribeNintendo()
+	}))
+	setTooltip(label, T("opt.wii_key.tip"))
+	setTooltip(wiiStatus, T("opt.wii_key.tip"))
+	u.showWiiKey()
+	return append(widgets, label, wiiStatus, browse)
 }

@@ -2,6 +2,21 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.16.0] - 2026-11-20
+
+### Added
+- **Extract** in the Discs tab writes the checked CHDs back as the images they were made from: a CD as a `.cue` with one `.bin` per track, named and laid out as Redump's, a Dreamcast GD-ROM as a `.gdi` with its tracks, a DVD (PS2, PSP) or a CD made from an ISO as an `.iso`. A right click on a CD with one data track offers an ISO of its data instead. Existing files are never written over, the CHD is kept, and with **Verify after writing** the files are read back and compared. A CUE/BIN or GDI converted to CHD and extracted again is identical to the original.
+- **Rename…** in the Discs tab gives Xbox discs (disc images and XISOs) their Redump names, found by the title ID in `default.xbe` (such as `EA-091`) and the regions it runs in; a disc image's CRC tells versions apart, while an XISO with several versions for its region keeps its name and the log lists them. The Discs tab shows the title, title ID and regions of Xbox games.
+- The Discs tab lists `.cso` and `.zso` files, with the game information of the image inside; **Extract** writes them back as an `.iso`, and **Rename…** and the RetroAchievements check work on them.
+
+### Changed
+- The **ISO → CSO/ZSO** tab is now part of the Discs tab: **ISO to:** below the list chooses CHD (the default), CSO or ZSO for ISO images, and the convert button is now **Convert**. If the CSO tab was the one shown last, the Discs tab opens with CSO or ZSO chosen and that tab's output folder. The setting `ciso_format` became `iso_format`.
+- The **GameCube/Wii → RVZ** tab is now part of the Discs tab: GameCube and Wii disc images there become RVZ, RVZ files are listed for renaming, and the block size and the Wii common key are on a second row of options below the list. If the RVZ tab was the one shown last, the Discs tab opens with that tab's output folder. The window now has three tabs: Nintendo Switch, Discs and ROMs.
+- The **Xbox → XISO** tab is now part of the Discs tab too: an Xbox or Xbox 360 disc image there is rebuilt as an XISO, and an XISO is listed for renaming. If the Xbox tab was the one shown last, the Discs tab opens with that tab's output folder.
+
+### Fixed
+- The buttons above the list of the Discs tab no longer grow taller when the names database label next to them wraps to several lines; the label is also shorter when only one or two consoles are missing (`names: all but Xbox, data of …`).
+
 ## [2.15.0] - 2026-11-19
 
 ### Added
@@ -184,6 +199,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.16.0]: https://github.com/tschertel/gameforge/releases/tag/v2.16.0
 [2.15.0]: https://github.com/tschertel/gameforge/releases/tag/v2.15.0
 [2.14.0]: https://github.com/tschertel/gameforge/releases/tag/v2.14.0
 [2.13.1]: https://github.com/tschertel/gameforge/releases/tag/v2.13.1

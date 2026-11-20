@@ -151,10 +151,35 @@ func Verify(ctx context.Context, path string, progress func(done, total int64)) 
 		return 0, err
 	}
 	defer r.Close()
+	h := sha1.New()
+	left := r.LogicalBytes
+	err = r.eachHunk(ctx, func(_ int, buf []byte) error {
+		h.Write(buf[:min(int64(len(buf)), left)])
+		left -= int64(len(buf))
+		if progress != nil {
+			progress(r.LogicalBytes-max(left, 0), r.LogicalBytes)
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	var raw [sha1.Size]byte
+	copy(raw[:], h.Sum(nil))
+	if raw != r.RawSHA1 {
+		return 0, errors.New("chd: data SHA-1 mismatch")
+	}
+	if overallSHA1(raw, r.Meta) != r.SHA1 {
+		return 0, errors.New("chd: overall SHA-1 mismatch")
+	}
+	return r.Hunks(), nil
+}
+
+// eachHunk decodes the hunks, several at a time, and hands them to fn in
+// order; it stops at the first error, of a hunk or of fn.
+func (r *Reader) eachHunk(ctx context.Context, fn func(n int, buf []byte) error) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
-	// Workers decode the hunks; they are hashed in order.
 	type result struct {
 		buf []byte
 		err error
@@ -186,39 +211,24 @@ func Verify(ctx context.Context, path string, progress func(done, total int64)) 
 			jobs <- job{n, res}
 		}
 	}()
-
-	h := sha1.New()
-	left := r.LogicalBytes
 	var firstErr error
+	n := 0
 	for res := range order {
 		v := <-res
 		if firstErr != nil {
 			continue
 		}
+		if v.err == nil {
+			v.err = fn(n, v.buf)
+		}
 		if v.err != nil {
 			firstErr = v.err
 			cancel()
-			continue
 		}
-		h.Write(v.buf[:min(int64(len(v.buf)), left)])
-		left -= int64(len(v.buf))
-		if progress != nil {
-			progress(r.LogicalBytes-max(left, 0), r.LogicalBytes)
-		}
+		n++
 	}
 	if firstErr == nil {
 		firstErr = ctx.Err()
 	}
-	if firstErr != nil {
-		return 0, firstErr
-	}
-	var raw [sha1.Size]byte
-	copy(raw[:], h.Sum(nil))
-	if raw != r.RawSHA1 {
-		return 0, errors.New("chd: data SHA-1 mismatch")
-	}
-	if overallSHA1(raw, r.Meta) != r.SHA1 {
-		return 0, errors.New("chd: overall SHA-1 mismatch")
-	}
-	return r.Hunks(), nil
+	return firstErr
 }

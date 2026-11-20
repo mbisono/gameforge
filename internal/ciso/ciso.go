@@ -439,6 +439,33 @@ func Hash(ctx context.Context, path string, progress func(done, total int64)) ([
 	return sum, err
 }
 
+// Stream writes the uncompressed image of a CSO or ZSO to w.
+func Stream(ctx context.Context, path string, w io.Writer, progress func(done, total int64)) error {
+	var sum [sha1.Size]byte
+	return decode(ctx, path, w, &sum, progress)
+}
+
+// Sector returns the 2048 bytes of sector lba of the uncompressed image.
+func (r *Reader) Sector(lba int64) ([]byte, error) {
+	const size = 2048
+	off := lba * size
+	if lba < 0 || off+size > r.Header.Size {
+		return nil, fmt.Errorf("sector %d is outside the image", lba)
+	}
+	bs := int64(r.Header.BlockSize)
+	out := make([]byte, 0, size)
+	buf := make([]byte, bs)
+	for len(out) < size {
+		n := int(off / bs)
+		if err := r.ReadBlock(n, buf); err != nil {
+			return nil, err
+		}
+		out = append(out, buf[off%bs:min(bs, off%bs+int64(size-len(out)))]...)
+		off = int64(n+1) * bs
+	}
+	return out, nil
+}
+
 // Decompress writes the uncompressed image of a CSO or ZSO to out, via
 // out.part.
 func Decompress(ctx context.Context, in, out string, progress func(done, total int64)) (*Result, error) {

@@ -30,7 +30,7 @@ const FileName = "redump.cache"
 const Source = "github.com/libretro/libretro-database (Redump, CC BY-SA 4.0)"
 
 // Platforms lists the platforms with a database, in display order.
-var Platforms = []string{"PS1", "PS2", "PSP", "Saturn", "Sega CD", "Dreamcast", "GameCube", "Wii"}
+var Platforms = []string{"PS1", "PS2", "PSP", "Saturn", "Sega CD", "Dreamcast", "GameCube", "Wii", "Xbox"}
 
 // Files names the database of each platform (as discinfo names them).
 var Files = map[string]string{
@@ -42,6 +42,7 @@ var Files = map[string]string{
 	"Sega CD":   "Sega - Mega-CD - Sega CD",
 	"GameCube":  "Nintendo - GameCube",
 	"Wii":       "Nintendo - Wii",
+	"Xbox":      "Microsoft - Xbox",
 }
 
 // Game is a disc in a database.

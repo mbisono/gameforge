@@ -17,6 +17,7 @@ import (
 	. "modernc.org/tk9.0"
 
 	"gameforge/internal/chd"
+	"gameforge/internal/ciso"
 	"gameforge/internal/datfile"
 	"gameforge/internal/discinfo"
 	"gameforge/internal/i18n"
@@ -73,6 +74,15 @@ func (u *ui) showRedumpStatus() {
 	consoles := strings.Join(have, ", ")
 	if len(have) == len(redump.Platforms) {
 		consoles = T("redump.all")
+	} else if missing := len(redump.Platforms) - len(have); len(have) > 0 && missing <= 2 {
+		// Short: the label is next to the buttons.
+		var lack []string
+		for _, p := range redump.Platforms {
+			if !slices.Contains(have, p) {
+				lack = append(lack, p)
+			}
+		}
+		consoles = T("redump.all_but", strings.Join(lack, ", "))
 	}
 	var text string
 	switch {
@@ -115,16 +125,12 @@ func (t *convTab) renameDiscs(u *ui) {
 	}
 	var items []*convItem
 	for _, it := range t.items {
-		if (isCHD(it.path) || isISO(it.path) || isRVZ(it.path) || hasExt(it.path, []string{".gcm"})) && it.platform != "" {
+		if (isCHD(it.path) || isISO(it.path) || isCSO(it.path) || isRVZ(it.path) || hasExt(it.path, []string{".gcm"})) && it.platform != "" {
 			items = append(items, it)
 		}
 	}
 	if len(items) == 0 {
-		empty := "drename.empty"
-		if t.conv.id == "rvz" {
-			empty = "drename.empty_rvz"
-		}
-		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T(empty)))
+		MessageBox(Parent(App), Icon("info"), Title(T("app.title")), Msg(T("drename.empty")))
 		return
 	}
 	items, ok := t.keepChecked(items)
@@ -266,13 +272,20 @@ func (t *convTab) planRenames(u *ui, items []*convItem) {
 func discName(ctx context.Context, u *ui, db *redump.DB, it *convItem) (string, fmt.Stringer) {
 	base := filepath.Base(it.path)
 	ext := strings.ToLower(filepath.Ext(it.path))
+	if isXISOName(it.path) {
+		ext = ".xiso.iso"
+	}
 	var info discinfo.Info
 	var err error
 	switch {
+	case isXboxPlatform(it.platform):
+		info, err = discinfo.InfoFromXbox(it.path)
 	case isCHD(it.path):
 		info, err = discinfo.InfoFromCHD(it.path)
 	case isRVZ(it.path):
 		info, err = discinfo.InfoFromRVZ(it.path)
+	case isCSO(it.path):
+		info, err = discinfo.InfoFromCSO(it.path)
 	default:
 		info, err = discinfo.InfoFromISO(it.path)
 	}
@@ -346,6 +359,31 @@ func discTracks(ctx context.Context, u *ui, it *convItem, name string) (redump.T
 			Size: d.Size,
 			CRC:  func(n int) (uint32, error) { return d.CRC(ctx, n, progress) },
 		}, func() { d.Close() }
+	}
+	if isXboxPlatform(it.platform) && !isXboxDump(it.path) {
+		// A disc dump has the size and CRC Redump lists (below, as an
+		// ISO); an XISO is rebuilt, so only its code and regions tell
+		// the game.
+		return redump.Track{}, func() {}
+	}
+	if isCSO(it.path) {
+		// As for an RVZ: the size is in the header, the CRC needs the
+		// whole image decompressed.
+		return redump.Track{
+			Size: func(n int) (int64, bool) {
+				r, err := ciso.Open(it.path)
+				if err != nil || n != 0 {
+					return 0, false
+				}
+				defer r.Close()
+				return r.Header.Size, true
+			},
+			CRC: func(n int) (uint32, error) {
+				h := crc32.NewIEEE()
+				err := ciso.Stream(ctx, it.path, h, progress)
+				return h.Sum32(), err
+			},
+		}, func() {}
 	}
 	if isRVZ(it.path) {
 		// The image's size is in the header; its CRC needs the whole disc

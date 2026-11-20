@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"gameforge/internal/chd"
+	"gameforge/internal/ciso"
 	"gameforge/internal/rvz"
 )
 
@@ -52,6 +53,16 @@ func InfoFromISO(path string) (Info, error) {
 		_, err := f.ReadAt(b, int64(lba)*2048)
 		return b, err
 	}), nil
+}
+
+// InfoFromCSO reads the game information of a CSO or ZSO image.
+func InfoFromCSO(path string) (Info, error) {
+	r, err := ciso.Open(path)
+	if err != nil {
+		return Info{}, err
+	}
+	defer r.Close()
+	return infoFrom(func(lba int) ([]byte, error) { return r.Sector(int64(lba)) }), nil
 }
 
 // InfoFromRVZ reads the game information of an RVZ (GameCube or Wii), from

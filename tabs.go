@@ -47,12 +47,29 @@ type converter struct {
 	// of the right-click menu of an item, and work after a batch.
 	extra   func(u *ui, parent *TFrameWidget) []Widget
 	options func(u *ui, parent *TFrameWidget) []Widget
-	menu    func(u *ui, t *convTab, it *convItem) []menuEntry
-	after   func(u *ui, done []converted)
+	// options2, if set, is a second row of options below the first.
+	options2 func(u *ui, parent *TFrameWidget) []Widget
+	menu     func(u *ui, t *convTab, it *convItem) []menuEntry
+	after    func(u *ui, done []converted)
 	// refreshed, if set, runs after the tab's list is shown again.
 	refreshed func(u *ui, t *convTab)
 	// jobs, if set, is how many files are converted at a time (else 1).
 	jobs func(u *ui) int
+	// back, if set, is a conversion the other way (e.g. CHD to CUE/BIN)
+	// of the checked files listed for what they are, with a button of its
+	// own next to the convert button.
+	back *convAction
+}
+
+// convAction is a conversion of the checked files of a tab: the tab's own
+// (from the converter's outName, run and after) or its back conversion.
+type convAction struct {
+	button, tip string                  // message keys
+	accept      func(it *convItem) bool // the items it converts (back only)
+	outName     func(it *convItem) string
+	run         func(ctx context.Context, u *ui, it *convItem, out string, verify bool,
+		progress func(verifying bool, done, total int64)) (inSize, outSize int64, err error)
+	after func(u *ui, done []converted)
 }
 
 // menuEntry is an entry of an item's right-click menu.
@@ -99,13 +116,14 @@ type convTab struct {
 	tree    *TTreeviewWidget
 	summary *TLabelWidget
 	runBtn  *TButtonWidget
+	backBtn *TButtonWidget
 	buttons []interface{ Configure(...Opt) *Window } // disabled while busy
 	widgets []Widget                                 // options, disabled while busy
 }
 
 func newConvTabs() []*convTab {
 	var tabs []*convTab
-	for _, c := range []*converter{xisoConverter, rvzConverter, cisoConverter, chdConverter, sevenZipConverter} {
+	for _, c := range []*converter{chdConverter, sevenZipConverter} {
 		tabs = append(tabs, &convTab{conv: c, checked: map[string]bool{}})
 	}
 	return tabs
@@ -285,23 +303,33 @@ func (t *convTab) build(u *ui, tab *TFrameWidget) *TFrameWidget {
 	t.tree = t.buildTree(u, listFrame)
 
 	t.widgets = nil
-	if t.conv.options != nil {
+	for row, options := range []func(*ui, *TFrameWidget) []Widget{t.conv.options, t.conv.options2} {
+		if options == nil {
+			continue
+		}
 		opts := tab.TFrame()
-		Grid(opts, Row(3), Column(0), Sticky("w"))
-		t.widgets = t.conv.options(u, opts)
-		for i, w := range t.widgets {
+		Grid(opts, Row(3+row), Column(0), Sticky("w"))
+		widgets := options(u, opts)
+		for i, w := range widgets {
 			Grid(w, Row(0), Column(i), Sticky("w"), pad)
 		}
+		t.widgets = append(t.widgets, widgets...)
 	}
 
 	run := tab.TFrame()
-	Grid(run, Row(4), Column(0), edges)
+	Grid(run, Row(5), Column(0), edges)
 	GridColumnConfigure(run.Window, 0, Weight(1))
 	t.summary = run.TLabel()
 	Grid(t.summary, Row(0), Column(0), Sticky("w"), pad)
+	t.backBtn = nil
+	if b := t.conv.back; b != nil {
+		t.backBtn = run.TButton(Txt(T(b.button)), Command(func() { t.startWith(u, t.backItems(), *b) }))
+		setTooltip(t.backBtn, T(b.tip))
+		Grid(t.backBtn, Row(0), Column(1), pad, ipad)
+	}
 	t.runBtn = run.TButton(Txt(T(t.conv.button)), Default("active"), Command(func() { t.start(u) }))
 	setTooltip(t.runBtn, T(t.conv.tip))
-	Grid(t.runBtn, Row(0), Column(1), pad, ipad)
+	Grid(t.runBtn, Row(0), Column(2), pad, ipad)
 	return actions
 }
 
@@ -471,6 +499,23 @@ func (t *convTab) setBusy(u *ui, busy bool) {
 		}
 	}
 	enable(t.runBtn, !busy && len(t.checkedItems()) > 0)
+	if t.backBtn != nil {
+		enable(t.backBtn, !busy && len(t.backItems()) > 0)
+	}
+}
+
+// backItems are the checked items the back conversion takes.
+func (t *convTab) backItems() []*convItem {
+	var out []*convItem
+	if t.conv.back == nil {
+		return nil
+	}
+	for _, it := range t.items {
+		if t.marked(it) && t.conv.back.accept(it) {
+			out = append(out, it)
+		}
+	}
+	return out
 }
 
 // setItemStatus shows a status in an item's row; safe to call from any
@@ -499,7 +544,16 @@ func (u *ui) flushItems(pending map[*convItem]fmt.Stringer) {
 // other (or several at a time, see converter.jobs), into the output folder
 // or next to each file.
 func (t *convTab) start(u *ui) {
-	items := t.checkedItems()
+	t.startWith(u, t.checkedItems(), t.mainAction())
+}
+
+// mainAction is the tab's own conversion.
+func (t *convTab) mainAction() convAction {
+	return convAction{outName: t.conv.outName, run: t.conv.run, after: t.conv.after}
+}
+
+// startWith converts items with act in the background.
+func (t *convTab) startWith(u *ui, items []*convItem, act convAction) {
 	if u.busy || len(items) == 0 {
 		return
 	}
@@ -525,9 +579,9 @@ func (t *convTab) start(u *ui) {
 	}
 	go func() {
 		defer cancel()
-		done := t.convertAll(ctx, u, items, outDir, verify, jobs)
-		if t.conv.after != nil && len(done) > 0 {
-			t.conv.after(u, done)
+		done := t.convertAll(ctx, u, items, outDir, verify, jobs, act)
+		if act.after != nil && len(done) > 0 {
+			act.after(u, done)
 		}
 		u.setProgress(0)
 		u.setStatus(T("status.conv_done", len(done), len(items)))
@@ -542,7 +596,7 @@ func (t *convTab) start(u *ui) {
 
 // convertAll converts the items, jobs at a time, and returns those done,
 // in order. It runs in the background.
-func (t *convTab) convertAll(ctx context.Context, u *ui, items []*convItem, outDir string, verify bool, jobs int) []converted {
+func (t *convTab) convertAll(ctx context.Context, u *ui, items []*convItem, outDir string, verify bool, jobs int, act convAction) []converted {
 	results := make([]*converted, len(items))
 	// With several files at a time, the progress bar shows the share of the
 	// whole batch done: a verified file is half conversion, half
@@ -593,7 +647,7 @@ func (t *convTab) convertAll(ctx context.Context, u *ui, items []*convItem, outD
 		if dir == "" {
 			dir = filepath.Dir(in)
 		}
-		out := filepath.Join(dir, t.conv.outName(it))
+		out := filepath.Join(dir, act.outName(it))
 		name := filepath.Base(out)
 		u.separate()
 		if strings.EqualFold(filepath.Clean(out), filepath.Clean(in)) {
@@ -611,7 +665,7 @@ func (t *convTab) convertAll(ctx context.Context, u *ui, items []*convItem, outD
 
 		start := time.Now()
 		phase, phaseStart, lastPct := false, start, -1
-		inSize, outSize, err := t.conv.run(ctx, u, it, out, verify, func(verifying bool, done, total int64) {
+		inSize, outSize, err := act.run(ctx, u, it, out, verify, func(verifying bool, done, total int64) {
 			if verifying != phase {
 				phase, phaseStart, lastPct = verifying, time.Now(), -1
 			}

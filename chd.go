@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,35 +12,65 @@ import (
 	. "modernc.org/tk9.0"
 
 	"gameforge/internal/chd"
+	"gameforge/internal/ciso"
 	"gameforge/internal/discinfo"
 	"gameforge/internal/playlist"
 	"gameforge/internal/xiso"
 )
 
-// chdConverter compresses CD images (CUE + BIN) and ISO images to CHD. An
-// ISO becomes a CD CHD for CD games and a DVD CHD otherwise; the choice can
-// be changed per file. Xbox discs, also .iso, belong to the XISO tab.
+// isoTarget is what the Discs tab converts ISO images to: "" for CHD,
+// "cso" or "zso", from the tab's option.
+var isoTarget = ""
+
+// chdConverter compresses CD images (CUE + BIN) and ISO images to CHD, and
+// ISO images to CSO or ZSO if chosen. An ISO becomes a CD CHD for CD games
+// and a DVD CHD otherwise; the choice can be changed per file. CHD, CSO and
+// ZSO files are listed for
+// what they are, and can be extracted back. Xbox and Xbox 360 disc dumps
+// are rebuilt as XISO instead.
 var chdConverter = &converter{
 	id:     "chd",
 	title:  "tab.chd",
 	info:   "tab.chd.info",
-	button: "btn.chd",
+	button: "btn.convert",
 	tip:    "btn.chd.tip",
-	exts:   []string{".cue", ".gdi", ".iso", ".chd"},
-	accept: func(path string) bool { return !isISO(path) || !xiso.IsXbox(path) && !isNintendoDisc(path) },
+	exts:   []string{".cue", ".gdi", ".iso", ".chd", ".cso", ".zso", ".gcm", ".rvz"},
+	accept: func(path string) bool { return !hasExt(path, []string{".gcm"}) || isNintendoDisc(path) },
 	types: []FileType{
-		{TypeName: "CUE/GDI/ISO/CHD", Extensions: []string{".cue", ".gdi", ".iso", ".chd"}},
+		{TypeName: "CUE/GDI/ISO/CHD/CSO/ZSO/GCM/RVZ", Extensions: []string{".cue", ".gdi", ".iso", ".chd", ".cso", ".zso", ".gcm", ".rvz"}},
 		{TypeName: "CUE (CD)", Extensions: []string{".cue"}},
 		{TypeName: "GDI (Dreamcast)", Extensions: []string{".gdi"}},
 		{TypeName: "ISO", Extensions: []string{".iso"}},
 		{TypeName: "CHD", Extensions: []string{".chd"}},
+		{TypeName: "CSO/ZSO", Extensions: []string{".cso", ".zso"}},
+		{TypeName: "GameCube/Wii ISO", Extensions: []string{".iso", ".gcm"}},
+		{TypeName: "RVZ", Extensions: []string{".rvz"}},
 	},
 	describe: describeDisc,
 	outName: func(it *convItem) string {
-		return strings.TrimSuffix(filepath.Base(it.path), filepath.Ext(it.path)) + ".chd"
+		if it.kind == "xiso" {
+			return xisoName(it.path)
+		}
+		if it.kind == "rvz" {
+			return strings.TrimSuffix(filepath.Base(it.path), filepath.Ext(it.path)) + ".rvz"
+		}
+		ext := ".chd"
+		if isISO(it.path) && isoTarget != "" {
+			ext = "." + isoTarget
+		}
+		return strings.TrimSuffix(filepath.Base(it.path), filepath.Ext(it.path)) + ext
 	},
 	run: func(ctx context.Context, u *ui, it *convItem, out string, verify bool,
 		progress func(bool, int64, int64)) (int64, int64, error) {
+		if it.kind == "xiso" {
+			return rebuildXISO(ctx, u, it, out, verify, progress)
+		}
+		if it.kind == "rvz" {
+			return compressRVZ(ctx, u, it, out, verify, progress)
+		}
+		if isISO(it.path) && isoTarget != "" {
+			return compressCSO(ctx, it.path, out, verify, progress)
+		}
 		opt := chd.Options{Progress: func(done, total int64) { progress(false, done, total) }}
 		var res *chd.Result
 		var err error
@@ -117,6 +148,21 @@ var chdConverter = &converter{
 		u.showRedumpStatus()
 		return []Widget{check, rename, raBtn, parent.TSeparator(Orient("vertical")), dbBtn, discDB.status}
 	},
+	back: &convAction{
+		button: "btn.extract_chd",
+		tip:    "btn.extract_chd.tip",
+		accept: func(it *convItem) bool { return (isCHD(it.path) || isCSO(it.path)) && it.kind != "" },
+		outName: func(it *convItem) string {
+			return strings.TrimSuffix(filepath.Base(it.path), filepath.Ext(it.path)) + "." + extractExt(it)
+		},
+		run: func(ctx context.Context, u *ui, it *convItem, out string, verify bool,
+			progress func(bool, int64, int64)) (int64, int64, error) {
+			if isCSO(it.path) {
+				return extractCSO(ctx, u, it.path, out, verify, progress)
+			}
+			return extractCHD(ctx, u, it, out, verify, progress)
+		},
+	},
 	options: func(u *ui, parent *TFrameWidget) []Widget {
 		v := Variable(tclBool(!u.cfg.ChdNoM3U))
 		m3u := parent.TCheckbutton(Txt(T("opt.m3u")), v, Command(func() {
@@ -124,13 +170,52 @@ var chdConverter = &converter{
 			u.saveConfig()
 		}))
 		setTooltip(m3u, T("opt.m3u.tip"))
-		return []Widget{m3u}
+		isoTarget = u.cfg.IsoFormat
+		iv := Variable(map[string]string{"": "chd", "cso": "cso", "zso": "zso"}[isoTarget])
+		set := func() {
+			isoTarget = strings.TrimPrefix(iv.Get(), "chd")
+			u.cfg.IsoFormat = isoTarget
+			u.saveConfig()
+			for _, t := range u.tabs {
+				if t.conv.id == "chd" {
+					for _, it := range t.items {
+						if isISO(it.path) && it.kind != "xiso" && it.kind != "rvz" {
+							describeDisc(it)
+						}
+					}
+					t.refresh(u)
+				}
+			}
+		}
+		label := parent.TLabel(Txt(T("opt.ciso_format")))
+		toCHD := parent.TRadiobutton(Txt("CHD"), iv, Value("chd"), Command(set))
+		cso := parent.TRadiobutton(Txt(T("opt.ciso_cso")), iv, Value("cso"), Command(set))
+		zso := parent.TRadiobutton(Txt(T("opt.ciso_zso")), iv, Value("zso"), Command(set))
+		setTooltip(toCHD, T("opt.iso_chd.tip"))
+		setTooltip(cso, T("opt.ciso_cso.tip"))
+		setTooltip(zso, T("opt.ciso_zso.tip"))
+		return []Widget{m3u, label, toCHD, cso, zso}
 	},
+	options2: rvzOptions,
 	menu: func(u *ui, t *convTab, it *convItem) []menuEntry {
 		if isCHD(it.path) {
-			return []menuEntry{{T("btn.check_chd"), false, func() { u.startCheck(it.path) }}}
+			entries := []menuEntry{{T("btn.check_chd"), false, func() { u.startCheck(it.path) }}}
+			if choices := extractChoices(it.path); len(choices) > 1 {
+				set := func(mode string) func() {
+					return func() {
+						it.mode = mode
+						describeDisc(it)
+						t.refresh(u)
+					}
+				}
+				entries = append(entries, menuEntry{T("chd.menu_extract_auto", extractFormat(it.kind)), it.mode == "", set("")})
+				for _, c := range choices {
+					entries = append(entries, menuEntry{T("chd.menu_extract_" + c), it.mode == c, set(c)})
+				}
+			}
+			return entries
 		}
-		if !isISO(it.path) || !it.ok {
+		if !isISO(it.path) || !it.ok || isoTarget != "" || it.kind == "xiso" || it.kind == "rvz" {
 			return nil
 		}
 		_, autoCD, _ := discinfo.FromISO(it.path)
@@ -157,6 +242,9 @@ var chdConverter = &converter{
 		}
 		seen := map[string]bool{}
 		for _, d := range done {
+			if !isCHD(d.out) {
+				continue
+			}
 			game, _, ok := playlist.Disc(filepath.Base(d.out))
 			key := strings.ToLower(filepath.Join(filepath.Dir(d.out), game))
 			if !ok || seen[key] {
@@ -174,9 +262,147 @@ var chdConverter = &converter{
 	},
 }
 
+// extractExt is the extension, without the dot, of the image a CHD is
+// extracted to: the one chosen, else the disc's own.
+func extractExt(it *convItem) string {
+	if it.mode != "" {
+		return it.mode
+	}
+	return it.kind
+}
+
+// extractFormat names the files of an extension for the user.
+func extractFormat(ext string) string {
+	switch ext {
+	case "cue":
+		return "CUE + BIN"
+	case "gdi":
+		return "GDI"
+	}
+	return strings.ToUpper(ext)
+}
+
+// extractChoices are the formats a CHD can be extracted to.
+func extractChoices(path string) []string {
+	d, err := chd.OpenDisc(path)
+	if err != nil {
+		return nil
+	}
+	defer d.Close()
+	switch {
+	case d.DVD:
+		return []string{"iso"}
+	case d.GDROM:
+		return []string{"gdi"}
+	case d.CanISO():
+		return []string{"cue", "iso"}
+	}
+	return []string{"cue"}
+}
+
+// extractCHD writes a CHD's disc image back as a CUE sheet and BIN files,
+// a .gdi and its tracks, or an ISO.
+func extractCHD(ctx context.Context, u *ui, it *convItem, out string, verify bool,
+	progress func(bool, int64, int64)) (int64, int64, error) {
+	res, err := chd.Extract(ctx, it.path, out, chd.ExtractOptions{
+		Progress:       func(done, total int64) { progress(false, done, total) },
+		Verify:         verify,
+		VerifyProgress: func(done, total int64) { progress(true, done, total) },
+	})
+	var exists *chd.ExistsError
+	if errors.As(err, &exists) {
+		return 0, 0, errors.New(T("chd.extract_exists", exists.Name))
+	}
+	if err != nil {
+		return 0, 0, err
+	}
+	switch ext := extractExt(it); {
+	case ext == "cue":
+		u.logf("chd.extracted_cue", res.Tracks)
+	case ext == "gdi":
+		u.logf("chd.extracted_gdi", res.Tracks)
+	case it.kind != "iso":
+		u.logf("chd.extracted_iso_data")
+	default:
+		u.logf("chd.extracted_iso")
+	}
+	return res.InputSize, res.OutputSize, nil
+}
+
 func isISO(path string) bool { return strings.EqualFold(filepath.Ext(path), ".iso") }
 func isGDI(path string) bool { return strings.EqualFold(filepath.Ext(path), ".gdi") }
 func isCHD(path string) bool { return strings.EqualFold(filepath.Ext(path), ".chd") }
+func isCSO(path string) bool { return hasExt(path, []string{".cso", ".zso"}) }
+
+// compressCSO compresses an ISO image to CSO or ZSO, by out's extension.
+func compressCSO(ctx context.Context, in, out string, verify bool,
+	progress func(bool, int64, int64)) (int64, int64, error) {
+	format := ciso.CSO
+	if strings.EqualFold(filepath.Ext(out), ".zso") {
+		format = ciso.ZSO
+	}
+	res, err := ciso.Compress(ctx, in, out, format, func(done, total int64) { progress(false, done, total) })
+	if err != nil {
+		return 0, 0, err
+	}
+	if verify {
+		sum, err := ciso.Hash(ctx, out, func(done, total int64) { progress(true, done, total) })
+		if err == nil && sum != res.SHA1 {
+			err = errors.New("content differs")
+		}
+		if err != nil {
+			if ctx.Err() == nil {
+				err = fmt.Errorf("%s: %w", T("log.verify_failed"), err)
+			}
+			return 0, 0, err
+		}
+	}
+	return res.InputSize, res.OutputSize, nil
+}
+
+// extractCSO writes the ISO image of a CSO or ZSO.
+func extractCSO(ctx context.Context, u *ui, in, out string, verify bool,
+	progress func(bool, int64, int64)) (int64, int64, error) {
+	res, err := ciso.Decompress(ctx, in, out, func(done, total int64) { progress(false, done, total) })
+	if err != nil {
+		return 0, 0, err
+	}
+	if verify {
+		sum, err := ciso.HashFile(ctx, out, func(done, total int64) { progress(true, done, total) })
+		if err == nil && sum != res.SHA1 {
+			err = errors.New("content differs")
+		}
+		if err != nil {
+			if ctx.Err() == nil {
+				err = fmt.Errorf("%s: %w", T("log.verify_failed"), err)
+			}
+			return 0, 0, err
+		}
+	}
+	u.logf("chd.extracted_iso")
+	return res.InputSize, res.OutputSize, nil
+}
+
+// describeCSO tells what a CSO or ZSO holds; it is listed, not converted.
+func describeCSO(it *convItem) {
+	it.infoOnly, it.kind = true, "iso"
+	st, err := os.Stat(it.path)
+	if err != nil {
+		it.detail = lazyf("⚠ %v", err)
+		return
+	}
+	r, err := ciso.Open(it.path)
+	if err != nil {
+		it.detail = lazyf("⚠ %v", err)
+		return
+	}
+	format, iso := r.Header.Format.String(), humanSize(r.Header.Size)
+	r.Close()
+	info, _ := discinfo.InfoFromCSO(it.path)
+	it.platform, it.icon = info.Platform, info.Icon
+	size := humanSize(st.Size())
+	it.detail = withGame(info, msg("chd.row_cso", format, size, iso))
+}
 
 // withGame puts what the disc says about the game before a detail.
 func withGame(info discinfo.Info, detail fmt.Stringer) fmt.Stringer {
@@ -232,6 +458,7 @@ func describeCHD(it *convItem) {
 		it.detail = lazyf("⚠ %v", err)
 		return
 	}
+	it.kind = strings.TrimPrefix(d.DefaultExt(), ".")
 	var kind fmt.Stringer
 	switch {
 	case d.DVD:
@@ -247,8 +474,14 @@ func describeCHD(it *convItem) {
 	if it.platform == discinfo.Dreamcast {
 		it.icon = dreamcastIcon(it.path)
 	}
-	size := humanSize(st.Size())
-	it.detail = withGame(info, lazyLine(func() string { return T("chd.row_chd", stringOf(kind), size) }))
+	size, mode := humanSize(st.Size()), it.mode
+	it.detail = withGame(info, lazyLine(func() string {
+		s := T("chd.row_chd", stringOf(kind), size)
+		if mode != "" {
+			s += " " + T("chd.extract_chosen", extractFormat(mode))
+		}
+		return s
+	}))
 }
 
 // describeDisc tells what a disc image is: its platform, and for an ISO
@@ -257,6 +490,22 @@ func describeDisc(it *convItem) {
 	it.ok, it.platform, it.kind = false, "", ""
 	if isCHD(it.path) {
 		describeCHD(it)
+		return
+	}
+	if isCSO(it.path) {
+		describeCSO(it)
+		return
+	}
+	if isRVZ(it.path) {
+		describeRVZ(it)
+		return
+	}
+	if isISO(it.path) && xiso.IsXbox(it.path) {
+		describeXbox(it)
+		return
+	}
+	if gc, wii := nintendoDisc(it.path); gc || wii {
+		describeNintendo(it, gc, wii)
 		return
 	}
 	if !isISO(it.path) {
@@ -311,6 +560,11 @@ func describeDisc(it *convItem) {
 	size, kind, chosen := humanSize(st.Size()), strings.ToUpper(it.kind), it.mode != ""
 	info, _ := discinfo.InfoFromISO(it.path)
 	it.icon = info.Icon
+	if isoTarget != "" {
+		target := strings.ToUpper(isoTarget)
+		it.detail = withGame(info, lazyLine(func() string { return T("ciso.row_iso", size, target) }))
+		return
+	}
 	it.detail = withGame(info, lazyLine(func() string {
 		how := T("chd.auto")
 		if chosen {

@@ -122,7 +122,7 @@ func TestConvertAllJobs(t *testing.T) {
 	if len(tab.items) != 7 {
 		t.Fatalf("%d items", len(tab.items))
 	}
-	done := tab.convertAll(context.Background(), u, tab.items, "", true, sevenZipJobs(u))
+	done := tab.convertAll(context.Background(), u, tab.items, "", true, sevenZipJobs(u), tab.mainAction())
 	if len(done) != 7 {
 		t.Fatalf("%d of 7 done", len(done))
 	}
