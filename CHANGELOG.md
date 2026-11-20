@@ -2,6 +2,15 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.17.0] - 2026-11-20
+
+### Added
+- **Check ▾ → 1G1R** in the ROMs tab (one game, one ROM): of the versions of each game among the checked files, keeps one by an order of regions (**1G1R, regions** at the bottom of the tab, `region_order` in the settings; by default `World, USA, Europe, Brazil, Japan`), passing over betas, prototypes, demos and bad dumps and preferring the latest revision, then offers to check the other versions for **Delete checked…**. Versions are told by their No-Intro names, found by CRC or taken from the file names.
+- **Tools ▾** in the ROMs tab, with the tools for one console. **Nintendo 64: convert checked ROMs to .z64** writes `.v64` and `.n64` ROMs in the cartridge's byte order, as No-Intro lists them, and removes the originals once the new files are read back.
+- **Tools ▾ → Nintendo DS**: **trim checked ROMs** cuts the empty space (0xFF) after the game from loose `.nds` files, keeping the Download Play signature and using the DSi size for games with DSi features; **restore checked ROMs to full size** fills them up to their cartridge's size again, giving back the original file exactly. Files are replaced in place after being read back, and a ROM with data after the game is left alone.
+- **Rename…** and the duplicate check recognize trimmed DS ROMs, loose or in a ZIP or 7z, by the CRC of the ROM at its cartridge's full size.
+- Loose DS ROMs show their game code, banner title and, when trimmed, their cartridge's size in the ROMs tab; loose Nintendo 64 ROMs show their game code, header title, revision and, for `.v64` and `.n64`, their byte order.
+
 ## [2.16.0] - 2026-11-20
 
 ### Added
@@ -199,6 +208,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.17.0]: https://github.com/tschertel/gameforge/releases/tag/v2.17.0
 [2.16.0]: https://github.com/tschertel/gameforge/releases/tag/v2.16.0
 [2.15.0]: https://github.com/tschertel/gameforge/releases/tag/v2.15.0
 [2.14.0]: https://github.com/tschertel/gameforge/releases/tag/v2.14.0

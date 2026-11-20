@@ -218,3 +218,19 @@ func TestNeoGeo(t *testing.T) {
 		t.Errorf("list without short names not fetched again")
 	}
 }
+
+// TestTrimmedDS finds a trimmed Nintendo DS ROM by the CRC of the ROM at
+// its cartridge's full size, without reading it again.
+func TestTrimmedDS(t *testing.T) {
+	full := bytes.Repeat([]byte{0xFF}, 1<<20)
+	copy(full, romData)
+	db := New(map[string]*List{"Nintendo DS": {Games: []Game{{Name: "Test (Europe)", Size: 1 << 20, CRC: crc32.ChecksumIEEE(full)}}}})
+	m, fix, err := db.Identify(context.Background(), crc32.ChecksumIEEE(romData), int64(len(romData)), ".nds", nil, nil)
+	if err != nil || len(m) != 1 || m[0].Name != "Test (Europe)" || fix.PadTo != 1<<20 {
+		t.Fatalf("got %v, %+v, %v", m, fix, err)
+	}
+	m, _, _ = db.Identify(context.Background(), crc32.ChecksumIEEE(romData[1:]), int64(len(romData)-1), ".nds", nil, nil)
+	if len(m) != 0 {
+		t.Fatalf("found %v", m)
+	}
+}

@@ -6,6 +6,8 @@ import (
 	"hash/crc32"
 	"io"
 	"strings"
+
+	"gameforge/internal/nds"
 )
 
 // Fix turns a ROM as dumped by other tools into the data No-Intro
@@ -14,7 +16,10 @@ import (
 type Fix struct {
 	Skip int64 // bytes of header to leave out
 	Swap int   // 2: swap byte pairs (.v64), 4: reverse 4-byte words (.n64)
-	What string
+	// PadTo is the size of a trimmed Nintendo DS ROM's cartridge, filled
+	// with 0xFF after the ROM.
+	PadTo int64
+	What  string
 }
 
 // Fixes returns the ways the ROM whose first bytes are head may differ
@@ -100,6 +105,11 @@ func (db *DB) Identify(ctx context.Context, crc uint32, size int64, ext string, 
 	if m := db.Find(crc, size, system); len(m) > 0 {
 		return m, Fix{}, nil
 	}
+	if system == "Nintendo DS" {
+		if m, fix := db.findTrimmed(crc, size, system); len(m) > 0 {
+			return m, fix, nil
+		}
+	}
 	if open == nil {
 		return nil, Fix{}, nil
 	}
@@ -125,4 +135,22 @@ func (db *DB) Identify(ctx context.Context, crc uint32, size int64, ext string, 
 		}
 	}
 	return nil, Fix{}, nil
+}
+
+// findTrimmed finds a trimmed Nintendo DS ROM, which the databases list at
+// the full size of its cartridge (a power of two), filled with 0xFF. The
+// CRC of the full ROM follows from that of the trimmed one, so the ROM is
+// not read again.
+func (db *DB) findTrimmed(crc uint32, size int64, system string) ([]Match, Fix) {
+	for to := int64(128 << 10); to <= 1<<30; to <<= 1 {
+		if to <= size {
+			continue
+		}
+		crc = nds.PaddedCRC(crc, size, to)
+		size = to
+		if m := db.Find(crc, size, system); len(m) > 0 {
+			return m, Fix{PadTo: to, What: "trimmed"}
+		}
+	}
+	return nil, Fix{}
 }

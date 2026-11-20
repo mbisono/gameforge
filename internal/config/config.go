@@ -69,6 +69,10 @@ type Config struct {
 	// duplicates of a game in the ROMs tab, such as "7z, neo, zip" (the
 	// default when empty).
 	DupesKeep string `json:"dupes_keep,omitempty"`
+	// RegionOrder is the order of regions whose version of a game is kept
+	// by 1G1R in the ROMs tab, such as "USA, Europe, Japan" (the default
+	// when empty).
+	RegionOrder string `json:"region_order,omitempty"`
 	// UpdateCheck turns on the daily check for a new version on GitHub;
 	// nil until the user has been asked.
 	UpdateCheck *bool `json:"update_check,omitempty"`

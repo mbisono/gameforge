@@ -48,8 +48,11 @@ import (
 // CUE/BIN (named as Redump's), GDI or ISO, and makes the ISO → CSO/ZSO tab
 // part of the Discs tab, which also lists and extracts CSO and ZSO files,
 // as well as the Xbox → XISO and GameCube/Wii → RVZ tabs, and renames Xbox
-// discs with Redump names.
-const appVersion = "2.16.0"
+// discs with Redump names, 2.17.0 trims Nintendo DS ROMs and restores their
+// full size, recognizes trimmed ROMs when renaming, shows the game code and
+// title of DS and Nintendo 64 ROMs, converts .v64 and .n64 ROMs to .z64,
+// and keeps one version of each game by region (1G1R).
+const appVersion = "2.17.0"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

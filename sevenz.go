@@ -130,11 +130,14 @@ var sevenZipConverter = &converter{
 		}
 		if ext != ".zip" {
 			it.platform = romPlatforms[ext]
-			if ext == ".nds" {
-				it.icon = ndsIcon(it.path)
-			}
 			it.ok = true
 			it.detail = msg("sz.row", size)
+			switch ext {
+			case ".nds":
+				describeNDS(it, size)
+			case ".z64", ".v64", ".n64":
+				describeN64(it, size)
+			}
 			return
 		}
 		it.platform = "ZIP"
@@ -217,6 +220,7 @@ var sevenZipConverter = &converter{
 		checkMenu.AddSeparator()
 		checkMenu.AddCommand(Lbl(T("check.dupes")), Command(inTab(func(t *convTab) { t.findDupes(u, false) })))
 		checkMenu.AddCommand(Lbl(T("check.dupes_mark")), Command(inTab(func(t *convTab) { t.markDupes(u) })))
+		checkMenu.AddCommand(Lbl(T("check.g1r")), Command(inTab(func(t *convTab) { t.oneGameOneROM(u) })))
 		checkMenu.AddSeparator()
 		checkMenu.AddCommand(Lbl(T("check.neo")), Command(inTab(func(t *convTab) { t.checkNeo(u, neoMarkNone) })))
 		checkMenu.AddCommand(Lbl(T("check.neo_mvs")), Command(inTab(func(t *convTab) { t.checkNeo(u, neoMarkMVS) })))
@@ -227,6 +231,14 @@ var sevenZipConverter = &converter{
 		}
 		check.Configure(Mnu(checkMenu))
 		setTooltip(check, T("check.tip"))
+		tools := parent.TMenubutton(Txt(T("tools.menu")))
+		toolsMenu := tools.Menu(Tearoff(false))
+		toolsMenu.AddCommand(Lbl(T("nds.trim")), Command(inTab(func(t *convTab) { t.trimNDS(u, false) })))
+		toolsMenu.AddCommand(Lbl(T("nds.untrim")), Command(inTab(func(t *convTab) { t.trimNDS(u, true) })))
+		toolsMenu.AddSeparator()
+		toolsMenu.AddCommand(Lbl(T("n64.convert")), Command(inTab(func(t *convTab) { t.convertN64(u) })))
+		tools.Configure(Mnu(toolsMenu))
+		setTooltip(tools, T("tools.tip"))
 		del := parent.TButton(Txt(T("btn.delete")), Command(func() {
 			for _, t := range u.tabs {
 				if t.conv.id == "7z" {
@@ -255,7 +267,7 @@ var sevenZipConverter = &converter{
 		setTooltip(dbBtn, T("nointro.menu.tip"))
 		setTooltip(romDB.status, T("nointro.menu.tip"))
 		u.showNoIntroStatus()
-		return []Widget{rename, check, del, parent.TSeparator(Orient("vertical")), dbBtn, romDB.status}
+		return []Widget{rename, check, tools, del, parent.TSeparator(Orient("vertical")), dbBtn, romDB.status}
 	},
 	options: func(u *ui, parent *TFrameWidget) []Widget {
 		sevenZip.ui = u
@@ -278,7 +290,10 @@ var sevenZipConverter = &converter{
 		setTooltip(del, tip)
 		Grid(del, Row(1), Column(0), Columnspan(2), Sticky("w"), pad)
 		Grid(jobsBox(u, box), Row(2), Column(0), Columnspan(2), Sticky("w"), pad)
-		Grid(keepBox(u, box), Row(3), Column(0), Columnspan(2), Sticky("w"), pad)
+		keep := box.TFrame()
+		Grid(keepBox(u, keep), Row(0), Column(0), Sticky("w"))
+		Grid(regionBox(u, keep), Row(0), Column(1), Sticky("w"), Padx("6m 0"))
+		Grid(keep, Row(3), Column(0), Columnspan(2), Sticky("w"), pad)
 		return []Widget{box}
 	},
 	refreshed: func(u *ui, t *convTab) { fillExtBoxes(u, t) },
