@@ -24,7 +24,7 @@ The user writes in Brazilian Portuguese; answer in Portuguese. Code, comments, c
 ## Conventions
 
 - **Bump the version with every change to the program**, without being asked: set `appVersion` in `about.go` and extend the history comment above it, then update "Current version" in README.md and "Versão atual" in README.pt-BR.md. Use the minor number for features and the patch number for fixes and small UI tweaks. Unreleased changes share one version. A change that does not touch the program (docs only) does not bump the version.
-- Keep README.md (English) and README.pt-BR.md in sync.
+- The README is the project's front page: keep it short (what each tab does, screenshots, download). Details go into the guides, `docs/GUIDE.md` (English) and `docs/GUIDE.pt-BR.md`. Keep README.md and README.pt-BR.md in sync, and the two guides in sync. The screenshots are in `docs/images/en` and `docs/images/pt-BR` (light theme, 1640×960 window).
 - CHANGELOG.md follows Keep a Changelog. Each release gets a section with its date and a link at the bottom.
 - Commits use the user's private GitHub email `485568+tschertel@users.noreply.github.com`, never a work email. Commit and push only when the user asks.
 
@@ -37,7 +37,7 @@ The user writes in Brazilian Portuguese; answer in Portuguese. Code, comments, c
    - Windows: `gameforge-X.Y.Z-windows-amd64.zip` with `gameforge.exe`.
    - Linux: `gameforge-X.Y.Z-linux-amd64.tar.gz` with `gameforge`, mode 755.
    - macOS: `gameforge-X.Y.Z-macos-arm64.tar.gz` and `gameforge-X.Y.Z-macos-amd64.tar.gz` with `gameforge`, mode 755.
-   - All, inside a `gameforge-X.Y.Z/` folder: README.md, README.pt-BR.md, CHANGELOG.md, LICENSE, THIRD_PARTY_LICENSES.txt, `keys/README.txt`.
+   - All, inside a `gameforge-X.Y.Z/` folder: README.md, README.pt-BR.md, `docs/GUIDE.md`, `docs/GUIDE.pt-BR.md`, CHANGELOG.md, LICENSE, THIRD_PARTY_LICENSES.txt, `keys/README.txt`.
    - Also write `SHA256SUMS.txt`.
 5. Publish with `gh release create vX.Y.Z --repo tschertel/gameforge`, with notes taken from the changelog (downloads, the keys note, what's new). The macOS downloads are marked experimental and untested, with how to get past Gatekeeper (unsigned: System Settings → Privacy & Security → Open Anyway, or `xattr -d com.apple.quarantine gameforge`). The user handles GitHub and `gh` logins.
 
