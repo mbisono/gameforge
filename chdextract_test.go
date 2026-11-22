@@ -106,11 +106,12 @@ func TestDiscsCSO(t *testing.T) {
 
 // TestXboxNames names the XISO of an Xbox image and tells XISO names.
 func TestXboxNames(t *testing.T) {
-	for in, want := range map[string]string{
-		`D:\x\Halo.iso`:            "Halo.xiso.iso",
-		`D:\x\Halo.xiso.iso`:       "Halo.xiso.iso",
-		`D:\x\Halo (USA).XISO.ISO`: "Halo (USA).xiso.iso",
+	for name, want := range map[string]string{
+		"Halo.iso":            "Halo.xiso.iso",
+		"Halo.xiso.iso":       "Halo.xiso.iso",
+		"Halo (USA).XISO.ISO": "Halo (USA).xiso.iso",
 	} {
+		in := filepath.Join("x", name) // a path of the system the test runs on
 		if got := xisoName(in); got != want {
 			t.Errorf("%s: %s", in, got)
 		}
