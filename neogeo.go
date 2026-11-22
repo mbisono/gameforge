@@ -153,7 +153,7 @@ func (u *ui) runNeo(roms []romFile, mark neoMark) {
 		if !cancelled {
 			u.logf("neo.summary", known, len(roms))
 		}
-		PostEvent(func() {
+		onGUI(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
@@ -164,7 +164,7 @@ func (u *ui) runNeo(roms []romFile, mark neoMark) {
 			if !cancelled && mark != neoMarkNone && len(files) > 0 {
 				markNeo(u, files, mark)
 			}
-		}, false)
+		})
 	}()
 }
 

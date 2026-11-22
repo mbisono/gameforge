@@ -51,8 +51,11 @@ import (
 // discs with Redump names, 2.17.0 trims Nintendo DS ROMs and restores their
 // full size, recognizes trimmed ROMs when renaming, shows the game code and
 // title of DS and Nintendo 64 ROMs, converts .v64 and .n64 ROMs to .z64,
-// and keeps one version of each game by region (1G1R).
-const appVersion = "2.17.0"
+// and keeps one version of each game by region (1G1R), 2.17.1 opens the
+// dialogs at the end of a task (Neo Geo marking, renaming, …) only from the
+// normal event loop, since one opened while Tk scrolled the log got no input
+// on Linux and kept the program busy.
+const appVersion = "2.17.1"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

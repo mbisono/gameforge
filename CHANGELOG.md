@@ -2,6 +2,11 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.17.1] - 2026-11-22
+
+### Fixed
+- On Linux, a message shown at the end of a task (such as the Neo Geo check with AES/MVS marking, or **Rename…** when no file needs a new name) could get no input at all: its OK button did nothing, it could not be closed, and the program kept a processor core busy until it was ended. It happened when the message opened while the log was scrolling. Such messages now open only once the window is free to take input.
+
 ## [2.17.0] - 2026-11-20
 
 ### Added
@@ -208,6 +213,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.17.1]: https://github.com/tschertel/gameforge/releases/tag/v2.17.1
 [2.17.0]: https://github.com/tschertel/gameforge/releases/tag/v2.17.0
 [2.16.0]: https://github.com/tschertel/gameforge/releases/tag/v2.16.0
 [2.15.0]: https://github.com/tschertel/gameforge/releases/tag/v2.15.0

@@ -8,8 +8,6 @@ import (
 	"sync"
 	"syscall"
 	"unsafe"
-
-	. "modernc.org/tk9.0"
 )
 
 // Tk 9.0 has no drag and drop, so the main window accepts dropped files
@@ -61,7 +59,7 @@ func subclassProc(hwnd, msg, wparam, lparam, id, data uintptr) uintptr {
 	dragFinish.Call(wparam)
 	// Handled after the window procedure returns, not inside it.
 	if len(paths) > 0 {
-		go PostEvent(func() { onDrop(paths) }, false)
+		go onGUI(func() { onDrop(paths) })
 	}
 	return 0
 }

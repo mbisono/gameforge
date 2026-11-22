@@ -585,12 +585,12 @@ func (t *convTab) startWith(u *ui, items []*convItem, act convAction) {
 		}
 		u.setProgress(0)
 		u.setStatus(T("status.conv_done", len(done), len(items)))
-		PostEvent(func() {
+		onGUI(func() {
 			u.flush()
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
-		}, false)
+		})
 	}()
 }
 

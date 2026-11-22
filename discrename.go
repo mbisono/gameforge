@@ -206,7 +206,7 @@ func (u *ui) runDownload(work func(ctx context.Context, progress datfile.Progres
 		u.setProgress(0)
 		u.setStatus("")
 		cancelled := ctx.Err() != nil
-		PostEvent(func() {
+		onGUI(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
@@ -218,7 +218,7 @@ func (u *ui) runDownload(work func(ctx context.Context, progress datfile.Progres
 			}
 			u.flush()
 			then()
-		}, false)
+		})
 	}()
 }
 
@@ -252,7 +252,7 @@ func (t *convTab) planRenames(u *ui, items []*convItem) {
 		u.setProgress(0)
 		u.setStatus("")
 		cancelled := ctx.Err() != nil
-		PostEvent(func() {
+		onGUI(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
@@ -263,7 +263,7 @@ func (t *convTab) planRenames(u *ui, items []*convItem) {
 				return
 			}
 			t.applyRenames(u, plan)
-		}, false)
+		})
 	}()
 }
 

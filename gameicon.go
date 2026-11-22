@@ -176,7 +176,7 @@ func (u *ui) readIcons() {
 		b := batch
 		batch = nil
 		last = time.Now()
-		PostEvent(func() {
+		onGUI(func() {
 			// Only lists that still hold an item are shown again.
 			tabs := map[*convTab]bool{}
 			for _, f := range b {
@@ -188,7 +188,7 @@ func (u *ui) readIcons() {
 			for t := range tabs {
 				t.refresh(u)
 			}
-		}, false)
+		})
 	}
 	for {
 		u.iconMu.Lock()

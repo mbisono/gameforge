@@ -1242,12 +1242,12 @@ func (u *ui) analyze(paths []string) {
 		}
 		u.setProgress(0)
 		u.setStatus(T("status.analyzed", len(results)))
-		PostEvent(func() {
+		onGUI(func() {
 			u.flush()
 			u.nsps = append(u.nsps, results...)
 			u.setBusy(false)
 			u.refreshList()
-		}, false)
+		})
 	}()
 }
 
@@ -1470,12 +1470,12 @@ func (u *ui) startMerge() {
 		}
 		u.setProgress(0)
 		u.setStatus(T("status.done", ok, len(games)))
-		PostEvent(func() {
+		onGUI(func() {
 			u.flush()
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
-		}, false)
+		})
 	}()
 }
 
@@ -1523,12 +1523,12 @@ func (u *ui) startCheck(path string) {
 		u.println(result)
 		u.setProgress(0)
 		u.setStatus(result.String())
-		PostEvent(func() {
+		onGUI(func() {
 			u.flush()
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
-		}, false)
+		})
 	}()
 }
 
@@ -1579,6 +1579,17 @@ func (u *ui) setProgress(v float64) {
 	u.mu.Lock()
 	u.pendingProg, u.progDirty = v, true
 	u.mu.Unlock()
+}
+
+// onGUI runs f on the GUI thread; safe to call from any goroutine. f runs
+// from a Tcl timer and not straight from the event PostEvent queues: Tk
+// services queued events also inside its own short waits, which hold back
+// all other window events (scrolling a text, waiting for a window to be
+// mapped). A dialog opened there, as f often does, got no input at all and
+// could not be closed; on Linux the GUI thread even spun at full CPU. Timers
+// run only from the normal event loop.
+func onGUI(f func()) {
+	PostEvent(func() { TclAfter(0, f) }, false)
 }
 
 // flush shows the pending updates; it runs on the GUI thread.

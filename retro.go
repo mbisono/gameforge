@@ -190,7 +190,7 @@ func (u *ui) downloadRA(consoles []int, then func()) {
 		u.setProgress(0)
 		u.setStatus("")
 		cancelled := ctx.Err() != nil
-		PostEvent(func() {
+		onGUI(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
@@ -204,7 +204,7 @@ func (u *ui) downloadRA(consoles []int, then func()) {
 			}
 			u.flush()
 			then()
-		}, false)
+		})
 	}()
 }
 
@@ -324,7 +324,7 @@ func (u *ui) runRACheck(jobs []raJob) {
 		if !cancelled {
 			u.logf("ra.summary", found, len(jobs))
 		}
-		PostEvent(func() {
+		onGUI(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
@@ -332,7 +332,7 @@ func (u *ui) runRACheck(jobs []raJob) {
 				u.logf("log.cancelled")
 			}
 			u.flush()
-		}, false)
+		})
 	}()
 }
 

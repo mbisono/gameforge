@@ -89,7 +89,7 @@ func (u *ui) fetchUpdate(done func(update.Release, error)) {
 	u.saveConfig()
 	go func() {
 		r, err := update.Latest(context.Background(), "GameForge/"+appVersion)
-		PostEvent(func() {
+		onGUI(func() {
 			if err == nil {
 				u.cfg.UpdateLatest, u.cfg.UpdatePage = r.Version, r.Page
 				u.saveConfig()
@@ -102,7 +102,7 @@ func (u *ui) fetchUpdate(done func(update.Release, error)) {
 			if done != nil {
 				done(r, err)
 			}
-		}, false)
+		})
 	}()
 }
 

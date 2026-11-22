@@ -102,7 +102,7 @@ func (u *ui) startDownloadDB(then func()) {
 		u.setStatus(result.String())
 		// Decided here: the deferred cancel runs before the event below.
 		ok := err == nil && ctx.Err() == nil
-		PostEvent(func() {
+		onGUI(func() {
 			u.flush()
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
@@ -115,7 +115,7 @@ func (u *ui) startDownloadDB(then func()) {
 					then()
 				}
 			}
-		}, false)
+		})
 	}()
 }
 

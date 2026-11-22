@@ -148,7 +148,7 @@ func (u *ui) runDupes(roms []romFile, mark bool) {
 			groups = reportDupes(u, files, order)
 		}
 		cancelled := ctx.Err() != nil
-		PostEvent(func() {
+		onGUI(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
@@ -165,7 +165,7 @@ func (u *ui) runDupes(roms []romFile, mark bool) {
 			} else {
 				markExtras(u, groups, orderText)
 			}
-		}, false)
+		})
 	}()
 }
 

@@ -291,7 +291,7 @@ func (u *ui) run1G1R(roms []romFile) {
 			groups = report1G1R(u, files, regions, formats)
 		}
 		cancelled := ctx.Err() != nil
-		PostEvent(func() {
+		onGUI(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
@@ -302,7 +302,7 @@ func (u *ui) run1G1R(roms []romFile) {
 			if !cancelled {
 				mark1G1R(u, groups)
 			}
-		}, false)
+		})
 	}()
 }
 

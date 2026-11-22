@@ -329,7 +329,7 @@ func (t *convTab) planRomRenames(u *ui, roms []romFile) {
 		u.setProgress(0)
 		u.setStatus("")
 		cancelled := ctx.Err() != nil
-		PostEvent(func() {
+		onGUI(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
@@ -340,7 +340,7 @@ func (t *convTab) planRomRenames(u *ui, roms []romFile) {
 				return
 			}
 			t.applyRenames(u, plan)
-		}, false)
+		})
 	}()
 }
 

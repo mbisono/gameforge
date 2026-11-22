@@ -113,7 +113,7 @@ func (t *convTab) convertN64(u *ui) {
 		if !cancelled {
 			u.logf("n64.summary", len(moves), len(todo))
 		}
-		PostEvent(func() {
+		onGUI(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
@@ -144,6 +144,6 @@ func (t *convTab) convertN64(u *ui) {
 				}
 			}
 			t.refresh(u)
-		}, false)
+		})
 	}()
 }

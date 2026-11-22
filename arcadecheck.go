@@ -248,7 +248,7 @@ func (u *ui) runArcade(emu arcade.Emulator, items []*convItem) {
 		if !cancelled {
 			u.logf("arcade.summary", complete, len(items), emu.Name)
 		}
-		PostEvent(func() {
+		onGUI(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
@@ -256,7 +256,7 @@ func (u *ui) runArcade(emu arcade.Emulator, items []*convItem) {
 				u.logf("log.cancelled")
 			}
 			u.flush()
-		}, false)
+		})
 	}()
 }
 

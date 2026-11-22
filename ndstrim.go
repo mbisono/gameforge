@@ -110,7 +110,7 @@ func (t *convTab) trimNDS(u *ui, untrim bool) {
 		if !cancelled {
 			u.logf("nds.summary", changed, len(items), humanSize(before), humanSize(after))
 		}
-		PostEvent(func() {
+		onGUI(func() {
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
@@ -122,6 +122,6 @@ func (t *convTab) trimNDS(u *ui, untrim bool) {
 				t.conv.describe(it)
 			}
 			t.refresh(u)
-		}, false)
+		})
 	}()
 }
