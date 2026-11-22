@@ -54,8 +54,12 @@ import (
 // and keeps one version of each game by region (1G1R), 2.17.1 opens the
 // dialogs at the end of a task (Neo Geo marking, renaming, …) only from the
 // normal event loop, since one opened while Tk scrolled the log got no input
-// on Linux and kept the program busy.
-const appVersion = "2.17.1"
+// on Linux and kept the program busy, 2.18.0 opens the page of the hashes
+// RetroAchievements accepts for a game with a click on the status of a
+// version it does not support, saves an HTML report of each
+// RetroAchievements check for each console, and wraps the description of
+// each tab at the window's width.
+const appVersion = "2.18.0"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

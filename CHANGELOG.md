@@ -2,6 +2,15 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.18.0] - 2026-11-22
+
+### Added
+- When RetroAchievements has a game but not the checked version, its status (`✗ RA: only another version is supported`) now shows the address of the page with the hashes RetroAchievements accepts for the game, and a click on the status opens it in the browser; the pointer becomes a hand over it.
+- Each RetroAchievements check saves an HTML report for each console, next to the checked files (in the folder of the first one), named after the console and the day, such as `RetroAchievements - SNES - 2026-11-22.html` (a second check on the same day gets ` (2)`). It lists every file with its result, a link to the game on RetroAchievements or, for a version not supported, to the hashes it accepts, and its hash. The log tells where the report is.
+
+### Changed
+- The description below the buttons of each tab wraps at the window's width, instead of a fixed width, so a wide window shows it in fewer lines and leaves more room for the list.
+
 ## [2.17.1] - 2026-11-22
 
 ### Fixed
@@ -213,6 +222,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.18.0]: https://github.com/tschertel/gameforge/releases/tag/v2.18.0
 [2.17.1]: https://github.com/tschertel/gameforge/releases/tag/v2.17.1
 [2.17.0]: https://github.com/tschertel/gameforge/releases/tag/v2.17.0
 [2.16.0]: https://github.com/tschertel/gameforge/releases/tag/v2.16.0

@@ -196,33 +196,32 @@ func raDiscJobs(items []*convItem) []raJob {
 	for _, it := range items {
 		console := retroach.DiscConsoles[it.platform]
 		jobs = append(jobs, raJob{item: it, console: console, system: it.platform,
-			run: func(ctx context.Context, db *retroach.DB) (fmt.Stringer, fmt.Stringer, bool) {
+			run: func(ctx context.Context, db *retroach.DB) raOutcome {
 				return raDiscCheck(db, it, console)
 			}})
 	}
 	return jobs
 }
 
-// raDiscCheck checks one disc image: the status for its row, a line for
-// the log and whether RetroAchievements recognizes it.
-func raDiscCheck(db *retroach.DB, it *convItem, console int) (fmt.Stringer, fmt.Stringer, bool) {
+// raDiscCheck checks one disc image.
+func raDiscCheck(db *retroach.DB, it *convItem, console int) raOutcome {
 	base := filepath.Base(it.path)
 	switch {
 	case console == 0 && it.platform == "":
-		return msg("ra.st_console"), msg("ra.skip_disc", base), false
+		return raSkip(msg("ra.st_console"), msg("ra.skip_disc", base))
 	case console == 0:
-		return msg("ra.st_console"), msg("ra.skip_platform", base, it.platform), false
+		return raSkip(msg("ra.st_console"), msg("ra.skip_platform", base, it.platform))
 	case !db.Has(console):
-		return msg("ra.st_nolist"), msg("ra.skip_nolist", base, it.platform), false
+		return raSkip(msg("ra.st_nolist"), msg("ra.skip_nolist", base, it.platform))
 	}
 	d, done, err := discReader(it.path)
 	if err != nil {
-		return msg("ra.st_error"), msg("drename.skip_error", base, err), false
+		return raSkip(msg("ra.st_error"), msg("drename.skip_error", base, err))
 	}
 	hash, err := retroach.HashDisc(console, d)
 	done()
 	if err != nil {
-		return msg("ra.st_error"), msg("drename.skip_error", base, err), false
+		return raSkip(msg("ra.st_error"), msg("drename.skip_error", base, err))
 	}
 	return raResult(db, console, it.platform, base, hash, strings.TrimSuffix(base, filepath.Ext(base)))
 }

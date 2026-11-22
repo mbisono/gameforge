@@ -433,7 +433,8 @@ func (u *ui) buildSwitchTab(tab *TFrameWidget) *TFrameWidget {
 	}))
 	Grid(keysBtn, Row(0), Column(2), pad)
 	u.keysStatus = keys.TLabel(Wraplength("240m"), Justify("left"))
-	Grid(u.keysStatus, Row(1), Column(0), Columnspan(3), Sticky("w"), pad)
+	Grid(u.keysStatus, Row(1), Column(0), Columnspan(3), Sticky("we"), pad)
+	wrapToWidth(u.keysStatus)
 
 	// List actions.
 	actions := tab.TFrame()
@@ -1590,6 +1591,14 @@ func (u *ui) setProgress(v float64) {
 // run only from the normal event loop.
 func onGUI(f func()) {
 	PostEvent(func() { TclAfter(0, f) }, false)
+}
+
+// wrapToWidth makes a label wrap its text at its own width, which follows
+// the window: a wide window shows a description in fewer lines, a narrow one
+// in more. The label must stretch across its column (sticky "we").
+func wrapToWidth(label interface{ String() string }) {
+	tcl("bind", label.String(), "<Configure>",
+		"if {%w > 1 && [%W cget -wraplength] != %w} {%W configure -wraplength %w}")
 }
 
 // flush shows the pending updates; it runs on the GUI thread.

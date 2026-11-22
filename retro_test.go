@@ -63,9 +63,14 @@ func TestRACheck(t *testing.T) {
 		{write("game.bin", gbc), "–", false},
 		{write("game.sfc", gbc), "–", false}, // no SNES list
 	} {
-		status, line, ok := raCheck(context.Background(), db, scanRom(&convItem{path: c.path}))
-		if ok != c.ok || status == nil || !strings.Contains(status.String(), c.status) {
-			t.Errorf("%s: %v %v (%v)", filepath.Base(c.path), status, ok, line)
+		o := raCheck(context.Background(), db, scanRom(&convItem{path: c.path}))
+		if o.ok != c.ok || o.status == nil || !strings.Contains(o.status.String(), c.status) {
+			t.Errorf("%s: %v %v (%v)", filepath.Base(c.path), o.status, o.ok, o.line)
+		}
+		// Only a version RetroAchievements has in another version links, to
+		// the page of the hashes it accepts.
+		if link := statusLink(o.status); o.other != strings.HasSuffix(link, "/hashes") || o.other != (c.status == "another version") {
+			t.Errorf("%s: link %q, other %v", filepath.Base(c.path), link, o.other)
 		}
 	}
 }

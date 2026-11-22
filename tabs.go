@@ -296,7 +296,8 @@ func (t *convTab) build(u *ui, tab *TFrameWidget) *TFrameWidget {
 	gridRow(row...)
 
 	info := tab.TLabel(Txt(T(t.conv.info)), Wraplength("240m"), Justify("left"))
-	Grid(info, Row(1), Column(0), Sticky("w"), pad)
+	Grid(info, Row(1), Column(0), Sticky("we"), pad)
+	wrapToWidth(info)
 
 	listFrame := tab.TFrame()
 	Grid(listFrame, Row(2), Column(0), Sticky("news"), pad)
@@ -351,12 +352,42 @@ func (t *convTab) buildTree(u *ui, parent *TFrameWidget) *TTreeviewWidget {
 		if isImage(e.X) && !isImage(e.X-checkBoxImage(0).Bounds().Dx()) {
 			t.toggle(u, tv.IdentifyItem(e.X, e.Y))
 		}
+		if url := t.linkAt(tv, e.X, e.Y); url != "" {
+			openURL(url)
+		}
+	}))
+	cursor := ""
+	Bind(tv, "<Motion>", Command(func(e *Event) {
+		c := ""
+		if t.linkAt(tv, e.X, e.Y) != "" {
+			c = "hand2"
+		}
+		if c != cursor {
+			cursor = c
+			tcl(tv.String(), "configure", "-cursor", c)
+		}
 	}))
 	Bind(tv, "<space>", Command(func() { t.toggle(u, tv.Focus()) }))
 	if t.conv.menu != nil {
 		Bind(tv, "<Button-3>", Command(func(e *Event) { t.popup(u, tv.IdentifyItem(e.X, e.Y), e.XRoot, e.YRoot) }))
 	}
 	return tv
+}
+
+// linkAt is the web page of the status under x, y in the list, or "": a
+// status such as "only another version is supported" opens the page of the
+// game on RetroAchievements when clicked.
+func (t *convTab) linkAt(tv *TTreeviewWidget, x, y int) string {
+	X, Y := strconv.Itoa(x), strconv.Itoa(y)
+	if tcl(tv.String(), "identify", "region", X, Y) != "cell" ||
+		tcl(tv.String(), "identify", "column", X, Y) != "#3" { // status
+		return ""
+	}
+	it := t.item(tv.IdentifyItem(x, y))
+	if it == nil {
+		return ""
+	}
+	return statusLink(it.status)
 }
 
 func (t *convTab) item(id string) *convItem {

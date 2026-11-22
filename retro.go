@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	. "modernc.org/tk9.0"
 
@@ -214,7 +215,47 @@ type raJob struct {
 	item    *convItem
 	console int
 	system  string
-	run     func(ctx context.Context, db *retroach.DB) (status, line fmt.Stringer, ok bool)
+	run     func(ctx context.Context, db *retroach.DB) raOutcome
+}
+
+// raOutcome is what the check of one file found: the status for its row,
+// the line for the log (nil for none) and, for the report, the game found.
+type raOutcome struct {
+	status, line fmt.Stringer
+	ok           bool   // RetroAchievements recognizes this version
+	other        bool   // RetroAchievements has the game, in other versions only
+	hash         string // "" when not computed
+	game         *retroach.Game
+}
+
+// raSkip is the outcome of a file that was not looked up.
+func raSkip(status, line fmt.Stringer) raOutcome { return raOutcome{status: status, line: line} }
+
+// linkStatus is a status with a web page, opened by a click on the status
+// column; the address is shown after the text.
+type linkStatus struct {
+	fmt.Stringer
+	url string
+}
+
+func (l linkStatus) String() string {
+	return l.Stringer.String() + "  ↗ " + strings.TrimPrefix(l.url, "https://")
+}
+
+// statusLink is the web page of a status, or "".
+func statusLink(s fmt.Stringer) string {
+	if l, ok := s.(linkStatus); ok {
+		return l.url
+	}
+	return ""
+}
+
+// statusText is a status without its web address.
+func statusText(s fmt.Stringer) string {
+	if l, ok := s.(linkStatus); ok {
+		return l.Stringer.String()
+	}
+	return stringOf(s)
 }
 
 // checkRA tells, in the status column and the log, whether each checked ROM of
@@ -236,7 +277,7 @@ func (t *convTab) checkRA(u *ui) {
 			console = 0 // not looked up: no list needed
 		}
 		jobs = append(jobs, raJob{item: it, console: console, system: system,
-			run: func(ctx context.Context, db *retroach.DB) (fmt.Stringer, fmt.Stringer, bool) {
+			run: func(ctx context.Context, db *retroach.DB) raOutcome {
 				return raCheck(ctx, db, r)
 			}})
 	}
@@ -299,6 +340,7 @@ func (u *ui) runRACheck(jobs []raJob) {
 	go func() {
 		defer cancel()
 		found := 0
+		var rows []raRow
 		for i, j := range jobs {
 			if ctx.Err() != nil {
 				break
@@ -306,23 +348,25 @@ func (u *ui) runRACheck(jobs []raJob) {
 			name := filepath.Base(j.item.path)
 			u.setProgress(float64(i) / float64(len(jobs)))
 			u.setStatus(T("ra.hashing", name))
-			status, line, ok := j.run(ctx, db)
+			o := j.run(ctx, db)
 			if ctx.Err() != nil {
 				break
 			}
-			if ok {
+			if o.ok {
 				found++
 			}
-			u.setItemStatus(j.item, status)
-			if line != nil {
-				u.println(line)
+			u.setItemStatus(j.item, o.status)
+			if o.line != nil {
+				u.println(o.line)
 			}
+			rows = append(rows, raRow{job: j, out: o})
 		}
 		u.setProgress(0)
 		u.setStatus("")
 		cancelled := ctx.Err() != nil
 		if !cancelled {
 			u.logf("ra.summary", found, len(jobs))
+			u.writeRAReports(rows, time.Now())
 		}
 		onGUI(func() {
 			u.cancelMerge = nil
@@ -336,51 +380,55 @@ func (u *ui) runRACheck(jobs []raJob) {
 	}()
 }
 
-// raResult looks a hash up: the status, the log line and whether it is
-// recognized. When the version is not, names (the file's, the ROM's in an
-// archive) tell whether RetroAchievements has the game in another version.
-func raResult(db *retroach.DB, console int, system, base, hash string, names ...string) (fmt.Stringer, fmt.Stringer, bool) {
+// raResult looks a hash up. When the version is not recognized, names (the
+// file's, the ROM's in an archive) tell whether RetroAchievements has the
+// game in another version; the status then links to the page listing the
+// hashes RetroAchievements accepts for it.
+func raResult(db *retroach.DB, console int, system, base, hash string, names ...string) raOutcome {
 	g, ok := db.Find(console, hash)
 	switch {
 	case !ok:
 		if other, found := db.FindTitle(console, names...); found && other.Achievements > 0 {
-			return msg("ra.st_other"), msg("ra.other", base, other.Title, system, hash, retroach.HashesURL(other.ID)), false
+			url := retroach.HashesURL(other.ID)
+			return raOutcome{status: linkStatus{msg("ra.st_other"), url},
+				line: msg("ra.other", base, other.Title, system, hash, url), other: true, hash: hash, game: &other}
 		}
-		return msg("ra.st_unknown"), msg("ra.unknown", base, system, hash), false
+		return raOutcome{status: msg("ra.st_unknown"), line: msg("ra.unknown", base, system, hash), hash: hash}
 	case g.Achievements == 0:
-		return msg("ra.st_none", g.Title), msg("ra.none", base, g.Title, retroach.GameURL(g.ID)), true
+		return raOutcome{status: msg("ra.st_none", g.Title),
+			line: msg("ra.none", base, g.Title, retroach.GameURL(g.ID)), ok: true, hash: hash, game: &g}
 	}
-	return msg("ra.st_ok", g.Title, g.Achievements), msg("ra.ok", base, g.Title, g.Achievements), true
+	return raOutcome{status: msg("ra.st_ok", g.Title, g.Achievements),
+		line: msg("ra.ok", base, g.Title, g.Achievements), ok: true, hash: hash, game: &g}
 }
 
-// raCheck checks one ROM: the status for its row, a line for the log and
-// whether RetroAchievements recognizes it.
-func raCheck(ctx context.Context, db *retroach.DB, r romFile) (fmt.Stringer, fmt.Stringer, bool) {
+// raCheck checks one ROM.
+func raCheck(ctx context.Context, db *retroach.DB, r romFile) raOutcome {
 	base := filepath.Base(r.item.path)
 	console, system := raConsole(r)
 	switch {
 	case r.err != nil:
-		return msg("ra.st_error"), msg("drename.skip_error", base, r.err), false
+		return raSkip(msg("ra.st_error"), msg("drename.skip_error", base, r.err))
 	case r.files == 0:
-		return msg("ra.st_error"), msg("rrename.skip_empty", base), false
+		return raSkip(msg("ra.st_error"), msg("rrename.skip_empty", base))
 	case r.files > 1:
-		return msg("ra.st_set"), msg("ra.skip_set", base, r.files), false
+		return raSkip(msg("ra.st_set"), msg("ra.skip_set", base, r.files))
 	case console == 0:
-		return msg("ra.st_console"), msg("ra.skip_console", base), false
+		return raSkip(msg("ra.st_console"), msg("ra.skip_console", base))
 	case !db.Has(console):
-		return msg("ra.st_nolist"), msg("ra.skip_nolist", base, system), false
+		return raSkip(msg("ra.st_nolist"), msg("ra.skip_nolist", base, system))
 	}
 	data, size, done, err := romReader(ctx, r)
 	if err != nil {
 		if ctx.Err() != nil {
-			return nil, nil, false
+			return raOutcome{}
 		}
-		return msg("ra.st_error"), msg("drename.skip_error", base, err), false
+		return raSkip(msg("ra.st_error"), msg("drename.skip_error", base, err))
 	}
 	hash, err := retroach.Hash(console, data, size)
 	done()
 	if err != nil {
-		return msg("ra.st_error"), msg("drename.skip_error", base, err), false
+		return raSkip(msg("ra.st_error"), msg("drename.skip_error", base, err))
 	}
 	names := []string{strings.TrimSuffix(base, filepath.Ext(base))}
 	if r.inner != "" {
