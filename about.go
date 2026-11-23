@@ -58,8 +58,16 @@ import (
 // RetroAchievements accepts for a game with a click on the status of a
 // version it does not support, saves an HTML report of each
 // RetroAchievements check for each console, and wraps the description of
-// each tab at the window's width.
-const appVersion = "2.18.0"
+// each tab at the window's width, 2.19.0 makes that report optional, off
+// by default, with an entry in the names database menu, and asks at
+// startup, if the user agreed and as often as it checks for new versions,
+// whether to update the downloaded lists that have grown old, and converts
+// .bin.ecm, .nrg and .cdi images and disc images in ZIP or 7z files, and
+// explains a CHD whose hunks are intact but whose header holds the SHA-1 of
+// other data (chdman verify fails such files too), checks the header
+// checksums of N64, SNES, Mega Drive and DS ROMs, converts .smd to .md and
+// removes SNES and PC Engine copier headers.
+const appVersion = "2.19.0"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"
@@ -158,7 +166,15 @@ func (u *ui) showAbout() {
 	Grid(label, Row(0), Column(0), Sticky("w"))
 	Grid(every, Row(0), Column(1), Sticky("w"), Padx("2m"))
 	Grid(now, Row(0), Column(2), Sticky("w"))
-	Grid(result, Row(1), Column(0), Columnspan(3), Sticky("w"), Pady("2m 0"))
+	listsVar := Variable(tclBool(u.listsOn()))
+	lists := box.TCheckbutton(Txt(T("upd.lists")), listsVar, Command(func() {
+		on := listsVar.Get() == "1"
+		u.cfg.ListsCheck = &on
+		u.saveConfig()
+	}))
+	setTooltip(lists, T("upd.lists.tip"))
+	Grid(lists, Row(1), Column(0), Columnspan(3), Sticky("w"), Pady("2m 0"))
+	Grid(result, Row(2), Column(0), Columnspan(3), Sticky("w"), Pady("2m 0"))
 
 	closeWin := func() {
 		tcl("grab", "release", path)

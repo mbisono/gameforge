@@ -118,7 +118,7 @@ func gdiReader(path string) (retroach.Disc, func(), error) {
 	if err != nil {
 		return retroach.Disc{}, nil, err
 	}
-	var files []*os.File
+	var files []*chd.Image
 	done := func() {
 		for _, f := range files {
 			f.Close()
@@ -130,13 +130,13 @@ func gdiReader(path string) (retroach.Disc, func(), error) {
 		if !ok || t.LBA < gdHighDensity {
 			continue
 		}
-		f, err := os.Open(t.File)
+		f, err := chd.OpenImage(t.File)
 		if err != nil {
 			done()
 			return retroach.Disc{}, nil, err
 		}
 		files = append(files, f)
-		size := int64(t.DataSize)
+		size := int64(t.SectorStride())
 		spans = append(spans, span{int64(t.LBA), int64(t.Frames), func(rel int64) ([]byte, error) {
 			b := make([]byte, 2048)
 			_, err := f.ReadAt(b, rel*size+int64(skip))
@@ -147,7 +147,7 @@ func gdiReader(path string) (retroach.Disc, func(), error) {
 }
 
 func cueReader(path string) (retroach.Disc, func(), error) {
-	tracks, err := chd.ParseCue(path)
+	tracks, err := chd.ParseImage(path)
 	if err != nil {
 		return retroach.Disc{}, nil, err
 	}
@@ -159,15 +159,12 @@ func cueReader(path string) (retroach.Disc, func(), error) {
 		if !ok {
 			continue
 		}
-		f, err := os.Open(t.File)
+		f, err := chd.OpenImage(t.File)
 		if err != nil {
 			return retroach.Disc{}, nil, err
 		}
-		start := t.Offset
-		if t.PregapInFile {
-			start += int64(t.Pregap) * int64(t.DataSize)
-		}
-		size := int64(t.DataSize)
+		start := t.DataStart()
+		size := int64(t.SectorStride())
 		read := func(lba int64) ([]byte, error) {
 			b := make([]byte, 2048)
 			_, err := f.ReadAt(b, start+lba*size+int64(skip))

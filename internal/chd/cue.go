@@ -29,9 +29,13 @@ type Track struct {
 	// Split is, on a GD-ROM multi-cue, the number of frames at the end of
 	// Frames read from the start of the next track's file (its pregap).
 	Split int
+	// Stride, if set, is the bytes per sector in File when they are more
+	// than DataSize (subchannel data follows each sector, and is skipped).
+	Stride int
 	// LBA is, in a GDI file, the track's first sector on the disc.
 	LBA   int
 	swap  bool // audio stored little endian: CHD stores it big endian
+	lead  int  // empty frames before the file's data, counted in Frames and Pregap
 	gdrom bool // part of a GD-ROM (Dreamcast): stored with GD-ROM metadata
 	area  int  // GD-ROM area in a Redump multi-cue: 1 single, 2 high density
 
@@ -243,11 +247,11 @@ func ParseCue(path string) ([]*Track, error) {
 		if i+1 < len(tracks) && tracks[i+1].File == t.File {
 			t.Frames = tracks[i+1].idx0 - t.idx0
 		} else {
-			st, err := os.Stat(t.File)
+			size, err := ImageSize(t.File)
 			if err != nil {
 				return nil, err
 			}
-			t.Frames = int((st.Size() - offset) / int64(t.DataSize))
+			t.Frames = int((size - offset) / int64(t.DataSize))
 		}
 		if t.Frames <= 0 {
 			return nil, fmt.Errorf("%s: track %d is empty", filepath.Base(path), t.Number)
@@ -305,6 +309,37 @@ func IsGDROM(tracks []*Track) bool { return len(tracks) > 0 && tracks[0].gdrom }
 
 // extraFrames is the number of empty frames added after a track, to a
 // multiple of 4 frames.
+// SectorStride is the bytes per sector in the track's file.
+func (t *Track) SectorStride() int {
+	if t.Stride > 0 {
+		return t.Stride
+	}
+	return t.DataSize
+}
+
+// DataStart is where the track's first sector after its pregap (INDEX 01)
+// is in its file.
+func (t *Track) DataStart() int64 {
+	start := t.Offset
+	if t.PregapInFile {
+		start += int64(t.Pregap-t.lead) * int64(t.SectorStride())
+	}
+	return start
+}
+
+// addGap puts a gap of empty frames before a track, which the image does
+// not store (between the sessions of NRG and CDI images), so that the
+// track keeps its place on the disc.
+func addGap(t *Track, gap int) {
+	if gap <= 0 {
+		return
+	}
+	t.lead += gap
+	t.Frames += gap
+	t.Pregap += gap
+	t.PregapInFile = true
+}
+
 func (t *Track) extraFrames() int {
 	return (t.Frames+trackPadding-1)/trackPadding*trackPadding - t.Frames
 }

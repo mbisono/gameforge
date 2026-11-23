@@ -142,6 +142,22 @@ func (r *Reader) CDTracks() []string {
 	return out
 }
 
+// HeaderSHA1Error reports a CHD whose hunks all decode and pass their CRC,
+// but whose data SHA-1 in the header differs from the SHA-1 of that data.
+// chdman verify reports such files the same way. Since every hunk matches
+// the CRC it was stored with, the data is what the writing tool compressed;
+// the header was written for other data, or the hunks were changed
+// afterwards. Such files turn up in real collections, with tracks that
+// still extract to the Redump dump.
+type HeaderSHA1Error struct {
+	Hunks          int
+	Stored, Actual [sha1.Size]byte
+}
+
+func (e *HeaderSHA1Error) Error() string {
+	return fmt.Sprintf("chd: data SHA-1 mismatch (header %x, data %x)", e.Stored, e.Actual)
+}
+
 // Verify decodes every hunk and checks the data and overall SHA-1 of the
 // header. progress receives the bytes checked so far. It returns the number
 // of hunks.
@@ -167,7 +183,7 @@ func Verify(ctx context.Context, path string, progress func(done, total int64)) 
 	var raw [sha1.Size]byte
 	copy(raw[:], h.Sum(nil))
 	if raw != r.RawSHA1 {
-		return 0, errors.New("chd: data SHA-1 mismatch")
+		return 0, &HeaderSHA1Error{Hunks: r.Hunks(), Stored: r.RawSHA1, Actual: raw}
 	}
 	if overallSHA1(raw, r.Meta) != r.SHA1 {
 		return 0, errors.New("chd: overall SHA-1 mismatch")

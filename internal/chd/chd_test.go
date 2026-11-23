@@ -3,6 +3,7 @@ package chd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"math"
 	"math/rand/v2"
 	"os"
@@ -298,5 +299,43 @@ func TestFLACRoundTrip(t *testing.T) {
 			}
 		}
 		t.Logf("%s: %d -> %d bytes", kind, n*4, len(enc))
+	}
+}
+
+// A CHD whose hunks are intact but whose header holds the SHA-1 of other
+// data (found in real collections; chdman verify fails them too) gets a
+// HeaderSHA1Error with both SHA-1s.
+func TestVerifyHeaderSHA1(t *testing.T) {
+	dir := t.TempDir()
+	iso := make([]byte, 5*DVDSectorSize)
+	for i := range iso {
+		iso[i] = byte(i * 7)
+	}
+	in := filepath.Join(dir, "game.iso")
+	os.WriteFile(in, iso, 0o644)
+	out := filepath.Join(dir, "game.chd")
+	if _, err := ConvertISO(context.Background(), in, out, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.OpenFile(out, os.O_RDWR, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw [20]byte
+	f.ReadAt(raw[:], 64)
+	if _, err := f.WriteAt([]byte{raw[0] ^ 1}, 64); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	_, err = Verify(context.Background(), out, nil)
+	var e *HeaderSHA1Error
+	if !errors.As(err, &e) {
+		t.Fatalf("got %v, want a HeaderSHA1Error", err)
+	}
+	want := raw
+	want[0] ^= 1
+	if e.Actual != raw || e.Stored != want || e.Hunks != 3 {
+		t.Fatalf("got %+v", e)
 	}
 }

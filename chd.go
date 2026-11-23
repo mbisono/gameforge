@@ -34,12 +34,27 @@ var chdConverter = &converter{
 	info:   "tab.chd.info",
 	button: "btn.convert",
 	tip:    "btn.chd.tip",
-	exts:   []string{".cue", ".gdi", ".iso", ".chd", ".cso", ".zso", ".gcm", ".rvz"},
-	accept: func(path string) bool { return !hasExt(path, []string{".gcm"}) || isNintendoDisc(path) },
+	exts:   []string{".cue", ".gdi", ".iso", ".chd", ".cso", ".zso", ".gcm", ".rvz", ".nrg", ".cdi", ".ecm", ".zip", ".7z"},
+	accept: func(path string) bool {
+		switch {
+		case hasExt(path, []string{".gcm"}):
+			return isNintendoDisc(path)
+		case hasExt(path, []string{".ecm"}):
+			return ecmListed(path)
+		case isArchive(path):
+			inner, _, _ := archiveDisc(path)
+			return inner != ""
+		}
+		return true
+	},
 	types: []FileType{
-		{TypeName: "CUE/GDI/ISO/CHD/CSO/ZSO/GCM/RVZ", Extensions: []string{".cue", ".gdi", ".iso", ".chd", ".cso", ".zso", ".gcm", ".rvz"}},
+		{TypeName: "CUE/GDI/ISO/CHD/CSO/ZSO/GCM/RVZ/NRG/CDI/ECM/ZIP/7Z", Extensions: []string{".cue", ".gdi", ".iso", ".chd", ".cso", ".zso", ".gcm", ".rvz", ".nrg", ".cdi", ".ecm", ".zip", ".7z"}},
 		{TypeName: "CUE (CD)", Extensions: []string{".cue"}},
 		{TypeName: "GDI (Dreamcast)", Extensions: []string{".gdi"}},
+		{TypeName: "NRG (Nero)", Extensions: []string{".nrg"}},
+		{TypeName: "CDI (DiscJuggler)", Extensions: []string{".cdi"}},
+		{TypeName: "ECM", Extensions: []string{".ecm"}},
+		{TypeName: "ZIP/7Z", Extensions: []string{".zip", ".7z"}},
 		{TypeName: "ISO", Extensions: []string{".iso"}},
 		{TypeName: "CHD", Extensions: []string{".chd"}},
 		{TypeName: "CSO/ZSO", Extensions: []string{".cso", ".zso"}},
@@ -48,6 +63,9 @@ var chdConverter = &converter{
 	},
 	describe: describeDisc,
 	outName: func(it *convItem) string {
+		if it.kind == "archive" {
+			return archiveOutName(it)
+		}
 		if it.kind == "xiso" {
 			return xisoName(it.path)
 		}
@@ -58,57 +76,9 @@ var chdConverter = &converter{
 		if isISO(it.path) && isoTarget != "" {
 			ext = "." + isoTarget
 		}
-		return strings.TrimSuffix(filepath.Base(it.path), filepath.Ext(it.path)) + ext
+		return discStem(it.path) + ext
 	},
-	run: func(ctx context.Context, u *ui, it *convItem, out string, verify bool,
-		progress func(bool, int64, int64)) (int64, int64, error) {
-		if it.kind == "xiso" {
-			return rebuildXISO(ctx, u, it, out, verify, progress)
-		}
-		if it.kind == "rvz" {
-			return compressRVZ(ctx, u, it, out, verify, progress)
-		}
-		if isISO(it.path) && isoTarget != "" {
-			return compressCSO(ctx, it.path, out, verify, progress)
-		}
-		opt := chd.Options{Progress: func(done, total int64) { progress(false, done, total) }}
-		var res *chd.Result
-		var err error
-		switch {
-		case isGDI(it.path):
-			if res, err = chd.ConvertGDI(ctx, it.path, out, opt); err == nil {
-				u.logf("chd.gd", res.Tracks)
-			}
-		case !isISO(it.path):
-			if res, err = chd.ConvertCue(ctx, it.path, out, opt); err == nil {
-				if it.kind == "gd" {
-					u.logf("chd.gd", res.Tracks)
-				} else {
-					u.logf("chd.cd", res.Tracks)
-				}
-			}
-		case it.kind == "cd":
-			if res, err = chd.ConvertISOAsCD(ctx, it.path, out, opt); err == nil {
-				u.logf("chd.iso_cd")
-			}
-		default:
-			if res, err = chd.ConvertISO(ctx, it.path, out, opt); err == nil {
-				u.logf("chd.dvd")
-			}
-		}
-		if err != nil {
-			return 0, 0, err
-		}
-		if verify {
-			if _, err := chd.Verify(ctx, out, func(done, total int64) { progress(true, done, total) }); err != nil {
-				if ctx.Err() == nil {
-					err = fmt.Errorf("%s: %w", T("log.verify_failed"), err)
-				}
-				return 0, 0, err
-			}
-		}
-		return res.InputSize, res.OutputSize, nil
-	},
+	run: convertDisc,
 	extra: func(u *ui, parent *TFrameWidget) []Widget {
 		check := parent.TButton(Txt(T("btn.check_chd")), Command(func() {
 			if p := u.openFile([]FileType{{TypeName: "CHD", Extensions: []string{".chd"}}}, "", true); p != "" {
@@ -141,6 +111,7 @@ var chdConverter = &converter{
 				u.askRAKey()
 			}
 		}))
+		u.addRAReportItem(menu)
 		dbBtn.Configure(Mnu(menu))
 		discDB.status = parent.TLabel(Wraplength("45m"), Justify("left"))
 		setTooltip(dbBtn, T("redump.menu.tip"))
@@ -485,6 +456,61 @@ func describeCHD(it *convItem) {
 }
 
 // describeDisc tells what a disc image is: its platform, and for an ISO
+
+// convertDisc converts an image of the Discs tab: see chdConverter.
+func convertDisc(ctx context.Context, u *ui, it *convItem, out string, verify bool,
+	progress func(bool, int64, int64)) (int64, int64, error) {
+	if it.kind == "archive" {
+		return convertDiscArchive(ctx, u, it, out, verify, progress)
+	}
+	if it.kind == "xiso" {
+		return rebuildXISO(ctx, u, it, out, verify, progress)
+	}
+	if it.kind == "rvz" {
+		return compressRVZ(ctx, u, it, out, verify, progress)
+	}
+	if isISO(it.path) && isoTarget != "" {
+		return compressCSO(ctx, it.path, out, verify, progress)
+	}
+	opt := chd.Options{Progress: func(done, total int64) { progress(false, done, total) }}
+	var res *chd.Result
+	var err error
+	switch {
+	case isGDI(it.path):
+		if res, err = chd.ConvertGDI(ctx, it.path, out, opt); err == nil {
+			u.logf("chd.gd", res.Tracks)
+		}
+	case !isISO(it.path):
+		if res, err = chd.ConvertImage(ctx, it.path, out, opt); err == nil {
+			if it.kind == "gd" {
+				u.logf("chd.gd", res.Tracks)
+			} else {
+				u.logf("chd.cd", res.Tracks)
+			}
+		}
+	case it.kind == "cd":
+		if res, err = chd.ConvertISOAsCD(ctx, it.path, out, opt); err == nil {
+			u.logf("chd.iso_cd")
+		}
+	default:
+		if res, err = chd.ConvertISO(ctx, it.path, out, opt); err == nil {
+			u.logf("chd.dvd")
+		}
+	}
+	if err != nil {
+		return 0, 0, err
+	}
+	if verify {
+		if _, err := chd.Verify(ctx, out, func(done, total int64) { progress(true, done, total) }); err != nil {
+			if ctx.Err() == nil {
+				err = fmt.Errorf("%s: %w", T("log.verify_failed"), err)
+			}
+			return 0, 0, err
+		}
+	}
+	return res.InputSize, res.OutputSize, nil
+}
+
 // whether it becomes a CD or a DVD CHD.
 func describeDisc(it *convItem) {
 	it.ok, it.platform, it.kind = false, "", ""
@@ -508,12 +534,12 @@ func describeDisc(it *convItem) {
 		describeNintendo(it, gc, wii)
 		return
 	}
+	if isArchive(it.path) {
+		describeDiscArchive(it)
+		return
+	}
 	if !isISO(it.path) {
-		parse := chd.ParseCue
-		if isGDI(it.path) {
-			parse = chd.ParseGDI
-		}
-		tracks, err := parse(it.path)
+		tracks, err := chd.ParseImage(it.path)
 		if err != nil {
 			it.detail = lazyf("⚠ %v", err)
 			return
@@ -523,9 +549,7 @@ func describeDisc(it *convItem) {
 		for _, t := range tracks {
 			if !seen[t.File] {
 				seen[t.File] = true
-				if st, err := os.Stat(t.File); err == nil {
-					size += st.Size()
-				}
+				size += chd.ImageFileSize(t.File)
 			}
 		}
 		it.size = size

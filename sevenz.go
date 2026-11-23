@@ -222,6 +222,8 @@ var sevenZipConverter = &converter{
 		checkMenu.AddCommand(Lbl(T("check.dupes_mark")), Command(inTab(func(t *convTab) { t.markDupes(u) })))
 		checkMenu.AddCommand(Lbl(T("check.g1r")), Command(inTab(func(t *convTab) { t.oneGameOneROM(u) })))
 		checkMenu.AddSeparator()
+		checkMenu.AddCommand(Lbl(T("check.crc")), Command(inTab(func(t *convTab) { t.checkHeaders(u) })))
+		checkMenu.AddSeparator()
 		checkMenu.AddCommand(Lbl(T("check.neo")), Command(inTab(func(t *convTab) { t.checkNeo(u, neoMarkNone) })))
 		checkMenu.AddCommand(Lbl(T("check.neo_mvs")), Command(inTab(func(t *convTab) { t.checkNeo(u, neoMarkMVS) })))
 		checkMenu.AddCommand(Lbl(T("check.neo_aes")), Command(inTab(func(t *convTab) { t.checkNeo(u, neoMarkAES) })))
@@ -237,6 +239,9 @@ var sevenZipConverter = &converter{
 		toolsMenu.AddCommand(Lbl(T("nds.untrim")), Command(inTab(func(t *convTab) { t.trimNDS(u, true) })))
 		toolsMenu.AddSeparator()
 		toolsMenu.AddCommand(Lbl(T("n64.convert")), Command(inTab(func(t *convTab) { t.convertN64(u) })))
+		toolsMenu.AddSeparator()
+		toolsMenu.AddCommand(Lbl(T("smd.convert")), Command(inTab(func(t *convTab) { t.runROMJob(u, smdJob) })))
+		toolsMenu.AddCommand(Lbl(T("hdr.convert")), Command(inTab(func(t *convTab) { t.runROMJob(u, headerJob) })))
 		tools.Configure(Mnu(toolsMenu))
 		setTooltip(tools, T("tools.tip"))
 		del := parent.TButton(Txt(T("btn.delete")), Command(func() {
@@ -262,6 +267,7 @@ var sevenZipConverter = &converter{
 				u.askRAKey()
 			}
 		}))
+		u.addRAReportItem(menu)
 		dbBtn.Configure(Mnu(menu))
 		romDB.status = parent.TLabel(Wraplength("45m"), Justify("left"))
 		setTooltip(dbBtn, T("nointro.menu.tip"))

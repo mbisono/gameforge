@@ -153,13 +153,29 @@ func (r romFile) ext() string {
 	return strings.ToLower(filepath.Ext(r.item.path))
 }
 
-// open reads the ROM from the start (nil for a 7z archive, which is only
-// identified by the CRC its header records).
+// open reads the ROM from the start. A ROM in a 7z archive is decompressed
+// as it is read (usually it is identified by the CRC its header records,
+// without this); closing the reader stops the decompression.
 func (r romFile) open() func() (io.ReadCloser, error) {
 	path := r.item.path
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".7z":
-		return nil
+		if r.inner == "" {
+			return nil
+		}
+		return func() (io.ReadCloser, error) {
+			pr, pw := io.Pipe()
+			go func() {
+				_, err := sevenzip.Extract(context.Background(), path, func(name string, size int64) io.Writer {
+					if name == r.inner {
+						return pw
+					}
+					return nil
+				}, nil)
+				pw.CloseWithError(err)
+			}()
+			return pr, nil
+		}
 	case ".zip":
 		return func() (io.ReadCloser, error) {
 			zr, files, err := openZip(path)

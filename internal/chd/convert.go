@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -59,9 +60,7 @@ func convertTracks(ctx context.Context, tracks []*Track, outPath string, opt Opt
 		l.meta = append(l.meta, metadata{tag, metaChecksum, append([]byte(md), 0)})
 		if !files[t.File] {
 			files[t.File] = true
-			if st, err := os.Stat(t.File); err == nil {
-				res.InputSize += st.Size()
-			}
+			res.InputSize += ImageFileSize(t.File)
 		}
 	}
 	l.logicalBytes = frames * FrameSize
@@ -69,6 +68,10 @@ func convertTracks(ctx context.Context, tracks []*Track, outPath string, opt Opt
 	src := &cdSource{tracks: tracks}
 	defer src.close()
 	if err := writeCHD(ctx, outPath, l, src.fill, opt); err != nil {
+		return nil, err
+	}
+	if err := src.checkECM(); err != nil {
+		os.Remove(outPath)
 		return nil, err
 	}
 	if st, err := os.Stat(outPath); err == nil {
@@ -82,30 +85,41 @@ type cdSource struct {
 	tracks []*Track
 	track  int // current track
 	frame  int // next frame within it, counting padding
-	f      *os.File
+	images map[string]*Image
 	r      *bufio.Reader
 	name   string
 }
 
 func (s *cdSource) close() {
-	if s.f != nil {
-		s.f.Close()
+	for _, img := range s.images {
+		img.Close()
 	}
 }
 
-func (s *cdSource) open(t *Track) error {
-	if s.name != t.File {
-		s.close()
-		f, err := os.Open(t.File)
-		if err != nil {
+// checkECM tells whether the ECM files read match their checksums.
+func (s *cdSource) checkECM() error {
+	for name, img := range s.images {
+		if err := img.CheckECM(); err != nil {
+			return fmt.Errorf("%s: %w", filepath.Base(name), err)
+		}
+	}
+	return nil
+}
+
+func (s *cdSource) open(t *Track, offset int64) error {
+	if s.images == nil {
+		s.images = map[string]*Image{}
+	}
+	img := s.images[t.File]
+	if img == nil {
+		var err error
+		if img, err = OpenImage(t.File); err != nil {
 			return err
 		}
-		s.f, s.name = f, t.File
+		s.images[t.File] = img
 	}
-	if _, err := s.f.Seek(t.Offset, io.SeekStart); err != nil {
-		return err
-	}
-	s.r = bufio.NewReaderSize(s.f, 1<<20)
+	s.name = t.File
+	s.r = bufio.NewReaderSize(io.NewSectionReader(img, offset, img.Size()-offset), 1<<20)
 	return nil
 }
 
@@ -120,27 +134,32 @@ func (s *cdSource) fill(hunk []byte) error {
 			return nil
 		}
 		t := s.tracks[s.track]
-		if s.frame == 0 {
-			if err := s.open(t); err != nil {
+		if s.frame == t.lead {
+			if err := s.open(t, t.Offset); err != nil {
 				return err
 			}
 		}
-		// A track's frames: its own data, then on a GD-ROM empty padding,
-		// then frames from the start of the next track's file.
-		data := t.Frames - t.Pad - t.Split
-		if s.frame == data+t.Pad && t.Split > 0 && s.track+1 < len(s.tracks) {
-			next := *s.tracks[s.track+1]
-			next.Offset = 0
-			if err := s.open(&next); err != nil {
+		// A track's frames: a gap the image does not store, its own data,
+		// then on a GD-ROM empty padding, then frames from the start of the
+		// next track's file.
+		fr := s.frame - t.lead
+		data := t.Frames - t.lead - t.Pad - t.Split
+		if fr == data+t.Pad && t.Split > 0 && s.track+1 < len(s.tracks) {
+			if err := s.open(s.tracks[s.track+1], 0); err != nil {
 				return err
 			}
 		}
-		if s.frame < data || s.frame >= data+t.Pad && s.frame < t.Frames {
+		if fr >= 0 && (fr < data || fr >= data+t.Pad && s.frame < t.Frames) {
 			if _, err := io.ReadFull(s.r, frame[:t.DataSize]); err != nil {
 				if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
-					return fmt.Errorf("%s: file ends before track %d does", s.name, t.Number)
+					return fmt.Errorf("%s: file ends before track %d does", filepath.Base(s.name), t.Number)
 				}
 				return err
+			}
+			if skip := t.SectorStride() - t.DataSize; skip > 0 {
+				if _, err := s.r.Discard(skip); err != nil {
+					return fmt.Errorf("%s: file ends before track %d does", filepath.Base(s.name), t.Number)
+				}
 			}
 			if t.swap {
 				for i := 0; i < SectorSize; i += 2 {

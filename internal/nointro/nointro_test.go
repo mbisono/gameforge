@@ -234,3 +234,42 @@ func TestTrimmedDS(t *testing.T) {
 		t.Fatalf("found %v", m)
 	}
 }
+
+// TestSMDAndPCEHeader finds a Mega Drive ROM in an interleaved .smd file
+// and a PC Engine ROM with a copier header.
+func TestSMDAndPCEHeader(t *testing.T) {
+	rom := make([]byte, 64<<10)
+	for i := range rom {
+		rom[i] = byte(i*31 + i>>9)
+	}
+	// .smd: a 512-byte header, then per 16 KiB the odd bytes, then the even ones.
+	smd := make([]byte, 512, 512+len(rom))
+	smd[8], smd[9] = 0xaa, 0xbb
+	for at := 0; at < len(rom); at += 16 << 10 {
+		blk := rom[at : at+16<<10]
+		for i := 1; i < len(blk); i += 2 {
+			smd = append(smd, blk[i])
+		}
+		for i := 0; i < len(blk); i += 2 {
+			smd = append(smd, blk[i])
+		}
+	}
+	pceROM := append([]byte{}, rom...)
+	pceROM[0] ^= 1
+	pce := append(make([]byte, 512), pceROM...)
+	db := New(map[string]*List{
+		"Mega Drive": {Games: []Game{{Name: "Game (Europe)", Size: int64(len(rom)), CRC: crc32.ChecksumIEEE(rom)}}},
+		"PC Engine":  {Games: []Game{{Name: "Game (Japan)", Size: int64(len(pceROM)), CRC: crc32.ChecksumIEEE(pceROM)}}},
+	})
+	for _, c := range []struct {
+		data []byte
+		ext  string
+		want string
+	}{{smd, ".smd", "Game (Europe)"}, {pce, ".pce", "Game (Japan)"}} {
+		open := func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(c.data)), nil }
+		m, _, err := db.Identify(context.Background(), crc32.ChecksumIEEE(c.data), int64(len(c.data)), c.ext, open, nil)
+		if err != nil || len(m) != 1 || m[0].Name != c.want {
+			t.Errorf("%s: %v, %v", c.ext, m, err)
+		}
+	}
+}

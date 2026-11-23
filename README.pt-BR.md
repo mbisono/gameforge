@@ -9,7 +9,7 @@
 
 ![A aba Nintendo Switch](docs/images/pt-BR/switch.png)
 
-Versão atual: **2.18.0**. [Download](#download) · [Guia completo](docs/GUIDE.pt-BR.md) · [Novidades](CHANGELOG.md)
+Versão atual: **2.19.0**. [Download](#download) · [Guia completo](docs/GUIDE.pt-BR.md) · [Novidades](CHANGELOG.md)
 
 ## O que ele faz
 
@@ -29,7 +29,7 @@ Precisa do seu próprio `prod.keys` na pasta `keys`.
 
 Para PS1, PS2, PSP, Saturn, Sega CD, Dreamcast, GameCube, Wii, Xbox e outros:
 
-- **Converte** CUE/BIN, GDI e ISO para **CHD**, ISOs para **CSO/ZSO**, discos de GameCube e Wii para **RVZ** e discos de Xbox para **XISO**. **Extrair** transforma os CHDs de volta em CUE/BIN, GDI ou ISO.
+- **Converte** CUE/BIN, GDI e ISO para **CHD**, também a partir de `.bin.ecm`, `.nrg` do Nero, `.cdi` do DiscJuggler e arquivos ZIP ou 7z, sem descompactar à mão; ISOs para **CSO/ZSO**, discos de GameCube e Wii para **RVZ** e discos de Xbox para **XISO**. **Extrair** transforma os CHDs de volta em CUE/BIN, GDI ou ISO.
 - **Mostra o que é cada disco**: código do produto, região, versão e o ícone ou a etiqueta do disco.
 - **Renomeia** os discos com os nomes do **Redump**.
 - **Verifica no RetroAchievements** se a sua versão de cada jogo tem achievements.
@@ -41,8 +41,19 @@ Para PS1, PS2, PSP, Saturn, Sega CD, Dreamcast, GameCube, Wii, Xbox e outros:
 - **Comprime** ROMs em **7z**, um arquivo por jogo, e recomprime ZIPs de arcade.
 - **Renomeia** ROMs com os nomes do **No-Intro**, encontra **duplicados** e mantém **uma versão de cada jogo** (1G1R) pela sua ordem de regiões.
 - **Verifica sets de arcade** para o FBNeo, os cores de MAME do RetroArch e o Flycast (NAOMI, Atomiswave), e diferencia as versões AES e MVS dos jogos de Neo Geo.
-- **Verifica no RetroAchievements**. Um clique no status de uma versão não suportada abre a lista das versões que o RetroAchievements aceita, e cada verificação grava um relatório em HTML.
-- **Ferramentas** cortam ROMs de Nintendo DS e convertem ROMs de Nintendo 64 para `.z64`.
+- **Verifica no RetroAchievements**. Um clique no status de uma versão não suportada abre a lista das versões que o RetroAchievements aceita, e cada verificação pode gravar um relatório em HTML.
+- **Ferramentas** cortam ROMs de Nintendo DS, convertem ROMs de Nintendo 64 para `.z64` e arquivos `.smd` de Mega Drive para `.md`, e removem cabeçalhos de copiadora de SNES e PC Engine. **Verificar ▾ → Checksum do header** diz se ROMs de N64, SNES, Mega Drive e DS conferem com o checksum do cabeçalho.
+
+### Pequenas facilidades
+
+![A pergunta sobre atualizar listas velhas](docs/images/pt-BR/lists-question.png)
+
+- **Mantém as listas em dia**: se você aceitar, o app procura ao abrir as listas de nomes que você baixou e que ficaram velhas, e pergunta antes de atualizar. Listas que você nunca usou nunca são baixadas.
+- **Avisa de versões novas**, com um link no topo da janela. Pergunta antes, e envia só o nome e a versão do app.
+- **Lembra onde você estava**: cada aba guarda a própria pasta de saída, e a última aba, o tamanho da janela e as colunas voltam na próxima vez.
+- **Renomeia do jeito do RetroArch**: saves, save states e capturas com o nome do jogo são renomeados junto, e as playlists `.m3u` de jogos com vários discos são atualizadas.
+- **Mostra os seus jogos**: ícones de jogos de DS, PSP, GameCube e Xbox e os rótulos dos discos de Dreamcast, direto nas listas.
+- **Arrastar e soltar** arquivos ou pastas na janela (Windows e Linux): cada arquivo vai para a aba do seu formato.
 
 ## Download
 
@@ -61,7 +72,6 @@ Para jogos de Switch, coloque o seu `prod.keys` na pasta `keys`, ao lado do prog
 - **Cuidado com os seus arquivos**: os resultados são gravados com um nome temporário e **verificados após gravar**. A renomeação mostra as mudanças antes e nunca escreve por cima de um arquivo. Um original só é substituído ou apagado por uma opção ou ferramenta que diz isso, depois que o arquivo novo é lido de volta.
 - **As bases de nomes** (Redump, No-Intro, sets de arcade, RetroAchievements) são baixadas na primeira vez que forem necessárias, depois de perguntar, e ficam numa pasta `cache`.
 - **Inglês, português, alemão, francês e espanhol**, com temas claro e escuro.
-- **Verificação opcional de novas versões**, que pergunta antes. Envia só o nome e a versão do app.
 - **Não inclui jogos nem chaves**: use só com jogos que você tem e chaves do seu próprio console.
 
 ## Mais

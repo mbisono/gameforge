@@ -24,7 +24,7 @@ The user writes in Brazilian Portuguese; answer in Portuguese. Code, comments, c
 ## Conventions
 
 - **Bump the version with every change to the program**, without being asked: set `appVersion` in `about.go` and extend the history comment above it, then update "Current version" in README.md and "Versão atual" in README.pt-BR.md. Use the minor number for features and the patch number for fixes and small UI tweaks. Unreleased changes share one version. A change that does not touch the program (docs only) does not bump the version.
-- The README is the project's front page: keep it short (what each tab does, screenshots, download). Details go into the guides, `docs/GUIDE.md` (English) and `docs/GUIDE.pt-BR.md`. Keep README.md and README.pt-BR.md in sync, and the two guides in sync. The screenshots are in `docs/images/en` and `docs/images/pt-BR` (light theme, 1640×960 window).
+- The README is the project's front page: keep it short (what each tab does, screenshots, download). Details go into the guides, `docs/GUIDE.md` (English) and `docs/GUIDE.pt-BR.md`. Keep README.md and README.pt-BR.md in sync, and the two guides in sync. The screenshots are in `docs/images/en` and `docs/images/pt-BR` (light theme, 1640×960 window): the README shows the Linux ones; the guides show the Windows ones (`*-windows.png`), which must show no paths (empty output field, no paths in the log).
 - CHANGELOG.md follows Keep a Changelog. Each release gets a section with its date and a link at the bottom.
 - Commits use the user's private GitHub email `485568+tschertel@users.noreply.github.com`, never a work email. Commit and push only when the user asks.
 

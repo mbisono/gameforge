@@ -63,11 +63,11 @@ func ParseGDI(path string) ([]*Track, error) {
 		default:
 			return nil, fmt.Errorf("%s:%d: unknown track type %d with sector size %d", name, lineNo, typ, size)
 		}
-		st, err := os.Stat(t.File)
+		fileSize, err := ImageSize(t.File)
 		if err != nil {
 			return nil, err
 		}
-		t.Frames = int(st.Size() / int64(size))
+		t.Frames = int(fileSize / int64(size))
 		byNum[num], phys[num] = t, lba
 	}
 	if err := sc.Err(); err != nil {

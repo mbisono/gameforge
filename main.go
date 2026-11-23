@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -1509,9 +1510,13 @@ func (u *ui) startCheck(path string) {
 			res, err = merge.Check(ctx, path, keys, progress, u.println)
 		}
 		var result i18n.Message
+		var shaErr *chd.HeaderSHA1Error
 		switch {
 		case ctx.Err() != nil:
 			result = i18n.M("log.cancelled")
+		case errors.As(err, &shaErr):
+			result = i18n.M("check.chd_header_sha1", name, shaErr.Hunks,
+				hex.EncodeToString(shaErr.Stored[:]), hex.EncodeToString(shaErr.Actual[:]))
 		case err != nil:
 			result = i18n.M("log.merge_error", err)
 		case hunks >= 0:

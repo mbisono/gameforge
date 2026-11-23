@@ -69,7 +69,11 @@ func (u *ui) startUpdateCheck() {
 		u.cfg.UpdateCheck = &on
 		u.saveConfig()
 	}
+	if u.cfg.ListsCheck == nil {
+		u.askListsCheck()
+	}
 	u.checkUpdate()
+	u.checkLists()
 }
 
 // checkUpdate asks GitHub in the background for the newest version, if the

@@ -291,7 +291,7 @@ func (t *convTab) checkRADiscs(u *ui) {
 	}
 	var items []*convItem
 	for _, it := range t.items {
-		if (isCHD(it.path) || isISO(it.path) || isCSO(it.path) || hasExt(it.path, []string{".cue", ".gdi"})) &&
+		if (isCHD(it.path) || isISO(it.path) || isCSO(it.path) || isCDImage(it.path)) &&
 			!isXboxPlatform(it.platform) && it.platform != discinfo.GameCube && it.platform != discinfo.Wii {
 			items = append(items, it)
 		}
@@ -366,7 +366,9 @@ func (u *ui) runRACheck(jobs []raJob) {
 		cancelled := ctx.Err() != nil
 		if !cancelled {
 			u.logf("ra.summary", found, len(jobs))
-			u.writeRAReports(rows, time.Now())
+			if u.cfg.RAReport {
+				u.writeRAReports(rows, time.Now())
+			}
 		}
 		onGUI(func() {
 			u.cancelMerge = nil
@@ -527,4 +529,21 @@ func (r readerCtx) Read(b []byte) (int, error) {
 		return 0, err
 	}
 	return r.r.Read(b)
+}
+
+// raReportVar is the Tcl variable of the "Save an HTML report" entries,
+// shared by the menus of the Discs and ROMs tabs so that both show the
+// same. (The tk9.0 package cannot link a variable to a menu entry, so it is
+// set with Tcl.)
+const raReportVar = "::gameforge_ra_report"
+
+// addRAReportItem adds to a menu the choice of saving an HTML report of
+// each RetroAchievements check.
+func (u *ui) addRAReportItem(menu *MenuWidget) {
+	tcl("set", raReportVar, tclBool(u.cfg.RAReport))
+	menu.AddCheckbutton(Lbl(T("ra.report_menu")), Command(func() {
+		u.cfg.RAReport = tcl("set", raReportVar) == "1"
+		u.saveConfig()
+	}))
+	tcl(menu.String(), "entryconfigure", "last", "-variable", raReportVar, "-onvalue", "1", "-offvalue", "0")
 }

@@ -79,6 +79,13 @@ type Config struct {
 	// UpdateEvery is how often the check runs: "daily" (the default when
 	// empty), "weekly" or "monthly".
 	UpdateEvery string `json:"update_every,omitempty"`
+	// ListsCheck turns on the question, at startup, whether to update the
+	// downloaded lists that have grown old; nil until the user has been
+	// asked.
+	ListsCheck *bool `json:"lists_check,omitempty"`
+	// ListsChecked is when the app last asked whether to update the
+	// downloaded lists that had grown old.
+	ListsChecked time.Time `json:"lists_checked,omitempty"`
 	// UpdateChecked is when the last check was tried; UpdateLatest and
 	// UpdatePage are the newest version found and its web page.
 	UpdateChecked time.Time `json:"update_checked,omitempty"`
@@ -90,6 +97,9 @@ type Config struct {
 	// RAKey is the user's RetroAchievements web API key, used to check
 	// games against RetroAchievements; it stays in this file.
 	RAKey string `json:"retroachievements_key,omitempty"`
+	// RAReport saves an HTML report of each RetroAchievements check (off
+	// by default).
+	RAReport bool `json:"ra_report,omitempty"`
 
 	// Window layout of the last run: geometry "WxH+X+Y" of the normal
 	// (not maximized) window, whether it was maximized, the widths of the

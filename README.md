@@ -9,7 +9,7 @@
 
 ![The Nintendo Switch tab](docs/images/en/switch.png)
 
-Current version: **2.18.0**. [Download](#download) · [Full guide](docs/GUIDE.md) · [What's new](CHANGELOG.md)
+Current version: **2.19.0**. [Download](#download) · [Full guide](docs/GUIDE.md) · [What's new](CHANGELOG.md)
 
 ## What it does
 
@@ -29,7 +29,7 @@ It needs your own `prod.keys` in the `keys` folder.
 
 For PS1, PS2, PSP, Saturn, Sega CD, Dreamcast, GameCube, Wii, Xbox and more:
 
-- **Converts** CUE/BIN, GDI and ISO to **CHD**, ISOs to **CSO/ZSO**, GameCube and Wii discs to **RVZ**, and Xbox discs to **XISO**. **Extract** turns CHDs back into CUE/BIN, GDI or ISO.
+- **Converts** CUE/BIN, GDI and ISO to **CHD**, also from `.bin.ecm`, Nero `.nrg`, DiscJuggler `.cdi` and ZIP or 7z files, without unpacking by hand; ISOs to **CSO/ZSO**, GameCube and Wii discs to **RVZ**, and Xbox discs to **XISO**. **Extract** turns CHDs back into CUE/BIN, GDI or ISO.
 - **Shows what each disc is**: product code, region, version, and the icon or disc label.
 - **Renames** discs with their **Redump** names.
 - **Checks RetroAchievements**: whether your version of each game has achievements.
@@ -41,8 +41,19 @@ For PS1, PS2, PSP, Saturn, Sega CD, Dreamcast, GameCube, Wii, Xbox and more:
 - **Compresses** ROMs to **7z**, one archive per game, and recompresses arcade ZIPs.
 - **Renames** ROMs with their **No-Intro** names, finds **duplicates** and keeps **one version per game** (1G1R) by your preferred regions.
 - **Checks arcade sets** for FBNeo, the RetroArch MAME cores and Flycast (NAOMI, Atomiswave), and tells the AES and MVS versions of Neo Geo games apart.
-- **Checks RetroAchievements**. A click on the status of an unsupported version opens the list of the versions RetroAchievements accepts, and each check saves an HTML report.
-- **Tools** trim Nintendo DS ROMs and convert Nintendo 64 ROMs to `.z64`.
+- **Checks RetroAchievements**. A click on the status of an unsupported version opens the list of the versions RetroAchievements accepts, and each check can save an HTML report.
+- **Tools** trim Nintendo DS ROMs, convert Nintendo 64 ROMs to `.z64` and Mega Drive `.smd` files to `.md`, and remove SNES and PC Engine copier headers. **Check ▾ → Header checksums** tells whether N64, SNES, Mega Drive and DS ROMs match the checksum in their header.
+
+### Nice touches
+
+![The question about updating old lists](docs/images/en/lists-question.png)
+
+- **Keeps your lists fresh**: if you agree, the app looks at startup for the name lists you downloaded that have grown old and asks before updating them. Lists you never used are never downloaded.
+- **Tells you about new versions**, with a link at the top of the window. It asks first, and sends only the app's name and version.
+- **Remembers where you were**: each tab keeps its own output folder, and the last tab, the window size and the columns come back on the next start.
+- **Renames the RetroArch way**: saves, save states and thumbnails named after a game are renamed with it, and the `.m3u` playlists of games on several discs are updated.
+- **Shows your games**: icons of DS, PSP, GameCube and Xbox games and the labels of Dreamcast discs, right in the lists.
+- **Drag and drop** files or folders onto the window (Windows and Linux): each file goes to the tab of its format.
 
 ## Download
 
@@ -61,7 +72,6 @@ For Switch games, put your `prod.keys` in the `keys` folder next to the program.
 - **Careful with your files**: results are written under a temporary name and **verified after writing**. Renaming shows the changes first and never writes over a file. An original is replaced or removed only by an option or tool that says so, after the new file has been read back.
 - **The name databases** (Redump, No-Intro, arcade sets, RetroAchievements) are downloaded the first time they are needed, after asking, and kept in a `cache` folder.
 - **English, Portuguese, German, French and Spanish**, with light and dark themes.
-- **An optional check for new versions**, which asks first. It sends only the app's name and version.
 - **No games and no keys** are included: use it only with games you own and keys from your own console.
 
 ## More

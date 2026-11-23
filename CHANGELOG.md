@@ -2,6 +2,19 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.19.0] - 2026-11-23
+
+### Added
+- **Check ▾ → Header checksums** in the ROMs tab checks the checksum in the header of Nintendo 64 (CRC1/CRC2), SNES, Mega Drive and Nintendo DS ROMs, loose or in a ZIP or 7z, and tells which ROMs were changed (or released with a wrong checksum).
+- **Tools ▾** in the ROMs tab converts Mega Drive `.smd` files to `.md` and removes the copier header of SNES (`.smc` becomes `.sfc`) and PC Engine ROMs.
+- **Rename…** and the duplicate check recognize Mega Drive `.smd` files and PC Engine ROMs with a copier header, and find ROMs with a header or in another byte order also inside 7z files.
+- The Discs tab converts more CD images to CHD: `.bin.ecm` (ECM, decoded on the fly with its checksum checked; also when a `.cue` names the `.bin`), Nero `.nrg` and DiscJuggler `.cdi` images (subchannel data left out, the gap between sessions kept as empty sectors), and ZIP or 7z files holding a disc image, unpacked into a temporary folder next to the output and removed afterwards.
+- At startup, the app can ask whether to update the lists you downloaded that have grown old: it asks once whether to do so (also after an update from an older version), and the **Updates** box of the **About…** window turns it on or off (`lists_check`). As often as the check for new versions is set to run, it then asks once whether to update the old lists (ROM and disc names, arcade sets and RetroAchievements lists after 30 days, the Switch game database after 14), naming them. Only those lists are downloaded again; nothing new is downloaded.
+
+### Changed
+- **Check CHD…** explains a CHD whose hunks are all intact (each one matches its CRC) but whose header holds a data SHA-1 that is not the SHA-1 of its data, and shows both SHA-1s, instead of only `chd: data SHA-1 mismatch`. Such files turn up in collections (some PS1, Saturn and Dreamcast CHDs) and `chdman verify` fails them the same way: the header was written for other data, or the data was changed after the CHD was made. Their tracks can still be good; extracting them and comparing with Redump tells.
+- The HTML report of the RetroAchievements check is now optional and off by default: **Names database ▾ → Save an HTML report of each RetroAchievements check** turns it on, in the Discs and ROMs tabs alike (`ra_report` in the settings).
+
 ## [2.18.0] - 2026-11-22
 
 ### Added
@@ -222,6 +235,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.19.0]: https://github.com/tschertel/gameforge/releases/tag/v2.19.0
 [2.18.0]: https://github.com/tschertel/gameforge/releases/tag/v2.18.0
 [2.17.1]: https://github.com/tschertel/gameforge/releases/tag/v2.17.1
 [2.17.0]: https://github.com/tschertel/gameforge/releases/tag/v2.17.0

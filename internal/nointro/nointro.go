@@ -47,7 +47,7 @@ var Systems = []System{
 	{"Nintendo DS", "Nintendo - Nintendo DS", []string{".nds"}},
 	{"Virtual Boy", "Nintendo - Virtual Boy", []string{".vb", ".vboy"}},
 	{"Pokémon Mini", "Nintendo - Pokemon Mini", []string{".min"}},
-	{"Mega Drive", "Sega - Mega Drive - Genesis", []string{".md", ".gen"}},
+	{"Mega Drive", "Sega - Mega Drive - Genesis", []string{".md", ".gen", ".smd"}},
 	{"32X", "Sega - 32X", []string{".32x"}},
 	{"Master System", "Sega - Master System - Mark III", []string{".sms"}},
 	{"Game Gear", "Sega - Game Gear", []string{".gg"}},

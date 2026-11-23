@@ -85,15 +85,11 @@ func InfoFromRVZ(path string) (Info, error) {
 // InfoFromCue reads the game information of the disc of a CUE sheet or a
 // GDI file.
 func InfoFromCue(path string) (Info, error) {
-	parse := chd.ParseCue
-	if strings.EqualFold(path[max(0, len(path)-4):], ".gdi") {
-		parse = chd.ParseGDI
-	}
-	tracks, err := parse(path)
+	tracks, err := chd.ParseImage(path)
 	if err != nil {
 		return Info{}, err
 	}
-	var files []*os.File
+	var files []*chd.Image
 	defer func() {
 		for _, f := range files {
 			f.Close()
@@ -104,18 +100,15 @@ func InfoFromCue(path string) (Info, error) {
 		if !ok {
 			return nil
 		}
-		f, err := os.Open(t.File)
+		f, err := chd.OpenImage(t.File)
 		if err != nil {
 			return nil
 		}
 		files = append(files, f)
-		start := t.Offset
-		if t.PregapInFile {
-			start += int64(t.Pregap) * int64(t.DataSize)
-		}
+		start := t.DataStart()
 		return func(lba int) ([]byte, error) {
 			b := make([]byte, 2048)
-			_, err := f.ReadAt(b, start+int64(lba)*int64(t.DataSize)+int64(skip))
+			_, err := f.ReadAt(b, start+int64(lba)*int64(t.SectorStride())+int64(skip))
 			return b, err
 		}
 	}

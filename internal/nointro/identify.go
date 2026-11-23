@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"gameforge/internal/nds"
+	"gameforge/internal/romcheck"
 )
 
 // Fix turns a ROM as dumped by other tools into the data No-Intro
@@ -19,6 +20,7 @@ type Fix struct {
 	// PadTo is the size of a trimmed Nintendo DS ROM's cartridge, filled
 	// with 0xFF after the ROM.
 	PadTo int64
+	SMD   bool // a Mega Drive ROM in the interleaved blocks of an .smd file
 	What  string
 }
 
@@ -47,6 +49,12 @@ func Fixes(head []byte, size int64, ext string) []Fix {
 	if size%1024 == 512 && size > 512 && SystemOf(ext) == "SNES" {
 		out = append(out, Fix{Skip: 512, What: "copier"})
 	}
+	if size%8192 == 512 && size > 512 && SystemOf(ext) == "PC Engine" {
+		out = append(out, Fix{Skip: 512, What: "copier"})
+	}
+	if romcheck.IsSMD(head, size) {
+		out = append(out, Fix{Skip: 512, SMD: true, What: "smd"})
+	}
 	return out
 }
 
@@ -59,7 +67,11 @@ func CRC(ctx context.Context, r io.Reader, fix Fix, progress func(done int64)) (
 		}
 	}
 	h := crc32.NewIEEE()
-	buf := make([]byte, 1<<20)
+	buf := make([]byte, 1<<20) // a multiple of romcheck.SMDBlock
+	var smd []byte
+	if fix.SMD {
+		smd = make([]byte, len(buf))
+	}
 	var size int64
 	for {
 		if err := ctx.Err(); err != nil {
@@ -69,7 +81,12 @@ func CRC(ctx context.Context, r io.Reader, fix Fix, progress func(done int64)) (
 		if fix.Swap > 1 {
 			swap(buf[:n-n%fix.Swap], fix.Swap)
 		}
-		h.Write(buf[:n])
+		if fix.SMD {
+			romcheck.DecodeSMDBlocks(smd, buf[:n])
+			h.Write(smd[:n])
+		} else {
+			h.Write(buf[:n])
+		}
 		size += int64(n)
 		if progress != nil {
 			progress(size + fix.Skip)
