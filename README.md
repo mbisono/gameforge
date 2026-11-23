@@ -9,7 +9,7 @@
 
 ![The Nintendo Switch tab](docs/images/en/switch.png)
 
-Current version: **2.20.1**. [Download](#download) · [Full guide](docs/GUIDE.md) · [What's new](CHANGELOG.md)
+Current version: **2.20.2**. [Download](#download) · [Full guide](docs/GUIDE.md) · [What's new](CHANGELOG.md)
 
 ## What it does
 

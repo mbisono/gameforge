@@ -68,8 +68,9 @@ import (
 // checksums of N64, SNES, Mega Drive and DS ROMs, converts .smd to .md and
 // removes SNES and PC Engine copier headers, 2.20.0 converts Wii WBFS
 // images to RVZ, 2.20.1 reads subfolders of opened folders only with the
-// new "Include subfolders" option.
-const appVersion = "2.20.1"
+// new "Include subfolders" option, 2.20.2 keeps collapsed Switch games
+// collapsed when the list is redrawn.
+const appVersion = "2.20.2"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

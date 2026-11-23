@@ -2,6 +2,11 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.20.2] - 2026-11-23
+
+### Fixed
+- In the Nintendo Switch tab, checking or unchecking files (also with **Select none**) no longer expands every game you collapsed or scrolls the list to another place.
+
 ## [2.20.1] - 2026-11-23
 
 ### Changed
@@ -248,6 +253,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.20.2]: https://github.com/tschertel/gameforge/releases/tag/v2.20.2
 [2.20.1]: https://github.com/tschertel/gameforge/releases/tag/v2.20.1
 [2.20.0]: https://github.com/tschertel/gameforge/releases/tag/v2.20.0
 [2.19.0]: https://github.com/tschertel/gameforge/releases/tag/v2.19.0

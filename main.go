@@ -87,7 +87,8 @@ type ui struct {
 	tabIDs      map[string]string // tab name -> its frame
 	tabs        []*convTab        // the conversion tabs, after the Switch tab
 	rows        []row
-	checked     map[string]bool // by NSP path
+	gameItems   map[string]uint64 // tree item → AppID of the game rows shown
+	checked     map[string]bool   // by NSP path
 	busy        bool
 	cancelMerge context.CancelFunc
 	analyzeMu   sync.Mutex
@@ -1358,10 +1359,18 @@ func (u *ui) refreshList() {
 	u.updateSummary()
 }
 
-// fillTree shows the rows, keeping the scroll position.
+// fillTree shows the rows, keeping the games the user collapsed collapsed
+// and the scroll position.
 func (u *ui) fillTree() {
 	path := u.tree.String()
 	yview := strings.Fields(tcl(path, "yview"))
+	closed := map[uint64]bool{}
+	for id, app := range u.gameItems {
+		if tcl(path, "exists", id) == "1" && !tclTrue(tcl(path, "item", id, "-open")) {
+			closed[app] = true
+		}
+	}
+	u.gameItems = map[string]uint64{}
 	u.tree.Delete(u.tree.Children(""))
 	parent := ""
 	for i, r := range u.rows {
@@ -1370,7 +1379,8 @@ func (u *ui) fillTree() {
 		case r.nsp == nil:
 			title := fmt.Sprintf("%s   [%016X]", r.game.Title(), r.game.AppID)
 			u.tree.Insert("", "end", Id(id), gameMark(r.game, u.allChecked(r.game)), Txt(title),
-				Values(tclList([]string{describeGame(r.game, u.db)})), Open(true), Tags("game"))
+				Values(tclList([]string{describeGame(r.game, u.db)})), Open(!closed[r.game.AppID]), Tags("game"))
+			u.gameItems[id] = r.game.AppID
 			parent = id
 		case r.game == nil:
 			u.tree.Insert("", "end", Id(id), Image(checkImage(-1)), Txt(r.nsp.Name()),
@@ -1386,8 +1396,18 @@ func (u *ui) fillTree() {
 	}
 	fitColumns(u.tree)
 	if len(yview) > 0 {
+		tcl("update", "idletasks")
 		tcl(path, "yview", "moveto", yview[0])
 	}
+}
+
+// tclTrue reports whether a Tcl boolean is true.
+func tclTrue(s string) bool {
+	switch strings.ToLower(s) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
 }
 
 // selectedFiles returns, per game, the checked files in merge order.
