@@ -16,6 +16,7 @@ import (
 
 	"gameforge/internal/discinfo"
 	"gameforge/internal/rvz"
+	"gameforge/internal/wbfs"
 )
 
 // nintendoDisc reports whether a disc image is a GameCube or Wii disc.
@@ -87,6 +88,12 @@ func gcTitle(path string) (id, title string) {
 	if _, err := f.ReadAt(b, 0); err != nil {
 		return "", ""
 	}
+	return headerTitle(b)
+}
+
+// headerTitle returns the game ID and title in the first 0x60 bytes of a
+// GameCube or Wii disc.
+func headerTitle(b []byte) (id, title string) {
 	clean := func(s []byte) string {
 		if i := strings.IndexByte(string(s), 0); i >= 0 {
 			s = s[:i]
@@ -240,12 +247,48 @@ func describeNintendo(it *convItem, gc, wii bool) {
 	it.detail = msg("rvz.row_iso", id, title, humanSize(discSize(it.path)))
 }
 
-// compressRVZ compresses a GameCube or Wii disc image to RVZ, Dolphin's
-// format.
+// isWBFS reports whether a file is a WBFS image of a Wii disc.
+func isWBFS(path string) bool { return hasExt(path, []string{".wbfs"}) }
+
+// describeWBFS tells what Wii disc a WBFS image holds; it becomes an RVZ
+// (with the Wii common key).
+func describeWBFS(it *convItem) {
+	r, err := wbfs.Open(it.path)
+	if err != nil {
+		it.detail = lazyf("⚠ %v", err)
+		return
+	}
+	defer r.Close()
+	id, title := headerTitle(r.Header())
+	it.platform, it.size = discinfo.Wii, r.FileSize()
+	if wiiKeys == nil {
+		it.detail = msg("rvz.need_key")
+		return
+	}
+	it.ok, it.kind = true, "rvz"
+	it.detail = msg("rvz.row_wbfs", id, title, humanSize(r.FileSize()), humanSize(r.Size()))
+}
+
+// compressRVZ compresses a GameCube or Wii disc image (or a WBFS image) to
+// RVZ, Dolphin's format.
 func compressRVZ(ctx context.Context, u *ui, it *convItem, out string, verify bool,
 	progress func(bool, int64, int64)) (int64, int64, error) {
-	res, err := rvz.Compress(ctx, it.path, out, rvz.Options{Level: zstd.SpeedBestCompression, CommonKeys: wiiKeys, ChunkSize: rvzChunk << 10},
-		func(done, total int64) { progress(false, done, total) })
+	opt := rvz.Options{Level: zstd.SpeedBestCompression, CommonKeys: wiiKeys, ChunkSize: rvzChunk << 10}
+	prog := func(done, total int64) { progress(false, done, total) }
+	var res *rvz.Result
+	var err error
+	if isWBFS(it.path) {
+		var r *wbfs.Reader
+		if r, err = wbfs.Open(it.path); err == nil {
+			res, err = rvz.CompressReader(ctx, r, r.Size(), out, opt, prog)
+			if err == nil {
+				res.InputSize = r.FileSize()
+			}
+			r.Close()
+		}
+	} else {
+		res, err = rvz.Compress(ctx, it.path, out, opt, prog)
+	}
 	switch {
 	case errors.Is(err, rvz.ErrWrongCommonKey):
 		return 0, 0, errors.New(T("rvz.wrong_key"))

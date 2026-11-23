@@ -2,6 +2,14 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.20.0] - 2026-11-23
+
+### Added
+- The Discs tab converts Wii **WBFS** images (`.wbfs`, also split into `.wbf1`, `.wbf2`… parts) to RVZ, read as the disc they hold, without writing an ISO first; **Rename…** gives them their Redump names by the game ID and renames the parts with them.
+
+### Fixed
+- The title of a GameCube or Wii disc no longer shows the MD5 that some backup tools keep after the title field of the disc header (`MD5#…`).
+
 ## [2.19.0] - 2026-11-23
 
 ### Added
@@ -235,6 +243,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.20.0]: https://github.com/tschertel/gameforge/releases/tag/v2.20.0
 [2.19.0]: https://github.com/tschertel/gameforge/releases/tag/v2.19.0
 [2.18.0]: https://github.com/tschertel/gameforge/releases/tag/v2.18.0
 [2.17.1]: https://github.com/tschertel/gameforge/releases/tag/v2.17.1

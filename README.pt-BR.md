@@ -9,7 +9,7 @@
 
 ![A aba Nintendo Switch](docs/images/pt-BR/switch.png)
 
-Versão atual: **2.19.0**. [Download](#download) · [Guia completo](docs/GUIDE.pt-BR.md) · [Novidades](CHANGELOG.md)
+Versão atual: **2.20.0**. [Download](#download) · [Guia completo](docs/GUIDE.pt-BR.md) · [Novidades](CHANGELOG.md)
 
 ## O que ele faz
 
@@ -29,7 +29,7 @@ Precisa do seu próprio `prod.keys` na pasta `keys`.
 
 Para PS1, PS2, PSP, Saturn, Sega CD, Dreamcast, GameCube, Wii, Xbox e outros:
 
-- **Converte** CUE/BIN, GDI e ISO para **CHD**, também a partir de `.bin.ecm`, `.nrg` do Nero, `.cdi` do DiscJuggler e arquivos ZIP ou 7z, sem descompactar à mão; ISOs para **CSO/ZSO**, discos de GameCube e Wii para **RVZ** e discos de Xbox para **XISO**. **Extrair** transforma os CHDs de volta em CUE/BIN, GDI ou ISO.
+- **Converte** CUE/BIN, GDI e ISO para **CHD**, também a partir de `.bin.ecm`, `.nrg` do Nero, `.cdi` do DiscJuggler e arquivos ZIP ou 7z, sem descompactar à mão; ISOs para **CSO/ZSO**, discos de GameCube e Wii (também `.wbfs` de Wii) para **RVZ** e discos de Xbox para **XISO**. **Extrair** transforma os CHDs de volta em CUE/BIN, GDI ou ISO.
 - **Mostra o que é cada disco**: código do produto, região, versão e o ícone ou a etiqueta do disco.
 - **Renomeia** os discos com os nomes do **Redump**.
 - **Verifica no RetroAchievements** se a sua versão de cada jogo tem achievements.

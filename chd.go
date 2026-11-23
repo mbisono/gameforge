@@ -34,7 +34,7 @@ var chdConverter = &converter{
 	info:   "tab.chd.info",
 	button: "btn.convert",
 	tip:    "btn.chd.tip",
-	exts:   []string{".cue", ".gdi", ".iso", ".chd", ".cso", ".zso", ".gcm", ".rvz", ".nrg", ".cdi", ".ecm", ".zip", ".7z"},
+	exts:   []string{".cue", ".gdi", ".iso", ".chd", ".cso", ".zso", ".gcm", ".rvz", ".nrg", ".cdi", ".ecm", ".zip", ".7z", ".wbfs"},
 	accept: func(path string) bool {
 		switch {
 		case hasExt(path, []string{".gcm"}):
@@ -48,7 +48,7 @@ var chdConverter = &converter{
 		return true
 	},
 	types: []FileType{
-		{TypeName: "CUE/GDI/ISO/CHD/CSO/ZSO/GCM/RVZ/NRG/CDI/ECM/ZIP/7Z", Extensions: []string{".cue", ".gdi", ".iso", ".chd", ".cso", ".zso", ".gcm", ".rvz", ".nrg", ".cdi", ".ecm", ".zip", ".7z"}},
+		{TypeName: "CUE/GDI/ISO/CHD/CSO/ZSO/GCM/RVZ/WBFS/NRG/CDI/ECM/ZIP/7Z", Extensions: []string{".cue", ".gdi", ".iso", ".chd", ".cso", ".zso", ".gcm", ".rvz", ".wbfs", ".nrg", ".cdi", ".ecm", ".zip", ".7z"}},
 		{TypeName: "CUE (CD)", Extensions: []string{".cue"}},
 		{TypeName: "GDI (Dreamcast)", Extensions: []string{".gdi"}},
 		{TypeName: "NRG (Nero)", Extensions: []string{".nrg"}},
@@ -60,6 +60,7 @@ var chdConverter = &converter{
 		{TypeName: "CSO/ZSO", Extensions: []string{".cso", ".zso"}},
 		{TypeName: "GameCube/Wii ISO", Extensions: []string{".iso", ".gcm"}},
 		{TypeName: "RVZ", Extensions: []string{".rvz"}},
+		{TypeName: "WBFS (Wii)", Extensions: []string{".wbfs"}},
 	},
 	describe: describeDisc,
 	outName: func(it *convItem) string {
@@ -524,6 +525,10 @@ func describeDisc(it *convItem) {
 	}
 	if isRVZ(it.path) {
 		describeRVZ(it)
+		return
+	}
+	if isWBFS(it.path) {
+		describeWBFS(it)
 		return
 	}
 	if isISO(it.path) && xiso.IsXbox(it.path) {

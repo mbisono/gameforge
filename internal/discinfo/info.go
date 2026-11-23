@@ -13,6 +13,7 @@ import (
 	"gameforge/internal/chd"
 	"gameforge/internal/ciso"
 	"gameforge/internal/rvz"
+	"gameforge/internal/wbfs"
 )
 
 // Info is what a game disc says about itself.
@@ -79,6 +80,18 @@ func InfoFromRVZ(path string) (Info, error) {
 	head := make([]byte, 0x100) // the title runs past what the header keeps
 	copy(head, h.Disc[:])
 	nintendoInfo(&info, head)
+	return info, nil
+}
+
+// InfoFromWBFS reads the game information of a Wii disc in a WBFS image.
+func InfoFromWBFS(path string) (Info, error) {
+	r, err := wbfs.Open(path)
+	if err != nil {
+		return Info{}, err
+	}
+	defer r.Close()
+	info := Info{Platform: Wii}
+	nintendoInfo(&info, r.Header())
 	return info, nil
 }
 
@@ -327,7 +340,13 @@ func nintendoInfo(info *Info, h []byte) {
 		info.Disc = n + 1
 	}
 	info.Version = fmt.Sprintf("1.%02d", h[7])
-	info.Title = text(h[0x20:0x100])
+	// The title field is 64 bytes; after it, backup tools may keep an MD5
+	// of the image ("MD5#…").
+	title := h[0x20:min(len(h), 0x60)]
+	if i := bytes.IndexByte(title, 0); i >= 0 {
+		title = title[:i]
+	}
+	info.Title = text(title)
 }
 
 var psSerial = regexp.MustCompile(`^([A-Z]{4})[_-](\d{3})\.?(\d{2})`)

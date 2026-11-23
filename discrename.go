@@ -125,7 +125,7 @@ func (t *convTab) renameDiscs(u *ui) {
 	}
 	var items []*convItem
 	for _, it := range t.items {
-		if (isCHD(it.path) || isISO(it.path) || isCSO(it.path) || isRVZ(it.path) || hasExt(it.path, []string{".gcm"})) && it.platform != "" {
+		if (isCHD(it.path) || isISO(it.path) || isCSO(it.path) || isRVZ(it.path) || isWBFS(it.path) || hasExt(it.path, []string{".gcm"})) && it.platform != "" {
 			items = append(items, it)
 		}
 	}
@@ -284,6 +284,8 @@ func discName(ctx context.Context, u *ui, db *redump.DB, it *convItem) (string, 
 		info, err = discinfo.InfoFromCHD(it.path)
 	case isRVZ(it.path):
 		info, err = discinfo.InfoFromRVZ(it.path)
+	case isWBFS(it.path):
+		info, err = discinfo.InfoFromWBFS(it.path)
 	case isCSO(it.path):
 		info, err = discinfo.InfoFromCSO(it.path)
 	default:
@@ -364,6 +366,12 @@ func discTracks(ctx context.Context, u *ui, it *convItem, name string) (redump.T
 		// A disc dump has the size and CRC Redump lists (below, as an
 		// ISO); an XISO is rebuilt, so only its code and regions tell
 		// the game.
+		return redump.Track{}, func() {}
+	}
+	if isWBFS(it.path) {
+		// A WBFS image leaves out the parts of the disc the game does not
+		// use, so its size and CRC are never Redump's: only the game ID and
+		// revision tell the game, as for an XISO.
 		return redump.Track{}, func() {}
 	}
 	if isCSO(it.path) {
@@ -539,6 +547,9 @@ var companionExts = map[string]bool{
 	".auto": true, ".state": true, ".srm": true, ".sav": true, ".rtc": true, ".mcr": true, ".ldci": true,
 	".png": true, ".jpg": true, ".jpeg": true, ".bmp": true,
 	".cht": true, ".opt": true, ".rmp": true, ".cfg": true,
+	// The parts of a WBFS image split for FAT32 drives (game.wbf1…).
+	".wbf1": true, ".wbf2": true, ".wbf3": true, ".wbf4": true, ".wbf5": true,
+	".wbf6": true, ".wbf7": true, ".wbf8": true, ".wbf9": true,
 }
 
 // companions lists the files next to a game that RetroArch named after

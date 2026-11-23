@@ -9,7 +9,7 @@
 
 ![The Nintendo Switch tab](docs/images/en/switch.png)
 
-Current version: **2.19.0**. [Download](#download) · [Full guide](docs/GUIDE.md) · [What's new](CHANGELOG.md)
+Current version: **2.20.0**. [Download](#download) · [Full guide](docs/GUIDE.md) · [What's new](CHANGELOG.md)
 
 ## What it does
 
@@ -29,7 +29,7 @@ It needs your own `prod.keys` in the `keys` folder.
 
 For PS1, PS2, PSP, Saturn, Sega CD, Dreamcast, GameCube, Wii, Xbox and more:
 
-- **Converts** CUE/BIN, GDI and ISO to **CHD**, also from `.bin.ecm`, Nero `.nrg`, DiscJuggler `.cdi` and ZIP or 7z files, without unpacking by hand; ISOs to **CSO/ZSO**, GameCube and Wii discs to **RVZ**, and Xbox discs to **XISO**. **Extract** turns CHDs back into CUE/BIN, GDI or ISO.
+- **Converts** CUE/BIN, GDI and ISO to **CHD**, also from `.bin.ecm`, Nero `.nrg`, DiscJuggler `.cdi` and ZIP or 7z files, without unpacking by hand; ISOs to **CSO/ZSO**, GameCube and Wii discs (also Wii `.wbfs`) to **RVZ**, and Xbox discs to **XISO**. **Extract** turns CHDs back into CUE/BIN, GDI or ISO.
 - **Shows what each disc is**: product code, region, version, and the icon or disc label.
 - **Renames** discs with their **Redump** names.
 - **Checks RetroAchievements**: whether your version of each game has achievements.

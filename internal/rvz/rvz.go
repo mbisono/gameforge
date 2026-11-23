@@ -250,7 +250,12 @@ func Compress(ctx context.Context, in, out string, opt Options, progress func(do
 	if err != nil {
 		return nil, err
 	}
-	size := st.Size()
+	return CompressReader(ctx, src, st.Size(), out, opt, progress)
+}
+
+// CompressReader is Compress for a disc image read from src, of the given
+// size (for example a WBFS image read as a disc).
+func CompressReader(ctx context.Context, src io.ReaderAt, size int64, out string, opt Options, progress func(done, total int64)) (*Result, error) {
 	wii := IsWii(src)
 	if !wii && !IsGameCube(src) || size < 0x50000 {
 		return nil, errors.New("not a GameCube or Wii disc image")
