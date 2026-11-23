@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -146,7 +145,8 @@ func (t *convTab) accepts(path string) bool {
 	return hasExt(path, t.conv.exts) && (t.conv.accept == nil || t.conv.accept(path))
 }
 
-// add lists the accepted files among paths, scanning folders, and returns
+// add lists the accepted files among paths, scanning folders (and, with
+// the option, their subfolders), and returns
 // how many were new.
 func (t *convTab) add(u *ui, paths []string) int {
 	known := map[string]bool{}
@@ -159,25 +159,21 @@ func (t *convTab) add(u *ui, paths []string) int {
 	}
 	n := 0
 	for _, p := range paths {
-		filepath.WalkDir(p, func(path string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
-				return nil
-			}
+		walkFiles(p, u.cfg.Subfolders, func(path string) {
 			abs, err := filepath.Abs(path)
 			if err != nil {
-				return nil
+				return
 			}
 			if t.conv.anyExt && !pooled[abs] {
 				pooled[abs] = true
 				t.pool = append(t.pool, abs)
 			}
 			if known[abs] || !t.accepts(abs) {
-				return nil
+				return
 			}
 			known[abs] = true
 			t.list(u, abs)
 			n++
-			return nil
 		})
 	}
 	return n
@@ -262,7 +258,7 @@ func (t *convTab) build(u *ui, tab *TFrameWidget) *TFrameWidget {
 	actions := tab.TFrame()
 	Grid(actions, Row(0), Column(0), Sticky("w"))
 	openDir := actions.TButton(Txt(T("btn.open_folder")), Command(func() {
-		if p := u.openFolder(); p != "" {
+		if p := u.openFolder(true); p != "" {
 			u.followInput(t.conv.id, []string{p})
 			t.addAndShow(u, []string{p})
 		}
@@ -802,17 +798,14 @@ func (u *ui) dropPaths(paths []string) {
 		if st, err := os.Stat(p); err == nil && st.IsDir() {
 			hasDir = true
 		}
-		filepath.WalkDir(p, func(path string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
-				return nil
-			}
+		walkFiles(p, u.cfg.Subfolders, func(path string) {
 			if cur != nil && (cur.accepts(path) || cur.conv.anyExt) {
 				perTab[cur] = append(perTab[cur], path)
-				return nil
+				return
 			}
 			if isGameFile(path) {
 				hasGame = true
-				return nil
+				return
 			}
 			for _, t := range u.tabs {
 				if t.accepts(path) && (t.conv.drop == nil || t.conv.drop(path)) {
@@ -820,7 +813,6 @@ func (u *ui) dropPaths(paths []string) {
 					break
 				}
 			}
-			return nil
 		})
 	}
 	var got []string

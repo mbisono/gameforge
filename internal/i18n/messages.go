@@ -277,6 +277,13 @@ var messages = map[string]msg{
 		"Vérifier après l'écriture",
 		"Verificar después de escribir",
 	},
+	"opt.subfolders": {
+		"Include subfolders",
+		"Incluir subpastas",
+		"Unterordner einbeziehen",
+		"Inclure les sous-dossiers",
+		"Incluir subcarpetas",
+	},
 	"status.verifying": {
 		"Verifying %s — %s / %s",
 		"Verificando %s — %s / %s",

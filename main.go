@@ -196,11 +196,14 @@ func setTkLanguage() {
 // folder list, which clears the selection first. The selected folder is
 // now shown in the path field and returned by OK.
 //
+// The folder dialog gets an "Include subfolders" box under "Show hidden
+// folders", shown only when a folder is opened to add its files.
+//
 // On Windows the directory menu lists all drives: it only offered the
 // current path and its parents, so another drive could not be reached.
 func patchDialogs() {
 	eval.Eval(`
-foreach p {::tk::dialog::file::ListBrowse ::tk::dialog::file::chooseDir::OkCmd} {
+foreach p {::tk::dialog::file::ListBrowse ::tk::dialog::file::chooseDir::OkCmd ::tk::dialog::file::Create} {
 	if {[info procs $p] eq ""} {auto_load $p}
 }
 if {![string match *gameforge-folder* [info body ::tk::dialog::file::ListBrowse]]} {
@@ -231,6 +234,21 @@ if {![string match *gameforge-folder* [info body ::tk::dialog::file::chooseDir::
 			return
 		}
 		::tk::dialog::file::chooseDir::OkCmdTk $w
+	}
+}
+if {![string match *gameforge-subfolders* [info body ::tk::dialog::file::Create]]} {
+	catch {rename ::tk::dialog::file::CreateTk {}}
+	rename ::tk::dialog::file::Create ::tk::dialog::file::CreateTk
+	proc ::tk::dialog::file::Create {w class} {
+		# gameforge-subfolders
+		::tk::dialog::file::CreateTk $w $class
+		if {$class ne "TkChooseDir"} return
+		foreach v {::gameforge_subfolders ::gameforge_subfolders_btn ::gameforge_subfolders_text} {
+			if {![info exists $v]} {set $v 0}
+		}
+		set b [ttk::checkbutton $w.contents.f2.gfsub -text $::gameforge_subfolders_text -variable ::gameforge_subfolders]
+		grid $b -row 2 -column 0 -columnspan 2 -padx 3p -sticky ew
+		if {!$::gameforge_subfolders_btn} {grid remove $b}
 	}
 }`)
 	if runtime.GOOS != "windows" {
@@ -354,7 +372,7 @@ func (u *ui) build() {
 	Bind(u.outEntry, "<FocusOut>", Command(saveOut))
 	Grid(u.outEntry, Row(0), Column(1), edges, pad)
 	outBtn := opts.TButton(Txt(T("btn.browse")), Command(func() {
-		if p := u.openFolder(); p != "" {
+		if p := u.openFolder(false); p != "" {
 			u.setOutputDir(u.outTab, p, true)
 		}
 	}))
@@ -441,7 +459,7 @@ func (u *ui) buildSwitchTab(tab *TFrameWidget) *TFrameWidget {
 	actions := tab.TFrame()
 	Grid(actions, Row(2), Column(0), Sticky("w"))
 	openDir := actions.TButton(Txt(T("btn.open_folder")), Command(func() {
-		if p := u.openFolder(); p != "" {
+		if p := u.openFolder(true); p != "" {
 			u.followInput("switch", []string{p})
 			u.addPaths([]string{p}, true)
 		}
@@ -1016,26 +1034,54 @@ func (u *ui) openFile(types []FileType, startDir string, remember bool) string {
 }
 
 // openFolder asks for a folder, starting in and remembering the last one.
-func (u *ui) openFolder() string {
+// With input (a folder to add files from) the dialog has an "Include
+// subfolders" box, so Tk's own dialog is used: the system dialogs take no
+// extra controls.
+func (u *ui) openFolder(input bool) string {
 	opts := []string{"-parent", ".", "-title", T("app.title"), "-mustexist", "1"}
 	if u.cfg.LastDir != "" {
 		opts = append(opts, "-initialdir", u.cfg.LastDir)
 	}
 	cmd := "tk_chooseDirectory"
-	if !nativeDialogs() {
+	if input || !nativeDialogs() {
 		cmd = "::tk::dialog::file::chooseDir::"
 		tcl("auto_load", cmd)
 		patchDialogs()
 	}
 	u.prepareDialog()
+	tcl("set", subfoldersBtnVar, tclBool(input))
+	tcl("set", subfoldersVar, tclBool(u.cfg.Subfolders))
+	tcl("set", subfoldersTextVar, T("opt.subfolders"))
+	eval.Eval(showSubfoldersTcl)
 	p := filepath.FromSlash(tcl(append([]string{cmd}, opts...)...))
 	u.rememberHidden()
+	if sub := tcl("set", subfoldersVar) == "1"; input && p != "" && sub != u.cfg.Subfolders {
+		u.cfg.Subfolders = sub
+		u.saveConfig()
+	}
 	if p != "" {
 		u.cfg.LastDir = p
 		u.saveConfig()
 	}
 	return p
 }
+
+// The "Include subfolders" box of the folder dialog: shown when
+// subfoldersBtnVar is 1, checked when subfoldersVar is 1.
+const (
+	subfoldersBtnVar  = "::gameforge_subfolders_btn"
+	subfoldersVar     = "::gameforge_subfolders"
+	subfoldersTextVar = "::gameforge_subfolders_text"
+)
+
+// showSubfoldersTcl shows or hides the box in a folder dialog made before;
+// a new one gets it from the Create wrapper in patchDialogs.
+const showSubfoldersTcl = `
+set b .__tk_choosedir.contents.f2.gfsub
+if {[winfo exists $b]} {
+	$b configure -text $::gameforge_subfolders_text
+	if {$::gameforge_subfolders_btn} {grid $b} else {grid remove $b}
+}`
 
 // outputDir returns the output folder of a tab ("switch" or a converter
 // id); "" writes each result next to its file. Tabs without one of their
@@ -1152,7 +1198,8 @@ func (u *ui) clearList() {
 	u.refreshList()
 }
 
-// addPaths adds NSP files, scanning directories recursively. With replace
+// addPaths adds NSP files, scanning folders (and, with the option, their
+// subfolders). With replace
 // the current list and the log are cleared first, so logs of different
 // folders do not mix.
 func (u *ui) addPaths(paths []string, replace bool) {
@@ -1173,15 +1220,14 @@ func (u *ui) addPaths(paths []string, replace bool) {
 	}
 	var added []string
 	for _, p := range paths {
-		filepath.WalkDir(p, func(path string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() || !isGameFile(path) {
-				return nil
+		walkFiles(p, u.cfg.Subfolders, func(path string) {
+			if !isGameFile(path) {
+				return
 			}
 			if abs, err := filepath.Abs(path); err == nil && !known[abs] {
 				known[abs] = true
 				added = append(added, abs)
 			}
-			return nil
 		})
 	}
 	if len(added) == 0 {
@@ -1190,6 +1236,24 @@ func (u *ui) addPaths(paths []string, replace bool) {
 	}
 	u.paths = append(u.paths, added...)
 	u.analyze(added)
+}
+
+// walkFiles calls fn for root if it is a file, or for the files in the
+// folder root; with sub also for those in its subfolders.
+func walkFiles(root string, sub bool, fn func(path string)) {
+	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if !sub && path != root {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		fn(path)
+		return nil
+	})
 }
 
 // gameExts are the file types the app reads: NSP, NSZ (compressed NSP) and

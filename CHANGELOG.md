@@ -2,6 +2,11 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.20.1] - 2026-11-23
+
+### Changed
+- Opened and dropped folders add only their own files. The new **Include subfolders** box in the folder dialog of **Open folder…**, off by default, adds the files in their subfolders too, as before; dropped folders follow its last state. **Open folder…** now always uses the app's own folder dialog, which has the box.
+
 ## [2.20.0] - 2026-11-23
 
 ### Added
@@ -243,6 +248,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.20.1]: https://github.com/tschertel/gameforge/releases/tag/v2.20.1
 [2.20.0]: https://github.com/tschertel/gameforge/releases/tag/v2.20.0
 [2.19.0]: https://github.com/tschertel/gameforge/releases/tag/v2.19.0
 [2.18.0]: https://github.com/tschertel/gameforge/releases/tag/v2.18.0

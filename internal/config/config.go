@@ -40,6 +40,9 @@ type Config struct {
 	// Level is the NSZ compression level: "fast", "normal" (default) or "max".
 	Level      string `json:"level"`
 	SkipVerify bool   `json:"skip_verify"`
+	// Subfolders makes opened and dropped folders add the files in their
+	// subfolders too; by default only the folder's own files are added.
+	Subfolders bool `json:"subfolders,omitempty"`
 	// ApplyUpdate builds one patched base game (for emulators) instead of
 	// keeping base, update and DLC as separate titles.
 	ApplyUpdate bool `json:"apply_update"`
