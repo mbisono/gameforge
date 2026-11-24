@@ -82,7 +82,7 @@ func TestGDROMInfo(t *testing.T) {
 			t.Errorf("%s: %+v (%v)", name, got, err)
 		}
 		out := filepath.Join(dir, name+".chd")
-		convert := chd.ConvertCue
+		convert := chd.ConvertImage
 		if name == "gdi" {
 			convert = chd.ConvertGDI
 		}

@@ -228,6 +228,12 @@ func (c *Config) fillDefaults() {
 }
 
 func loadOrCreate(path string) (*Config, error) {
+	// Temporary files of saves that were cut off (see Save).
+	if left, _ := filepath.Glob(path + ".*.tmp"); len(left) > 0 {
+		for _, f := range left {
+			os.Remove(f)
+		}
+	}
 	c := &Config{path: path}
 	c.fillDefaults()
 	b, err := os.ReadFile(path)
@@ -241,7 +247,9 @@ func loadOrCreate(path string) (*Config, error) {
 		return nil, err
 	}
 	if err := json.Unmarshal(b, c); err != nil {
-		// Readable but invalid: use defaults here; the next save repairs it.
+		// Readable but invalid: keep it as .bad, since the next save writes
+		// the defaults, and use the defaults here.
+		os.Rename(path, path+".bad")
 		d := &Config{path: path}
 		d.fillDefaults()
 		return d, err
@@ -262,6 +270,25 @@ func (c *Config) Save() error {
 	if err != nil {
 		return err
 	}
-	// Readable by the user only: it may hold the RetroAchievements key.
-	return os.WriteFile(c.path, append(b, '\n'), 0o600)
+	// Written to a temporary file (readable by the user only, as it may
+	// hold the RetroAchievements key) that then replaces the old one, so an
+	// interrupted save leaves the old file, not half a new one.
+	f, err := os.CreateTemp(filepath.Dir(c.path), filepath.Base(c.path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(append(b, '\n'))
+	if err == nil {
+		err = f.Sync()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(f.Name(), c.path)
+	}
+	if err != nil {
+		os.Remove(f.Name())
+	}
+	return err
 }

@@ -4,10 +4,8 @@ package nx
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"io"
-	"os"
 
 	"gameforge/internal/i18n"
 )
@@ -71,7 +69,7 @@ type PFS0Source struct {
 	Size   int64
 }
 
-// PFS0HeaderSize returns the size of the header WritePFS0 will produce.
+// PFS0HeaderSize returns the size of the header BuildPFS0Header makes.
 func PFS0HeaderSize(files []PFS0Source) int64 {
 	return int64(len(BuildPFS0Header(files)))
 }
@@ -107,56 +105,4 @@ func BuildPFS0Header(files []PFS0Source) []byte {
 		dataOff += uint64(f.Size)
 	}
 	return append(buf, strTable...)
-}
-
-// WritePFS0 writes a PFS0 containing files to w, streaming file contents.
-// progress (optional) is called with the number of bytes written so far.
-func WritePFS0(ctx context.Context, w io.Writer, files []PFS0Source, progress func(written int64)) error {
-	hdr := BuildPFS0Header(files)
-	if _, err := w.Write(hdr); err != nil {
-		return err
-	}
-	written := int64(len(hdr))
-
-	handles := map[string]*os.File{}
-	defer func() {
-		for _, f := range handles {
-			f.Close()
-		}
-	}()
-
-	buf := make([]byte, 4<<20)
-	for _, src := range files {
-		f, ok := handles[src.Path]
-		if !ok {
-			var err error
-			if f, err = os.Open(src.Path); err != nil {
-				return err
-			}
-			handles[src.Path] = f
-		}
-		r := io.NewSectionReader(f, src.Offset, src.Size)
-		for {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			n, err := r.Read(buf)
-			if n > 0 {
-				if _, werr := w.Write(buf[:n]); werr != nil {
-					return werr
-				}
-				written += int64(n)
-				if progress != nil {
-					progress(written)
-				}
-			}
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return i18n.Errorf("err.pfs0.read_file", src.Name, src.Path, err)
-			}
-		}
-	}
-	return nil
 }

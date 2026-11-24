@@ -61,6 +61,7 @@ func (t *convTab) trimNDS(u *ui, untrim bool) {
 	enable(u.cancelBtn, true)
 	u.separate()
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		var before, after int64
 		changed := 0

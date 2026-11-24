@@ -37,7 +37,7 @@ func rom(used, size int, dsi bool) []byte {
 	for i, c := range title {
 		binary.LittleEndian.PutUint16(en[2*i:], c)
 	}
-	binary.LittleEndian.PutUint16(b[0x15E:], crc16(b[:0x15E]))
+	binary.LittleEndian.PutUint16(b[0x15E:], CRC16(b[:0x15E]))
 	return b
 }
 

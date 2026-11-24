@@ -70,6 +70,7 @@ func (u *ui) startDownloadDB(then func()) {
 	old := u.db
 
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		db, err := titledb.Download(ctx, old, func(file string, done, total int64) {
 			totalText := "?"

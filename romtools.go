@@ -66,6 +66,7 @@ func (t *convTab) runROMJob(u *ui, job romJob) {
 	u.separate()
 	type move struct{ from, to string }
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		var moves []move
 		done := map[string]bool{}

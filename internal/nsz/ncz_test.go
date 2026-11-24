@@ -134,7 +134,8 @@ func TestSolidDecompress(t *testing.T) {
 	plain := append([]byte(nil), nca[HeaderSize:]...)
 	applyCTR(secs, HeaderSize, plain)
 	enc, _ := zstd.NewWriter(nil)
-	ncz := append(append(append([]byte(nil), nca[:HeaderSize]...), encodeSections(secs)...), enc.EncodeAll(plain, nil)...)
+	z := enc.EncodeAll(plain, nil)
+	ncz := append(append(append([]byte(nil), nca[:HeaderSize]...), encodeSections(secs)...), z...)
 
 	var out bytes.Buffer
 	if err := Decompress(context.Background(), bytes.NewReader(ncz), 0, int64(len(ncz)), &out); err != nil {
@@ -142,6 +143,13 @@ func TestSolidDecompress(t *testing.T) {
 	}
 	if !bytes.Equal(out.Bytes(), nca) {
 		t.Fatal("solid NCZ not restored")
+	}
+
+	// A cut-off stream must fail, not give a short NCA.
+	cut := ncz[:len(ncz)-len(z)/2]
+	out.Reset()
+	if err := Decompress(context.Background(), bytes.NewReader(cut), 0, int64(len(cut)), &out); err == nil {
+		t.Fatalf("truncated solid NCZ gave %d bytes and no error", out.Len())
 	}
 }
 

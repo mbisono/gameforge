@@ -9,7 +9,7 @@
 
 ![A aba Nintendo Switch](docs/images/pt-BR/switch.png)
 
-Versão atual: **2.20.2**. [Download](#download) · [Guia completo](docs/GUIDE.pt-BR.md) · [Novidades](CHANGELOG.md)
+Versão atual: **2.20.3**. [Download](#download) · [Guia completo](docs/GUIDE.pt-BR.md) · [Novidades](CHANGELOG.md)
 
 ## O que ele faz
 

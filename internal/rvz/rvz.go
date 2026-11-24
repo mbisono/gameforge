@@ -12,6 +12,7 @@
 package rvz
 
 import (
+	"bufio"
 	"context"
 	"crypto/sha1"
 	"encoding/binary"
@@ -292,7 +293,7 @@ func CompressReader(ctx context.Context, src io.ReaderAt, size int64, out string
 			os.Remove(tmp)
 		}
 	}()
-	w := newBufWriter(f)
+	w := bufio.NewWriterSize(f, 4<<20)
 	pos := int64(head1Size + head2Size + len(l.parts)*partSize)
 	w.Write(make([]byte, pos))
 
@@ -682,6 +683,10 @@ func (r *Reader) init() error {
 	if err != nil {
 		return err
 	}
+	st, err := r.f.Stat()
+	if err != nil {
+		return err
+	}
 	r.groups = make([]rvzGroup, nGroups)
 	for i := range r.groups {
 		e := g[i*groupSize:]
@@ -691,6 +696,9 @@ func (r *Reader) init() error {
 			size:       s &^ 0x80000000,
 			compressed: s&0x80000000 != 0 && r.compr == comprZstd,
 			packedSize: binary.BigEndian.Uint32(e[8:]),
+		}
+		if g := r.groups[i]; g.size > 0 && g.off+int64(g.size) > st.Size() {
+			return errors.New("invalid RVZ group entries")
 		}
 	}
 	sort.Slice(r.regions, func(i, j int) bool { return r.regions[i].start < r.regions[j].start })
@@ -982,7 +990,7 @@ func Decompress(ctx context.Context, in, out string, progress func(done, total i
 	if err != nil {
 		return nil, err
 	}
-	bw := newBufWriter(f)
+	bw := bufio.NewWriterSize(f, 4<<20)
 	sum, err := decode(ctx, in, bw, progress)
 	if err == nil {
 		err = bw.Flush()

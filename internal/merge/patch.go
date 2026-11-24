@@ -593,10 +593,15 @@ func writePatchedProgram(ctx context.Context, hw *hashWriter, c *patchContent, k
 				return err
 			}
 		}
-		if pad := s.size - s.virtSize; pad > 0 {
-			if err := emit(s.start+s.virtSize, make([]byte, pad)); err != nil {
+		// The padding after the section, in pieces (emit encrypts in place,
+		// so each piece is cleared again).
+		for k, pad := int64(0), s.size-s.virtSize; k < pad; {
+			m := min(int64(len(buf)), pad-k)
+			clear(buf[:m])
+			if err := emit(s.start+s.virtSize+k, buf[:m]); err != nil {
 				return err
 			}
+			k += m
 		}
 	}
 
@@ -610,12 +615,11 @@ func writePatchedProgram(ctx context.Context, hw *hashWriter, c *patchContent, k
 		if s.reloc == nil || s.fs[3] != 3 {
 			continue
 		}
-		err := verifyIVFC(ctx, io.NewSectionReader(plain, s.start, s.size), s.fs)
-		if err != nil {
-			logf(i18n.M("log.ivfc_fail", err))
-		} else {
-			logf(i18n.M("log.ivfc_ok"))
+		// A failure fails the merge, so the broken file is removed.
+		if err := verifyIVFC(ctx, io.NewSectionReader(plain, s.start, s.size), s.fs); err != nil {
+			return i18n.Errorf("err.ivfc", err)
 		}
+		logf(i18n.M("log.ivfc_ok"))
 	}
 	return nil
 }

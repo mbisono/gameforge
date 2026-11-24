@@ -60,12 +60,7 @@ func (u *ui) askRAKey() bool {
 	f := top.TFrame(Padding("5m 4m"))
 	Grid(f, Row(0), Column(0), Sticky("news"))
 	Grid(f.TLabel(Txt(T("ra.key_text")), Wraplength("110m"), Justify("left")), Row(0), Column(0), Columnspan(3), Sticky("w"))
-	tcl("catch", "font create GameForgeLink {*}[font configure TkDefaultFont] -underline 1")
-	color := "#0b5cad"
-	if darkTheme {
-		color = "#6cb6ff"
-	}
-	link := f.TLabel(Txt(raSettingsURL), Foreground(color), Font("GameForgeLink"), Cursor("hand2"))
+	link := f.TLabel(Txt(raSettingsURL), Foreground(linkColor()), Font("GameForgeLink"), Cursor("hand2"))
 	Bind(link, "<Button-1>", Command(func() { openURL(raSettingsURL) }))
 	Grid(link, Row(1), Column(0), Columnspan(3), Sticky("w"), Pady("2m"))
 	entry := f.TEntry(Textvariable(u.cfg.RAKey), Show("•"), Width(44))
@@ -166,6 +161,7 @@ func (u *ui) downloadRA(consoles []int, then func()) {
 	u.setBusy(true)
 	enable(u.cancelBtn, true)
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		i := 0
 		db, err := retroach.Download(ctx, old, key, consoles, func(c int) {
@@ -338,6 +334,7 @@ func (u *ui) runRACheck(jobs []raJob) {
 	db := u.raDB()
 	u.logf("ra.start", len(jobs))
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		found := 0
 		var rows []raRow

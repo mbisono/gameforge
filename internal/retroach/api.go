@@ -1,20 +1,18 @@
 package retroach
 
 import (
-	"compress/gzip"
 	"context"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"gameforge/internal/cachefile"
 )
 
 // FileName is the name of the cache file.
@@ -50,43 +48,16 @@ type DB struct {
 
 // Load reads the cache file; the error wraps os.ErrNotExist if there is none.
 func Load(path string) (*DB, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	zr, err := gzip.NewReader(f)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
-	}
 	db := &DB{}
-	if err := gob.NewDecoder(zr).Decode(db); err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+	if err := cachefile.Load(path, db); err != nil {
+		return nil, err
 	}
 	db.build()
 	return db, nil
 }
 
 // Save writes the cache file, replacing an old one only once complete.
-func (db *DB) Save(path string) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), FileName+".*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name())
-	zw := gzip.NewWriter(tmp)
-	err = gob.NewEncoder(zw).Encode(db)
-	if err == nil {
-		err = zw.Close()
-	}
-	if cerr := tmp.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), path)
-}
+func (db *DB) Save(path string) error { return cachefile.Save(path, db) }
 
 // New makes a database of lists by console (for tests and tools).
 func New(lists map[int]*List) *DB {

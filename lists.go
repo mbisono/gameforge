@@ -27,7 +27,7 @@ type oldList struct {
 // the age at which their status says so.
 func (u *ui) oldLists() []oldList {
 	var out []oldList
-	if db := u.noIntroDB(); db != nil && len(db.Lists) > 0 && time.Since(db.Downloaded) > redumpMaxAge {
+	if db := u.noIntroDB(); db != nil && len(db.Lists) > 0 && time.Since(db.Oldest()) > redumpMaxAge {
 		var systems []string
 		for s := range db.Lists {
 			systems = append(systems, s)
@@ -35,7 +35,7 @@ func (u *ui) oldLists() []oldList {
 		slices.Sort(systems)
 		out = append(out, oldList{T("lists.nointro", len(systems)), func(then func()) { u.downloadNoIntro(systems, then) }})
 	}
-	if db := u.redumpDB(); db != nil && len(db.Lists) > 0 && time.Since(db.Downloaded) > redumpMaxAge {
+	if db := u.redumpDB(); db != nil && len(db.Lists) > 0 && time.Since(db.Oldest()) > redumpMaxAge {
 		var platforms []string
 		for p := range db.Lists {
 			platforms = append(platforms, p)
@@ -43,7 +43,7 @@ func (u *ui) oldLists() []oldList {
 		slices.Sort(platforms)
 		out = append(out, oldList{T("lists.redump", len(platforms)), func(then func()) { u.downloadRedump(platforms, then) }})
 	}
-	if db := u.arcadeLists(); db != nil && time.Since(db.Downloaded) > redumpMaxAge {
+	if db := u.arcadeLists(); db != nil && len(db.Lists) > 0 && time.Since(db.Oldest()) > redumpMaxAge {
 		var ids, names []string
 		for _, e := range arcade.Emulators() {
 			if db.Has(e.ID) {

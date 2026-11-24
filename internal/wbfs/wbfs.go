@@ -40,18 +40,6 @@ type Reader struct {
 	head    [256]byte
 }
 
-// IsWBFS tells whether a file starts like a WBFS image.
-func IsWBFS(path string) bool {
-	f, err := os.Open(path)
-	if err != nil {
-		return false
-	}
-	defer f.Close()
-	b := make([]byte, 4)
-	_, err = io.ReadFull(f, b)
-	return err == nil && string(b) == "WBFS"
-}
-
 // Parts lists the files of a WBFS image: path, then path with .wbf1,
 // .wbf2… as long as they exist.
 func Parts(path string) []string {

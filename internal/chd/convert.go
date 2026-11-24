@@ -18,16 +18,6 @@ type Result struct {
 	Tracks     int // CD tracks; 0 for a DVD
 }
 
-// ConvertCue writes the disc of a CUE sheet as a CD CHD, as chdman createcd
-// does (codecs cdlz, cdzl and cdfl).
-func ConvertCue(ctx context.Context, cuePath, outPath string, opt Options) (*Result, error) {
-	tracks, err := ParseCue(cuePath)
-	if err != nil {
-		return nil, err
-	}
-	return convertTracks(ctx, tracks, outPath, opt)
-}
-
 // ConvertISOAsCD writes a 2048-byte sector image as a CD CHD with one
 // Mode 1 track, as chdman createcd does with an .iso: for CD games kept
 // as ISO (PS1, PS2 CD games and others).

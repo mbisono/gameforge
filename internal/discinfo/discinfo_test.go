@@ -69,7 +69,7 @@ func TestFromISO(t *testing.T) {
 	}
 }
 
-func TestFromCue(t *testing.T) {
+func TestInfoFromCuePlatform(t *testing.T) {
 	dir := t.TempDir()
 	// A raw Mode 2 data track: 24 bytes before the user data of each sector.
 	iso := isoWith(map[string]string{"SYSTEM.CNF": "BOOT = cdrom:\\SLUS_005.94;1\r\n"}, 40)
@@ -83,8 +83,8 @@ func TestFromCue(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "g.bin"), raw, 0o644)
 	cue := filepath.Join(dir, "g.cue")
 	os.WriteFile(cue, []byte("FILE \"g.bin\" BINARY\n TRACK 01 MODE2/2352\n  INDEX 01 00:00:00\n"), 0o644)
-	if p, err := FromCue(cue); err != nil || p != PS1 {
-		t.Fatalf("got %q %v", p, err)
+	if info, err := InfoFromCue(cue); err != nil || info.Platform != PS1 {
+		t.Fatalf("got %+v %v", info, err)
 	}
 }
 
@@ -94,6 +94,6 @@ func TestRealCue(t *testing.T) {
 	if p == "" {
 		t.Skip()
 	}
-	got, err := FromCue(p)
-	t.Logf("%s: %q %v", filepath.Base(p), got, err)
+	got, err := InfoFromCue(p)
+	t.Logf("%s: %+v %v", filepath.Base(p), got, err)
 }

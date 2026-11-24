@@ -114,15 +114,25 @@ func (u *ui) renameFiles() {
 	u.refreshList()
 }
 
-// renameFile renames a file without replacing another one; a change of
-// case only is allowed.
+// renameFile renames a file without replacing another one. A change of
+// case only is allowed: on Windows and macOS both names are the same file,
+// but on Linux "game.chd" and "Game.chd" can be two files.
 func renameFile(from, to string) error {
-	if !strings.EqualFold(from, to) {
-		if _, err := os.Stat(to); err == nil {
-			return fmt.Errorf("%s: %w", filepath.Base(to), fs.ErrExist)
-		} else if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
+	if err := renameFree(from, to); err != nil {
+		return err
 	}
 	return os.Rename(from, to)
+}
+
+// renameFree tells whether from can be renamed to without replacing
+// another file (see renameFile).
+func renameFree(from, to string) error {
+	if st, err := os.Stat(to); err == nil {
+		if fst, ferr := os.Stat(from); ferr != nil || !strings.EqualFold(from, to) || !os.SameFile(fst, st) {
+			return fmt.Errorf("%s: %w", filepath.Base(to), fs.ErrExist)
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
 }

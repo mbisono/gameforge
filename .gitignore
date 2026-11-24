@@ -40,3 +40,6 @@ redump.cache*
 nointro.cache*
 retroachievements.cache*
 cache/
+
+# Test data made from synthetic data, not a game (see internal/chd/testdata_test.go)
+!internal/chd/testdata/*.chd

@@ -88,7 +88,7 @@ func ReadAt(r io.ReaderAt, size int64) (Info, error) {
 	}
 	// The header's CRC-16 (at 0x15E, of the first 0x15E bytes) tells a DS
 	// ROM from any other file.
-	if crc16(h[:0x15E]) != binary.LittleEndian.Uint16(h[0x15E:]) || h[0x14] > 15 {
+	if CRC16(h[:0x15E]) != binary.LittleEndian.Uint16(h[0x15E:]) || h[0x14] > 15 {
 		return Info{}, ErrNotDS
 	}
 	info := Info{
@@ -170,8 +170,8 @@ func ascii(b []byte) string {
 	return string(b)
 }
 
-// crc16 is the CRC-16 (MODBUS) of the DS header.
-func crc16(b []byte) uint16 {
+// CRC16 is the CRC-16 (MODBUS) of DS headers (and of their logo).
+func CRC16(b []byte) uint16 {
 	crc := uint16(0xFFFF)
 	for _, c := range b {
 		crc ^= uint16(c)

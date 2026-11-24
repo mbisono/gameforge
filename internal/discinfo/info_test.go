@@ -267,7 +267,7 @@ func TestInfoFromCHD(t *testing.T) {
 		t.Errorf("CUE: %+v (%v)", got, err)
 	}
 	out := filepath.Join(dir, "ps1.chd")
-	if _, err := chd.ConvertCue(ctx, cue, out, chd.Options{}); err != nil {
+	if _, err := chd.ConvertImage(ctx, cue, out, chd.Options{}); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := InfoFromCHD(out); err != nil || !reflect.DeepEqual(got, want) {

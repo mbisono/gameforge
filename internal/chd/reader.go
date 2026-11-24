@@ -23,6 +23,7 @@ type Reader struct {
 	SHA1         [sha1.Size]byte
 	Meta         []metadata
 	entries      []mapEntry
+	fileSize     int64
 }
 
 // Open reads the header, metadata and map of a CHD.
@@ -68,6 +69,17 @@ func (r *Reader) init() error {
 	if r.HunkBytes <= 0 || r.HunkBytes > 1<<24 {
 		return errors.New("chd: invalid hunk size")
 	}
+	// Sizes from a damaged header must not decide allocations: at most
+	// 2^26 hunks (a 1 TiB disc at the smallest CD hunk), and no map or
+	// metadata larger than the file.
+	st, err := r.f.Stat()
+	if err != nil {
+		return err
+	}
+	r.fileSize = st.Size()
+	if r.LogicalBytes <= 0 || (r.LogicalBytes+int64(r.HunkBytes)-1)/int64(r.HunkBytes) > 1<<26 {
+		return errors.New("chd: invalid size")
+	}
 
 	for off, n := metaOffset, 0; off != 0; n++ {
 		if n > 1<<16 {
@@ -78,6 +90,9 @@ func (r *Reader) init() error {
 			return fmt.Errorf("chd: reading metadata: %w", err)
 		}
 		length := binary.BigEndian.Uint32(mh[4:]) & 0xffffff
+		if int64(length) > st.Size() {
+			return errors.New("chd: invalid metadata")
+		}
 		data := make([]byte, length)
 		if _, err := r.f.ReadAt(data, off+metaHeaderSize); err != nil {
 			return fmt.Errorf("chd: reading metadata: %w", err)
@@ -90,12 +105,15 @@ func (r *Reader) init() error {
 	if _, err := r.f.ReadAt(mh[:], mapOffset); err != nil {
 		return fmt.Errorf("chd: reading map: %w", err)
 	}
-	data := make([]byte, binary.BigEndian.Uint32(mh[0:]))
+	mapLen := int64(binary.BigEndian.Uint32(mh[0:]))
+	if mapLen > st.Size() {
+		return errors.New("chd: invalid map")
+	}
+	data := make([]byte, mapLen)
 	if _, err := r.f.ReadAt(data, mapOffset+mapHeaderSize); err != nil {
 		return fmt.Errorf("chd: reading map: %w", err)
 	}
 	hunks := int((r.LogicalBytes + int64(r.HunkBytes) - 1) / int64(r.HunkBytes))
-	var err error
 	r.entries, err = decodeMap(mh[:], data, hunks, uint32(r.HunkBytes))
 	return err
 }
@@ -116,6 +134,11 @@ func (r *Reader) ReadHunk(n int, dst []byte) error {
 		n = int(e.offset)
 	}
 	e := r.entries[n]
+	// A damaged map must not decide the allocation: the data lies inside
+	// the file, and compressed data is never larger than the hunk.
+	if int64(e.offset)+int64(e.length) > r.fileSize || int64(e.length) > 2*int64(r.HunkBytes) {
+		return fmt.Errorf("chd: hunk %d: invalid map entry", n)
+	}
 	src := make([]byte, e.length)
 	if _, err := r.f.ReadAt(src, int64(e.offset)); err != nil && !(err == io.EOF && len(src) == 0) {
 		return fmt.Errorf("chd: hunk %d: %w", n, err)

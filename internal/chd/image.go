@@ -85,9 +85,6 @@ func (img *Image) Size() int64 { return img.size }
 // Close closes the file.
 func (img *Image) Close() error { return img.f.Close() }
 
-// ECM reports whether the file is decoded from ECM.
-func (img *Image) ECM() bool { return img.ecm != nil }
-
 // ReadAt reads the image's data.
 func (img *Image) ReadAt(p []byte, off int64) (int, error) {
 	if img.ecm == nil {

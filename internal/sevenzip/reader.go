@@ -308,10 +308,12 @@ func (p *parser) num() uint64 {
 	return v
 }
 
-// count reads a number of items, refusing absurd values.
+// count reads a number of items, refusing absurd values: more than the
+// rest of the header could describe (one bit each, as in a bit vector)
+// would only size allocations from a damaged header.
 func (p *parser) count() int {
 	v := p.num()
-	if v > 1<<24 {
+	if v > 1<<24 || v > uint64(len(p.b))*8+8 {
 		p.err = errFormat
 		return 0
 	}

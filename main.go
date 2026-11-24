@@ -278,6 +278,23 @@ if {![string match *gameforge-drives* [info body ::tk::dialog::file::Update]]} {
 }`)
 }
 
+// recoverPanic, deferred in background jobs, turns a panic (a bug, or a
+// file a parser does not expect) into a log line and frees the window,
+// instead of closing the app with everything in it.
+func (u *ui) recoverPanic() {
+	p := recover()
+	if p == nil {
+		return
+	}
+	u.logf("log.panic", "GameForge", p)
+	onGUI(func() {
+		u.flush()
+		u.cancelMerge = nil
+		enable(u.cancelBtn, false)
+		u.setBusy(false)
+	})
+}
+
 // nativeDialogs reports whether the system file dialogs can be used: on
 // Windows they always use the system language, so when the interface is in
 // another language Tk's own (translated) dialogs are used instead.
@@ -1280,6 +1297,7 @@ func (u *ui) analyze(paths []string) {
 	u.setBusy(true)
 	keys := u.keys
 	go func() {
+		defer u.recoverPanic()
 		u.analyzeMu.Lock()
 		defer u.analyzeMu.Unlock()
 		var results []*merge.NSP
@@ -1486,6 +1504,7 @@ func (u *ui) startMerge() {
 	enable(u.cancelBtn, true)
 
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		ok := 0
 		for i, g := range games {
@@ -1579,6 +1598,7 @@ func (u *ui) startCheck(path string) {
 	keys := u.keys
 
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		start := time.Now()
 		progress := func(done, total int64) {

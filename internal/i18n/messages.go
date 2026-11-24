@@ -385,12 +385,12 @@ var messages = map[string]msg{
 		"    ✓ Intégrité du RomFS vérifiée (arbre de hachage IVFC)",
 		"    ✓ Integridad del RomFS verificada (árbol de hashes IVFC)",
 	},
-	"log.ivfc_fail": {
-		"    ⚠ RomFS integrity check failed (%v) — the patched game may not work",
-		"    ⚠ Falha na verificação de integridade do RomFS (%v) — o jogo pode não funcionar",
-		"    ⚠ RomFS-Integritätsprüfung fehlgeschlagen (%v) — das Spiel funktioniert evtl. nicht",
-		"    ⚠ Échec de la vérification d'intégrité du RomFS (%v) — le jeu risque de ne pas fonctionner",
-		"    ⚠ Falló la verificación de integridad del RomFS (%v) — el juego puede no funcionar",
+	"err.ivfc": {
+		"RomFS integrity check failed (%v): the patched game would not work",
+		"falha na verificação de integridade do RomFS (%v): o jogo com a atualização não funcionaria",
+		"RomFS-Integritätsprüfung fehlgeschlagen (%v): das gepatchte Spiel würde nicht funktionieren",
+		"échec de la vérification d'intégrité du RomFS (%v) : le jeu patché ne fonctionnerait pas",
+		"falló la comprobación de integridad del RomFS (%v): el juego parcheado no funcionaría",
 	},
 	"err.patch_needs_keys": {
 		"applying an update requires prod.keys",
@@ -752,6 +752,20 @@ var messages = map[string]msg{
 		"personalisiertes (konsolengebundenes) Ticket nicht unterstützt",
 		"ticket personnalisé (lié à la console) non pris en charge",
 		"ticket personalizado (vinculado a la consola) no compatible",
+	},
+	"log.panic": {
+		"✗ %s: internal error (%v). Please report it at https://github.com/tschertel/gameforge/issues",
+		"✗ %s: erro interno (%v). Por favor, relate em https://github.com/tschertel/gameforge/issues",
+		"✗ %s: interner Fehler (%v). Bitte melden unter https://github.com/tschertel/gameforge/issues",
+		"✗ %s : erreur interne (%v). Merci de la signaler sur https://github.com/tschertel/gameforge/issues",
+		"✗ %s: error interno (%v). Por favor, infórmalo en https://github.com/tschertel/gameforge/issues",
+	},
+	"chd.archive_tmp_left": {
+		"    ⚠ The temporary folder %s could not be removed (%v); a conversion from an archive into this folder removes it after a day",
+		"    ⚠ Não foi possível remover a pasta temporária %s (%v); uma conversão de arquivo compactado para esta pasta a remove depois de um dia",
+		"    ⚠ Der temporäre Ordner %s konnte nicht entfernt werden (%v); eine Umwandlung aus einem Archiv in diesen Ordner entfernt ihn nach einem Tag",
+		"    ⚠ Le dossier temporaire %s n'a pas pu être supprimé (%v) ; une conversion d'archive vers ce dossier le supprimera après un jour",
+		"    ⚠ No se pudo eliminar la carpeta temporal %s (%v); una conversión de archivo comprimido a esta carpeta la eliminará pasado un día",
 	},
 	"err.ncz.format": {
 		"invalid or corrupt NCZ file",

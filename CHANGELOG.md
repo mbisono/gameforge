@@ -2,6 +2,28 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.20.3] - 2026-11-24
+
+### Fixed
+- An NSZ whose compressed data is cut off (a solid NCZ, for example from an interrupted download) is reported as corrupt; before, it became a shorter NCA in the NSP and the verification still passed.
+- `gameforge.json` is saved to a temporary file that then replaces it, so an interrupted save no longer leaves a broken file whose settings were then reset; a file that cannot be read is kept as `gameforge.json.bad`. On Linux and macOS the file is now readable by its owner only also when an older version created it.
+- Two files with the same output name (`Game.gb` and `Game.zip` both become `Game.7z`) are no longer converted at the same time; the second one is skipped as existing.
+- A damaged file that made a reader fail unexpectedly (for example a CHD whose header gives an impossible size) no longer closes the app: that file fails, with its error in the log, and the others go on.
+- On Linux, renaming a file to a name that differs only in upper and lower case no longer replaces another file with that name.
+- On Windows, a file that cannot go to the Recycle Bin (larger than it, or on a drive without one) is no longer deleted for good without asking: Windows asks first, and No keeps it.
+- 1G1R no longer takes the discs of one game for versions of it: `(Disc 1)`, `(Disc 2)`, `(Side B)` and the like are each kept.
+- A failed RomFS check of a game with the update applied fails the merge (the file is removed) instead of only being logged.
+- 7z archives and the files extracted from CHDs are written as `.part` files and named once complete and checked, so an interrupted run no longer leaves a file that looks complete and is then skipped as existing.
+- **Rename…** renames none of the files of a split WBFS image (`.wbfs`, `.wbf1`…) or of its saves when one of the new names is taken, instead of renaming some of them.
+- Downloading the list of one console no longer counts the other lists as current: each list keeps its own date, and the oldest one tells whether to offer an update.
+- After compressing to 7z with **Delete the originals after verifying**, the list shows the archives instead of the deleted files.
+- A damaged CHD, CSO, ZSO, RVZ or 7z file can no longer make the app reserve gigabytes of memory from a wrong size in its header.
+- The temporary folder of a disc unpacked from a ZIP or 7z is reported in the log when it cannot be removed, and folders left by earlier runs are removed after a day.
+
+### Changed
+- Less duplicated code: the database caches share one loader, the title database uses the common download code, and some functions only the tests used moved into the tests.
+- The CHD tests also read a small CHD made by chdman from synthetic data, so they no longer depend only on CHDs this app wrote.
+
 ## [2.20.2] - 2026-11-23
 
 ### Fixed
@@ -253,6 +275,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.20.3]: https://github.com/tschertel/gameforge/releases/tag/v2.20.3
 [2.20.2]: https://github.com/tschertel/gameforge/releases/tag/v2.20.2
 [2.20.1]: https://github.com/tschertel/gameforge/releases/tag/v2.20.1
 [2.20.0]: https://github.com/tschertel/gameforge/releases/tag/v2.20.0

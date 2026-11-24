@@ -81,8 +81,8 @@ func (u *ui) showNoIntroStatus() {
 	}
 	var text string
 	switch {
-	case len(have) > 0 && time.Since(db.Downloaded) > redumpMaxAge:
-		text = T("redump.status_old", consoles, newest, int(time.Since(db.Downloaded).Hours()/24))
+	case len(have) > 0 && time.Since(db.Oldest()) > redumpMaxAge:
+		text = T("redump.status_old", consoles, newest, int(time.Since(db.Oldest()).Hours()/24))
 	case len(have) == len(nointro.Systems):
 		text = T("redump.status_all", newest) // short: the row is wide
 	case len(have) > 0:
@@ -166,6 +166,11 @@ func (r romFile) open() func() (io.ReadCloser, error) {
 		return func() (io.ReadCloser, error) {
 			pr, pw := io.Pipe()
 			go func() {
+				defer func() {
+					if p := recover(); p != nil {
+						pw.CloseWithError(fmt.Errorf("internal error: %v", p))
+					}
+				}()
 				_, err := sevenzip.Extract(context.Background(), path, func(name string, size int64) io.Writer {
 					if name == r.inner {
 						return pw
@@ -326,6 +331,7 @@ func (t *convTab) planRomRenames(u *ui, roms []romFile) {
 	u.separate()
 	u.logf("drename.start", len(roms))
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		var plan []discRename
 		for _, r := range roms {

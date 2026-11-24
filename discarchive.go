@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gameforge/internal/chd"
 	"gameforge/internal/i18n"
@@ -135,6 +136,18 @@ func archiveOutName(it *convItem) string {
 	return discStem(it.path) + ext
 }
 
+// removeStaleTemp removes the unpack folders that an earlier run left in
+// dir (after a crash, or when a file in it could not be removed). Only
+// folders a day old: a newer one may belong to a conversion still running.
+func removeStaleTemp(dir string) {
+	old, _ := filepath.Glob(filepath.Join(dir, ".gameforge-*"))
+	for _, p := range old {
+		if st, err := os.Stat(p); err == nil && st.IsDir() && time.Since(st.ModTime()) > 24*time.Hour {
+			os.RemoveAll(p)
+		}
+	}
+}
+
 // convertDiscArchive unpacks a ZIP or 7z into a temporary folder next to
 // the output, converts the disc image inside, and removes the folder.
 func convertDiscArchive(ctx context.Context, u *ui, it *convItem, out string, verify bool,
@@ -143,11 +156,18 @@ func convertDiscArchive(ctx context.Context, u *ui, it *convItem, out string, ve
 	if inner == "" {
 		return 0, 0, errors.New(T("chd.row_archive_none"))
 	}
+	removeStaleTemp(filepath.Dir(out))
 	tmp, err := os.MkdirTemp(filepath.Dir(out), ".gameforge-")
 	if err != nil {
 		return 0, 0, err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() {
+		// It may hold gigabytes: say so if it stays (an antivirus holding
+		// a file, for example); the next run removes it.
+		if err := os.RemoveAll(tmp); err != nil {
+			u.logf("chd.archive_tmp_left", tmp, err)
+		}
+	}()
 	u.logf("chd.archive_unpack", filepath.Base(it.path))
 	if err := unpackArchive(ctx, it.path, tmp, func(done, total int64) { progress(false, done, total) }); err != nil {
 		return 0, 0, err

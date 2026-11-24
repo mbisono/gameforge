@@ -25,8 +25,10 @@ type shFileOp struct {
 
 var shFileOperation = syscall.NewLazyDLL("shell32.dll").NewProc("SHFileOperationW")
 
-// removeOriginal sends a file to the Recycle Bin. Where the drive has no
-// Recycle Bin (some USB and network drives), Windows deletes it.
+// removeOriginal sends a file to the Recycle Bin. When it cannot go there
+// (a file larger than the Recycle Bin, or a drive without one, such as
+// some USB and network drives), Windows asks before deleting it for good;
+// if the user says no, the file stays and an error is returned.
 func removeOriginal(path string) error {
 	from, err := syscall.UTF16FromString(path)
 	if err != nil {
@@ -40,8 +42,9 @@ func removeOriginal(path string) error {
 		fofAllowUndo      = 0x0040
 		fofNoErrorUI      = 0x0400
 		fofNoConfirmMkdir = 0x0200
+		fofWantNukeWarn   = 0x4000 // ask anyway when it would not be recycled
 	)
-	op := shFileOp{op: foDelete, from: &from[0], flags: fofSilent | fofNoConfirm | fofAllowUndo | fofNoErrorUI | fofNoConfirmMkdir}
+	op := shFileOp{op: foDelete, from: &from[0], flags: fofSilent | fofNoConfirm | fofAllowUndo | fofNoErrorUI | fofNoConfirmMkdir | fofWantNukeWarn}
 	r, _, _ := shFileOperation.Call(uintptr(unsafe.Pointer(&op)))
 	if r != 0 {
 		return fmt.Errorf("SHFileOperation error %#x", r)

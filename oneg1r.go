@@ -80,7 +80,7 @@ func regionLabel(r string) string {
 
 // version is what a No-Intro name tells about a version of a game.
 type version struct {
-	title   string   // the game's title, in lower case: the name before its flags
+	title   string   // the game's title, in lower case: the name before its flags, with its disc or side ("(disc 2)")
 	regions []string // in lower case; none if the name has no region
 	rev     int      // revision: 0 for the first release
 	bad     bool     // a beta, prototype, demo, sample, kiosk or pirate version, or a bad dump
@@ -89,6 +89,8 @@ type version struct {
 var (
 	flagRE = regexp.MustCompile(`\(([^)]*)\)|\[([^\]]*)\]`)
 	revRE  = regexp.MustCompile(`^(?:Rev ([0-9]+|[A-Z])|v([0-9]+)(?:\.([0-9]+))?)$`)
+	// partRE: one disc, side or part of a game, a separate file to keep.
+	partRE = regexp.MustCompile(`^(?:Disc|Disk|Side|Part|Tape) `)
 	badRE  = regexp.MustCompile(`^(?:Beta|Proto|Possible Proto|Demo|Sample|Kiosk|Promo|Debug|Pirate|Program)\b`)
 )
 
@@ -117,6 +119,8 @@ func parseVersion(name string) version {
 			v.regions = parts
 		case badRE.MatchString(flag):
 			v.bad = true
+		case partRE.MatchString(flag):
+			v.title += " (" + strings.ToLower(flag) + ")"
 		default:
 			if r := revRE.FindStringSubmatch(flag); r != nil {
 				switch {
@@ -261,6 +265,7 @@ func (u *ui) run1G1R(roms []romFile) {
 	u.separate()
 	u.logf("g1r.start", len(roms), regionText(u.cfg.RegionOrder))
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		var files []g1rFile
 		for i := range roms {

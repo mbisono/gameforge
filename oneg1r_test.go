@@ -18,6 +18,8 @@ func TestParseVersion(t *testing.T) {
 		{"Super Game (USA) [b]", version{title: "super game", regions: []string{"usa"}, bad: true}},
 		{"Super Game (Brazil) (Proto)", version{title: "super game", regions: []string{"brazil"}, bad: true}},
 		{"super game", version{title: "super game"}},
+		{"Final Game (USA) (Disc 2)", version{title: "final game (disc 2)", regions: []string{"usa"}}},
+		{"Disk Game (Japan) (Disk 1 Side B)", version{title: "disk game (disk 1 side b)", regions: []string{"japan"}}},
 	} {
 		got := parseVersion(tc.name)
 		if got.title != tc.want.title || !slices.Equal(got.regions, tc.want.regions) || got.rev != tc.want.rev || got.bad != tc.want.bad {
@@ -43,6 +45,8 @@ func TestG1RGroups(t *testing.T) {
 		file("Game D (Brazil).sfc"),
 		file("Game D (USA, Europe).sfc"),
 		file("random.sfc"),
+		file("Game E (USA) (Disc 1).chd"),
+		file("Game E (USA) (Disc 2).chd"),
 	}
 	regions := regionOrder(defaultRegions)
 	groups, left := g1rGroups(files, regions, keepOrder(defaultKeep))
@@ -51,10 +55,12 @@ func TestG1RGroups(t *testing.T) {
 		kept[g.files[0].version.title] = filepath.Base(g.files[g.keep].item.path)
 	}
 	want := map[string]string{
-		"game a": "Game A (Europe).sfc",      // the USA one is a beta
-		"game b": "Game B (Japan).sfc",       // the only version
-		"game c": "Game C (USA) (Rev 1).7z",  // latest revision, then the 7z
-		"game d": "Game D (USA, Europe).sfc", // USA comes before Brazil
+		"game a":          "Game A (Europe).sfc",       // the USA one is a beta
+		"game b":          "Game B (Japan).sfc",        // the only version
+		"game c":          "Game C (USA) (Rev 1).7z",   // latest revision, then the 7z
+		"game d":          "Game D (USA, Europe).sfc",  // USA comes before Brazil
+		"game e (disc 1)": "Game E (USA) (Disc 1).chd", // each disc is kept
+		"game e (disc 2)": "Game E (USA) (Disc 2).chd",
 	}
 	if len(kept) != len(want) {
 		t.Fatalf("groups %v", kept)

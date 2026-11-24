@@ -69,8 +69,10 @@ import (
 // removes SNES and PC Engine copier headers, 2.20.0 converts Wii WBFS
 // images to RVZ, 2.20.1 reads subfolders of opened folders only with the
 // new "Include subfolders" option, 2.20.2 keeps collapsed Switch games
-// collapsed when the list is redrawn.
-const appVersion = "2.20.2"
+// collapsed when the list is redrawn, 2.20.3 fixes what an audit found:
+// truncated NCZs, config saves, same-name outputs, panics, case-only
+// renames and permanent deletes on Windows.
+const appVersion = "2.20.3"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

@@ -49,3 +49,8 @@ func TestOnline(t *testing.T) {
 		t.Errorf("unknown game: %+v", s)
 	}
 }
+
+// UpToDate reports whether the game has nothing newer or missing.
+func (s OnlineStatus) UpToDate() bool {
+	return s.Known && !s.NewerUpdate() && len(s.Missing) == 0 && len(s.Outdated) == 0
+}

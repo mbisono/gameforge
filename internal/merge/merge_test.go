@@ -10,11 +10,13 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"gameforge/internal/i18n"
 	"gameforge/internal/nx"
 )
 
@@ -87,7 +89,7 @@ func pfs0Bytes(t *testing.T, dir string, files map[string][]byte) []byte {
 	}
 	out := filepath.Join(dir, "tmp.pfs0")
 	f, _ := os.Create(out)
-	if err := nx.WritePFS0(context.Background(), f, srcs, nil); err != nil {
+	if err := writePFS0(context.Background(), f, srcs, nil); err != nil {
 		t.Fatal(err)
 	}
 	f.Close()
@@ -626,4 +628,56 @@ func TestMergeNSZ(t *testing.T) {
 	if len(back) != 6 {
 		t.Errorf("restored NSP has %d entries, want 6", len(back))
 	}
+}
+
+// writePFS0 writes a PFS0 containing files to w, streaming file contents.
+// progress (optional) is called with the number of bytes written so far.
+func writePFS0(ctx context.Context, w io.Writer, files []nx.PFS0Source, progress func(written int64)) error {
+	hdr := nx.BuildPFS0Header(files)
+	if _, err := w.Write(hdr); err != nil {
+		return err
+	}
+	written := int64(len(hdr))
+
+	handles := map[string]*os.File{}
+	defer func() {
+		for _, f := range handles {
+			f.Close()
+		}
+	}()
+
+	buf := make([]byte, 4<<20)
+	for _, src := range files {
+		f, ok := handles[src.Path]
+		if !ok {
+			var err error
+			if f, err = os.Open(src.Path); err != nil {
+				return err
+			}
+			handles[src.Path] = f
+		}
+		r := io.NewSectionReader(f, src.Offset, src.Size)
+		for {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			n, err := r.Read(buf)
+			if n > 0 {
+				if _, werr := w.Write(buf[:n]); werr != nil {
+					return werr
+				}
+				written += int64(n)
+				if progress != nil {
+					progress(written)
+				}
+			}
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return i18n.Errorf("err.pfs0.read_file", src.Name, src.Path, err)
+			}
+		}
+	}
+	return nil
 }

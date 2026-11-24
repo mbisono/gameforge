@@ -126,6 +126,9 @@ func TestConvertAllJobs(t *testing.T) {
 	if len(done) != 7 {
 		t.Fatalf("%d of 7 done", len(done))
 	}
+	if left, _ := filepath.Glob(filepath.Join(dir, "*.part")); len(left) > 0 {
+		t.Fatalf(".part files left: %v", left)
+	}
 	for i, c := range done {
 		if c.item != tab.items[i] {
 			t.Errorf("result %d is %s", i, c.item.path)

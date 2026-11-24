@@ -31,6 +31,22 @@ func TestLoadOrCreate(t *testing.T) {
 	if err == nil || c3 == nil || c3.Language != "auto" || c3.Path() != path {
 		t.Fatalf("invalid file must give defaults at the same path: %+v %v", c3, err)
 	}
+	if b, _ := os.ReadFile(path + ".bad"); string(b) != "{broken" {
+		t.Fatal("the invalid file must be kept as .bad")
+	}
+	if err := c3.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if left, _ := filepath.Glob(path + ".*.tmp"); len(left) > 0 {
+		t.Fatalf("temporary files left: %v", left)
+	}
+	os.WriteFile(path+".123.tmp", []byte("{"), 0o600) // a save cut off
+	if _, err := loadOrCreate(path); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path + ".123.tmp"); err == nil {
+		t.Fatal("the temporary file of a cut-off save must be removed")
+	}
 }
 
 func TestMigrate(t *testing.T) {

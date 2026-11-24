@@ -86,8 +86,8 @@ func (u *ui) showRedumpStatus() {
 	}
 	var text string
 	switch {
-	case len(have) > 0 && time.Since(db.Downloaded) > redumpMaxAge:
-		text = T("redump.status_old", consoles, newest, int(time.Since(db.Downloaded).Hours()/24))
+	case len(have) > 0 && time.Since(db.Oldest()) > redumpMaxAge:
+		text = T("redump.status_old", consoles, newest, int(time.Since(db.Oldest()).Hours()/24))
 	case len(have) == len(redump.Platforms):
 		text = T("redump.status_all", newest) // short: the row is wide
 	case len(have) > 0:
@@ -194,6 +194,7 @@ func (u *ui) runDownload(work func(ctx context.Context, progress datfile.Progres
 	u.setBusy(true)
 	enable(u.cancelBtn, true)
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		apply := work(ctx, func(file string, done, total int64) {
 			totalText := "?"
@@ -233,6 +234,7 @@ func (t *convTab) planRenames(u *ui, items []*convItem) {
 	u.separate()
 	u.logf("drename.start", len(items))
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		var plan []discRename
 		for _, it := range items {
@@ -494,6 +496,18 @@ func (t *convTab) applyRenames(u *ui, plan []discRename) {
 	renamed := map[string]string{} // old path → new path
 	for _, r := range plan {
 		from := r.item.path
+		// The parts of a split image (.wbf1…) must all get the new name,
+		// or the image no longer loads: rename none if one name is taken.
+		var taken error
+		for _, c := range companions(from) {
+			if err := renameFree(c, companionName(c, from, r.to)); err != nil && taken == nil {
+				taken = err
+			}
+		}
+		if taken != nil {
+			u.logf("log.rename_error", filepath.Base(from), taken)
+			continue
+		}
 		if err := renameFile(from, r.to); err != nil {
 			u.logf("log.rename_error", filepath.Base(from), err)
 			continue

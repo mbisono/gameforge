@@ -189,6 +189,7 @@ func (u *ui) runArcade(emu arcade.Emulator, items []*convItem) {
 	u.logf("arcade.start", len(items), emu.Name, list.Version)
 	neo := u.noIntroDB() // for .neo files, which are not arcade sets
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		read := map[string][]arcade.File{} // other sets' archives, read once
 		complete := 0

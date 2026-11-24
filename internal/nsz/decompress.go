@@ -43,11 +43,16 @@ func NCASize(r io.ReaderAt, off int64) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	return ncaSize(sections), nil
+}
+
+// ncaSize is the size of the NCA the sections describe.
+func ncaSize(sections []Section) int64 {
 	size := int64(HeaderSize)
 	for _, s := range sections {
 		size = max(size, s.Offset+s.Size)
 	}
-	return size, nil
+	return size
 }
 
 func decompressBlocks(ctx context.Context, r io.ReaderAt, p, end int64, sections []Section, w io.Writer) error {
@@ -112,6 +117,10 @@ func decompressBlocks(ctx context.Context, r io.ReaderAt, p, end int64, sections
 	return nil
 }
 
+// decompressSolid decompresses a single zstd stream. It must restore the
+// whole NCA: zstd reports a cut-off stream as io.ErrUnexpectedEOF, which
+// io.ReadFull also returns for the short last chunk of a complete one, so
+// only the size tells a truncated NCZ.
 func decompressSolid(ctx context.Context, r io.Reader, sections []Section, w io.Writer) error {
 	dec, err := zstd.NewReader(r)
 	if err != nil {
@@ -133,6 +142,9 @@ func decompressSolid(ctx context.Context, r io.Reader, sections []Section, w io.
 			abs += int64(n)
 		}
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			if abs != ncaSize(sections) {
+				return i18n.Errorf("err.ncz.format")
+			}
 			return nil
 		}
 		if err != nil {

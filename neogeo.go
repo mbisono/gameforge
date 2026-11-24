@@ -120,6 +120,7 @@ func (u *ui) runNeo(roms []romFile, mark neoMark) {
 	db := u.noIntroDB()
 	u.logf("neo.start", len(roms), db.Lists[neoSystem].Version)
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		var files []neoFile
 		known := 0

@@ -11,6 +11,7 @@
 package ciso
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha1"
@@ -170,7 +171,7 @@ func Compress(ctx context.Context, in, out string, format Format, progress func(
 	}()
 
 	w := &countWriter{w: f}
-	bw := newBufWriter(w)
+	bw := bufio.NewWriterSize(w, 4<<20)
 	i := 0
 	var firstErr error
 	align := int64(1) << shift
@@ -322,6 +323,11 @@ func (r *Reader) init() error {
 	blocks := (h.Size + int64(h.BlockSize) - 1) / int64(h.BlockSize)
 	if blocks > 1<<28 {
 		return errors.New("invalid CSO/ZSO header")
+	}
+	if st, err := r.f.Stat(); err != nil {
+		return err
+	} else if headerSize+(blocks+1)*4 > st.Size() {
+		return errors.New("invalid CSO/ZSO header: the index is larger than the file")
 	}
 	idx := make([]byte, (blocks+1)*4)
 	if _, err := r.f.ReadAt(idx, headerSize); err != nil {
@@ -475,7 +481,7 @@ func Decompress(ctx context.Context, in, out string, progress func(done, total i
 		return nil, err
 	}
 	res := &Result{}
-	bw := newBufWriter(f)
+	bw := bufio.NewWriterSize(f, 4<<20)
 	err = decode(ctx, in, bw, &res.SHA1, progress)
 	if err == nil {
 		err = bw.Flush()

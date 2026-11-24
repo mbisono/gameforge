@@ -10,6 +10,8 @@ import (
 	"hash/crc32"
 	"math/bits"
 	"strings"
+
+	"gameforge/internal/nds"
 )
 
 // Result is the outcome of a check.
@@ -155,29 +157,13 @@ func DS(b []byte) (Result, bool) {
 	if len(b) < 0x160 {
 		return Result{}, false
 	}
-	c := uint32(crc16(b[:0x15e]))
+	c := uint32(nds.CRC16(b[:0x15e]))
 	s := uint32(binary.LittleEndian.Uint16(b[0x15e:]))
 	// A file whose header is not a DS header at all is not checked.
-	if c != s && crc16(b[0xc0:0x15c]) != binary.LittleEndian.Uint16(b[0x15c:]) {
+	if c != s && nds.CRC16(b[0xc0:0x15c]) != binary.LittleEndian.Uint16(b[0x15c:]) {
 		return Result{}, false
 	}
 	return Result{System: "Nintendo DS", OK: c == s, Stored: s, Computed: c, Width: 4}, true
-}
-
-// crc16 is the CRC-16 (MODBUS) of DS headers.
-func crc16(b []byte) uint16 {
-	crc := uint16(0xffff)
-	for _, c := range b {
-		crc ^= uint16(c)
-		for range 8 {
-			if crc&1 != 0 {
-				crc = crc>>1 ^ 0xa001
-			} else {
-				crc >>= 1
-			}
-		}
-	}
-	return crc
 }
 
 // --- SNES ---

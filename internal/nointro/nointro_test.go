@@ -273,3 +273,8 @@ func TestSMDAndPCEHeader(t *testing.T) {
 		}
 	}
 }
+
+func fileOf(system string) string {
+	s, _ := systemOf(system)
+	return s.File
+}

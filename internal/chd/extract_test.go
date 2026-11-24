@@ -23,6 +23,9 @@ func roundTrip(t *testing.T, in string, convert func(context.Context, string, st
 	if err != nil {
 		t.Fatal(err)
 	}
+	if left, _ := filepath.Glob(filepath.Join(filepath.Dir(out), "*.part")); len(left) > 0 {
+		t.Fatalf(".part files left: %v", left)
+	}
 	return out, res
 }
 

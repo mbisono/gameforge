@@ -3,6 +3,8 @@ package romcheck
 import (
 	"encoding/binary"
 	"testing"
+
+	"gameforge/internal/nds"
 )
 
 func TestSNES(t *testing.T) {
@@ -77,8 +79,8 @@ func TestMegaDriveAndSMD(t *testing.T) {
 func TestDS(t *testing.T) {
 	h := make([]byte, 0x200)
 	copy(h, "GAME")
-	binary.LittleEndian.PutUint16(h[0x15c:], crc16(h[0xc0:0x15c]))
-	binary.LittleEndian.PutUint16(h[0x15e:], crc16(h[:0x15e]))
+	binary.LittleEndian.PutUint16(h[0x15c:], nds.CRC16(h[0xc0:0x15c]))
+	binary.LittleEndian.PutUint16(h[0x15e:], nds.CRC16(h[:0x15e]))
 	if r, ok := DS(h); !ok || !r.OK {
 		t.Fatalf("%+v %v", r, ok)
 	}

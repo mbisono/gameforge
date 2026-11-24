@@ -3,6 +3,7 @@ package chd
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"math"
 	"math/rand/v2"
@@ -338,4 +339,37 @@ func TestVerifyHeaderSHA1(t *testing.T) {
 	if e.Actual != raw || e.Stored != want || e.Hunks != 3 {
 		t.Fatalf("got %+v", e)
 	}
+}
+
+// TestDamagedHeader opens CHDs whose header holds impossible sizes: an
+// error, not a panic or a huge allocation.
+func TestDamagedHeader(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "game.iso")
+	os.WriteFile(in, make([]byte, 16*DVDSectorSize), 0o644)
+	out := filepath.Join(dir, "game.chd")
+	if _, err := ConvertISO(context.Background(), in, out, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	good, _ := os.ReadFile(out)
+	for _, size := range []uint64{1 << 62, 1 << 63, 0} {
+		b := append([]byte(nil), good...)
+		binary.BigEndian.PutUint64(b[32:], size)
+		p := filepath.Join(dir, "bad.chd")
+		os.WriteFile(p, b, 0o644)
+		if r, err := Open(p); err == nil {
+			r.Close()
+			t.Errorf("logical size %#x: opened", size)
+		}
+	}
+}
+
+// ConvertCue writes the disc of a CUE sheet as a CD CHD, as chdman createcd
+// does (codecs cdlz, cdzl and cdfl).
+func ConvertCue(ctx context.Context, cuePath, outPath string, opt Options) (*Result, error) {
+	tracks, err := ParseCue(cuePath)
+	if err != nil {
+		return nil, err
+	}
+	return convertTracks(ctx, tracks, outPath, opt)
 }

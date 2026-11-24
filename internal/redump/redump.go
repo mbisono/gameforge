@@ -7,19 +7,16 @@ package redump
 
 import (
 	"bufio"
-	"compress/gzip"
 	"context"
-	"encoding/gob"
 	"fmt"
 	"io"
 	"net/url"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"gameforge/internal/cachefile"
 	"gameforge/internal/datfile"
 )
 
@@ -58,6 +55,7 @@ type Game struct {
 type List struct {
 	Version string // date of the database, as it states it
 	ETag    string
+	Checked time.Time // when it was last downloaded or found unchanged
 	Games   []Game
 }
 
@@ -71,43 +69,16 @@ type DB struct {
 
 // Load reads the cache file; the error wraps os.ErrNotExist if there is none.
 func Load(path string) (*DB, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	zr, err := gzip.NewReader(f)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
-	}
 	db := &DB{}
-	if err := gob.NewDecoder(zr).Decode(db); err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+	if err := cachefile.Load(path, db); err != nil {
+		return nil, err
 	}
 	db.build()
 	return db, nil
 }
 
 // Save writes the cache file, replacing an old one only once complete.
-func (db *DB) Save(path string) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), FileName+".*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name())
-	zw := gzip.NewWriter(tmp)
-	err = gob.NewEncoder(zw).Encode(db)
-	if err == nil {
-		err = zw.Close()
-	}
-	if cerr := tmp.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), path)
-}
+func (db *DB) Save(path string) error { return cachefile.Save(path, db) }
 
 func (db *DB) build() {
 	db.index = map[string]map[string][]int{}
@@ -216,14 +187,35 @@ func Download(ctx context.Context, old *DB, platforms []string, progress Progres
 			return nil, err
 		}
 		if newTag == "" { // not modified
+			l := *db.Lists[p]
+			l.Checked = time.Now()
+			db.Lists[p] = &l
 			continue
 		}
 		list.ETag = newTag
+		list.Checked = time.Now()
 		db.Lists[p] = list
 	}
 	db.Downloaded = time.Now()
 	db.build()
 	return db, nil
+}
+
+// Oldest is when the list checked longest ago was downloaded or found
+// unchanged: one list can be fetched while the others are not. Lists saved
+// by versions without a date of their own count from the last download.
+func (db *DB) Oldest() time.Time {
+	var t time.Time
+	for _, l := range db.Lists {
+		c := l.Checked
+		if c.IsZero() {
+			c = db.Downloaded
+		}
+		if t.IsZero() || c.Before(t) {
+			t = c
+		}
+	}
+	return t
 }
 
 var trackNum = regexp.MustCompile(`\(Track (\d+)\)\.\w+$`)

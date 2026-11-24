@@ -164,3 +164,23 @@ func TestDiscArchives(t *testing.T) {
 		t.Error("a CHD was left from a damaged ECM file")
 	}
 }
+
+// TestRemoveStaleTemp removes unpack folders a day old, not newer ones
+// (another conversion may be using them).
+func TestRemoveStaleTemp(t *testing.T) {
+	dir := t.TempDir()
+	old, fresh := filepath.Join(dir, ".gameforge-1"), filepath.Join(dir, ".gameforge-2")
+	for _, p := range []string{old, fresh} {
+		os.MkdirAll(p, 0o755)
+		os.WriteFile(filepath.Join(p, "disc.bin"), []byte("x"), 0o644)
+	}
+	day := time.Now().Add(-25 * time.Hour)
+	os.Chtimes(old, day, day)
+	removeStaleTemp(dir)
+	if _, err := os.Stat(old); err == nil {
+		t.Error("the old folder is still there")
+	}
+	if _, err := os.Stat(fresh); err != nil {
+		t.Error("the new folder was removed")
+	}
+}

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -605,6 +607,7 @@ func (t *convTab) startWith(u *ui, items []*convItem, act convAction) {
 		jobs = max(1, min(t.conv.jobs(u), len(items)))
 	}
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		done := t.convertAll(ctx, u, items, outDir, verify, jobs, act)
 		if act.after != nil && len(done) > 0 {
@@ -614,11 +617,47 @@ func (t *convTab) startWith(u *ui, items []*convItem, act convAction) {
 		u.setStatus(T("status.conv_done", len(done), len(items)))
 		onGUI(func() {
 			u.flush()
+			t.replaceRemoved(u, done)
 			u.cancelMerge = nil
 			enable(u.cancelBtn, false)
 			u.setBusy(false)
 		})
 	}()
+}
+
+// replaceRemoved lists, in place of the converted files whose original was
+// removed ("delete the originals"), the files written from them, so that
+// the next action does not work on files that are gone.
+func (t *convTab) replaceRemoved(u *ui, done []converted) {
+	outOf := map[string]string{}
+	for _, c := range done {
+		if _, err := os.Stat(c.item.path); errors.Is(err, fs.ErrNotExist) {
+			outOf[c.item.path] = c.out
+		}
+	}
+	if len(outOf) == 0 {
+		return
+	}
+	for i, p := range t.pool {
+		if out, ok := outOf[p]; ok {
+			t.pool[i] = out
+		}
+	}
+	var items []*convItem
+	for _, it := range t.items {
+		if _, ok := outOf[it.path]; ok {
+			delete(t.checked, it.path)
+		} else {
+			items = append(items, it)
+		}
+	}
+	t.items = items
+	for _, c := range done {
+		if out, ok := outOf[c.item.path]; ok && t.accepts(out) {
+			t.list(u, out)
+		}
+	}
+	t.refresh(u)
 }
 
 // convertAll converts the items, jobs at a time, and returns those done,
@@ -629,6 +668,11 @@ func (t *convTab) convertAll(ctx context.Context, u *ui, items []*convItem, outD
 	// whole batch done: a verified file is half conversion, half
 	// verification.
 	var share sync.Mutex
+	// Outputs taken by an item of this run: two items with the same output
+	// name (game.gb and game.zip both become game.7z) must not write the
+	// same file at the same time, which could leave one original deleted
+	// with the other's data in its archive.
+	claimed := map[string]bool{}
 	shares := make([]float64, len(items))
 	finished, running := 0, 0
 	showShare := func(i int, verifying bool, done, total int64) {
@@ -653,6 +697,12 @@ func (t *convTab) convertAll(ctx context.Context, u *ui, items []*convItem, outD
 		share.Unlock()
 	}
 	convert := func(i int, it *convItem) {
+		defer func() {
+			if p := recover(); p != nil {
+				u.setItemStatus(it, lazyf("✗ %v", p))
+				u.logf("log.panic", filepath.Base(it.path), p)
+			}
+		}()
 		if jobs > 1 {
 			share.Lock()
 			running++
@@ -682,7 +732,12 @@ func (t *convTab) convertAll(ctx context.Context, u *ui, items []*convItem, outD
 			u.setItemStatus(it, i18n.M("st.same"))
 			return
 		}
-		if _, err := os.Stat(out); err == nil {
+		claim := strings.ToLower(filepath.Clean(out))
+		share.Lock()
+		taken := claimed[claim]
+		claimed[claim] = true
+		share.Unlock()
+		if _, err := os.Stat(out); taken || err == nil {
 			u.logf("log.exists", name)
 			u.setItemStatus(it, i18n.M("st.exists"))
 			return

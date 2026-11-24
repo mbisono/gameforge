@@ -168,18 +168,25 @@ var sevenZipConverter = &converter{
 		if err != nil {
 			return 0, 0, err
 		}
-		res, err := writeSevenZip(ctx, u, it.path, st, out, progress)
+		// Written as .part and named once complete (and checked), so an
+		// interrupted run leaves no archive that looks done.
+		part := out + ".part"
+		defer os.Remove(part)
+		res, err := writeSevenZip(ctx, u, it.path, st, part, progress)
 		if err != nil {
 			return 0, 0, err
 		}
 		del := u.cfg.SevenZipDelete
 		if verify || del { // never remove an original without checking its archive
-			if err := checkSevenZip(ctx, out, res.Entries, progress); err != nil {
+			if err := checkSevenZip(ctx, part, res.Entries, progress); err != nil {
 				if ctx.Err() == nil {
 					err = fmt.Errorf("%s: %w", T("log.verify_failed"), err)
 				}
 				return 0, 0, err
 			}
+		}
+		if err := os.Rename(part, out); err != nil {
+			return 0, 0, err
 		}
 		if del {
 			// A failure here keeps the archive: it is complete and verified.

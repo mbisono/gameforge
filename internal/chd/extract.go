@@ -195,8 +195,10 @@ func (d *Disc) plan(outPath string) (segs []*segment, sheet []byte, err error) {
 
 // Extract writes the disc image of the CHD at chdPath as outPath, whose
 // extension (.cue, .gdi or .iso) tells the format, and the track files the
-// sheet names, next to it. None of the files may exist yet. On an error,
-// the files written so far are removed.
+// sheet names, next to it. None of the files may exist yet. Each file is
+// written as name.part and gets its name once all are written (and
+// checked), the sheet last, so an interrupted extraction leaves no file
+// that looks complete. On an error, the files written so far are removed.
 func Extract(ctx context.Context, chdPath, outPath string, opt ExtractOptions) (res *ExtractResult, err error) {
 	d, err := OpenDisc(chdPath)
 	if err != nil {
@@ -240,9 +242,10 @@ func Extract(ctx context.Context, chdPath, outPath string, opt ExtractOptions) (
 		}
 	}()
 	create := func(path string) (*os.File, error) {
-		f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		// A .part left by an interrupted run is written over.
+		f, err := os.OpenFile(path+".part", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 		if err == nil {
-			created = append(created, path)
+			created = append(created, path+".part")
 		}
 		return f, err
 	}
@@ -341,7 +344,7 @@ func Extract(ctx context.Context, chdPath, outPath string, opt ExtractOptions) (
 	if opt.Verify {
 		var done int64
 		check := func(path string, want []byte) error {
-			f, err := os.Open(path)
+			f, err := os.Open(path + ".part")
 			if err != nil {
 				return err
 			}
@@ -381,6 +384,19 @@ func Extract(ctx context.Context, chdPath, outPath string, opt ExtractOptions) (
 				return nil, err
 			}
 		}
+	}
+	// The track files first, then the sheet: a sheet is only there when
+	// its tracks are.
+	order := append(files[len(files)-len(segs):len(files):len(files)], files[:len(files)-len(segs)]...)
+	var renamed []string
+	for _, f := range order {
+		if err = os.Rename(f+".part", f); err != nil {
+			for _, r := range renamed {
+				os.Remove(r)
+			}
+			return nil, err
+		}
+		renamed = append(renamed, f)
 	}
 	return res, nil
 }

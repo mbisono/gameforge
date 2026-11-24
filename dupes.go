@@ -128,6 +128,7 @@ func (u *ui) runDupes(roms []romFile, mark bool) {
 	u.separate()
 	u.logf("dupes.start", len(roms))
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		var files []dupeFile
 		for i := range roms {

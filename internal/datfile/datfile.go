@@ -52,10 +52,13 @@ func Fetch(ctx context.Context, u, name, etag string, progress Progress, parse f
 		return "", fmt.Errorf("%s: %s", name, resp.Status)
 	}
 	var done int64
+	var last time.Time
 	r := readerFunc(func(b []byte) (int, error) {
 		n, err := resp.Body.Read(b)
 		done += int64(n)
-		if progress != nil {
+		// At most ten reports a second: each one updates the window.
+		if now := time.Now(); progress != nil && (now.Sub(last) > 100*time.Millisecond || err != nil) {
+			last = now
 			progress(name, done, resp.ContentLength)
 		}
 		return n, err

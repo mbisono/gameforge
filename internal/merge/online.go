@@ -60,11 +60,6 @@ type OnlineStatus struct {
 // NewerUpdate reports whether a newer update than the files' is released.
 func (s OnlineStatus) NewerUpdate() bool { return s.HasUpdates && s.Latest.Version > s.Have }
 
-// UpToDate reports whether the game has nothing newer or missing.
-func (s OnlineStatus) UpToDate() bool {
-	return s.Known && !s.NewerUpdate() && len(s.Missing) == 0 && len(s.Outdated) == 0
-}
-
 // Online compares the game's files with db.
 func (g *Game) Online(db *titledb.DB) OnlineStatus {
 	s := OnlineStatus{Known: db.Known(g.AppID), Have: g.HaveVersion()}

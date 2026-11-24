@@ -59,9 +59,6 @@ func TestReader(t *testing.T) {
 	copy(disc, "RSPE01")
 	for _, split := range []int{1 << 30, 300000} {
 		path := makeWBFS(t, t.TempDir(), disc, split)
-		if !IsWBFS(path) {
-			t.Fatal("not recognized")
-		}
 		r, err := Open(path)
 		if err != nil {
 			t.Fatal(err)

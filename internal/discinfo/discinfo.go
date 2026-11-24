@@ -11,8 +11,6 @@ import (
 	"io"
 	"os"
 	"strings"
-
-	"gameforge/internal/chd"
 )
 
 // Platforms.
@@ -72,45 +70,6 @@ func FromISO(path string) (platform string, cd bool, err error) {
 		return platform, true, nil
 	}
 	return platform, st.Size() <= MaxCDSize, nil
-}
-
-// FromCue detects the platform of the disc of a CUE sheet.
-func FromCue(path string) (string, error) {
-	tracks, err := chd.ParseImage(path)
-	if err != nil {
-		return "", err
-	}
-	if chd.IsGDROM(tracks) {
-		return Dreamcast, nil
-	}
-	for _, t := range tracks {
-		if t.Type == "AUDIO" {
-			continue
-		}
-		f, err := chd.OpenImage(t.File)
-		if err != nil {
-			return "", err
-		}
-		defer f.Close()
-		// Where the user data starts in a sector of the file.
-		skip := map[string]int{"MODE1_RAW": 16, "MODE2_RAW": 24, "MODE2": 8, "MODE2_FORM_MIX": 8}[t.Type]
-		start := t.DataStart()
-		read := func(lba int) ([]byte, error) {
-			b := make([]byte, 2048)
-			_, err := f.ReadAt(b, start+int64(lba)*int64(t.SectorStride())+int64(skip))
-			return b, err
-		}
-		if p := detect(read); p != "" {
-			return p, nil
-		}
-		// PC Engine CDs keep their boot record in the first data track,
-		// after an audio track.
-		if b, err := read(1); err == nil && bytes.Contains(b[:256], []byte("PC Engine CD-ROM SYSTEM")) {
-			return PCEngine, nil
-		}
-		return "", nil
-	}
-	return AudioCD, nil
 }
 
 // Detect tells the platform of a disc from its 2048-byte sectors, read by

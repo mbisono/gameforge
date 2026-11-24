@@ -66,6 +66,7 @@ func (t *convTab) checkHeaders(u *ui) {
 	u.separate()
 	u.logf("crc.start", len(items))
 	go func() {
+		defer u.recoverPanic()
 		defer cancel()
 		good, bad, none := 0, 0, 0
 		for i, it := range items {

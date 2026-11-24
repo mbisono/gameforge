@@ -5,20 +5,17 @@
 package titledb
 
 import (
-	"compress/gzip"
 	"context"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
-	"net/http"
-	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"gameforge/internal/cachefile"
+	"gameforge/internal/datfile"
 )
 
 // FileName is the name of the cache file.
@@ -52,43 +49,16 @@ type DB struct {
 
 // Load reads the cache file; the error wraps os.ErrNotExist if there is none.
 func Load(path string) (*DB, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	zr, err := gzip.NewReader(f)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
-	}
 	db := &DB{}
-	if err := gob.NewDecoder(zr).Decode(db); err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+	if err := cachefile.Load(path, db); err != nil {
+		return nil, err
 	}
 	db.index()
 	return db, nil
 }
 
 // Save writes the cache file, replacing an old one only once complete.
-func (db *DB) Save(path string) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), FileName+".*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name())
-	zw := gzip.NewWriter(tmp)
-	err = gob.NewEncoder(zw).Encode(db)
-	if err == nil {
-		err = zw.Close()
-	}
-	if cerr := tmp.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), path)
-}
+func (db *DB) Save(path string) error { return cachefile.Save(path, db) }
 
 // New returns a database with the given data, as if downloaded now.
 func New(versions map[uint64][]Release, names map[uint64]string) *DB {
@@ -180,7 +150,7 @@ func Download(ctx context.Context, old *DB, progress Progress) (*DB, error) {
 		if old != nil {
 			etag = old.ETags[i]
 		}
-		newTag, err := fetch(ctx, url, etag, progress, parsers[i])
+		newTag, err := datfile.Fetch(ctx, url, url[strings.LastIndex(url, "/")+1:], etag, datfile.Progress(progress), parsers[i])
 		if err != nil {
 			return nil, err
 		}
@@ -198,71 +168,6 @@ func Download(ctx context.Context, old *DB, progress Progress) (*DB, error) {
 	db.Downloaded = time.Now()
 	db.index()
 	return db, nil
-}
-
-var client = &http.Client{Transport: &http.Transport{
-	Proxy:                 http.ProxyFromEnvironment,
-	ResponseHeaderTimeout: 30 * time.Second,
-	TLSHandshakeTimeout:   30 * time.Second,
-}}
-
-// fetch downloads url and passes the body to parse. If the file still has
-// the ETag etag, it returns "" without downloading; otherwise the file's
-// ETag, or "-" if the server sent none.
-func fetch(ctx context.Context, url, etag string, progress Progress, parse func(io.Reader) error) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("User-Agent", "gameforge")
-	if etag != "" && etag != "-" {
-		req.Header.Set("If-None-Match", etag)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	name := url[strings.LastIndex(url, "/")+1:]
-	switch resp.StatusCode {
-	case http.StatusNotModified:
-		return "", nil
-	case http.StatusOK:
-	default:
-		return "", fmt.Errorf("%s: %s", name, resp.Status)
-	}
-	r := &progressReader{r: resp.Body, total: resp.ContentLength, report: func(done, total int64) {
-		if progress != nil {
-			progress(name, done, total)
-		}
-	}}
-	if err := parse(r); err != nil {
-		if ctx.Err() != nil {
-			return "", ctx.Err()
-		}
-		return "", fmt.Errorf("%s: %w", name, err)
-	}
-	if tag := resp.Header.Get("ETag"); tag != "" {
-		return tag, nil
-	}
-	return "-", nil
-}
-
-type progressReader struct {
-	r           io.Reader
-	done, total int64
-	last        time.Time
-	report      func(done, total int64)
-}
-
-func (p *progressReader) Read(b []byte) (int, error) {
-	n, err := p.r.Read(b)
-	p.done += int64(n)
-	if now := time.Now(); now.Sub(p.last) > 100*time.Millisecond || err != nil {
-		p.last = now
-		p.report(p.done, p.total)
-	}
-	return n, err
 }
 
 func parseID(s string) (uint64, bool) {
