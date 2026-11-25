@@ -1,0 +1,66 @@
+name: Bug report
+description: Something in GameForge does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please do **not** attach keys (`prod.keys`, Wii keys), games or ROMs, and remove personal paths from the app's messages.
+        GameForge contains no games, and issues asking where to get them are closed.
+  - type: input
+    id: version
+    attributes:
+      label: GameForge version
+      description: Shown in the About window.
+      placeholder: "2.21.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: System
+      options:
+        - Windows
+        - Linux
+        - macOS (experimental)
+    validations:
+      required: true
+  - type: dropdown
+    id: tab
+    attributes:
+      label: Tab
+      options:
+        - Nintendo Switch
+        - Discs
+        - ROMs
+        - Other (About window, settings, startup)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Which files (format and name, no download links), which buttons and options.
+      placeholder: |
+        1. Add "Game (USA).cue" to the Discs tab
+        2. Click Convert
+        3. ...
+  - type: textarea
+    id: log
+    attributes:
+      label: Messages from the app
+      description: The lines in the message box at the bottom of the GameForge window (select them and press Ctrl+C). Remove personal paths.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before sending
+      options:
+        - label: The report holds no keys, no games and no personal paths.
+          required: true
