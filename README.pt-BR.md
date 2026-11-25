@@ -79,6 +79,7 @@ Para jogos de Switch, coloque o seu `prod.keys` na pasta `keys`, ao lado do prog
 - **[Guia completo](docs/GUIDE.pt-BR.md)**: todas as opções, formatos de arquivo, configurações e limitações.
 - **[Compilar o código](docs/GUIDE.pt-BR.md#compilação)**: Go, sem compilador C.
 - **[Histórico de mudanças](CHANGELOG.md)** (em inglês).
+- Desenvolvido com o **[Ponytail](https://github.com/DietrichGebert/ponytail)**.
 
 ## Licença
 

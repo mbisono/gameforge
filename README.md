@@ -79,6 +79,7 @@ For Switch games, put your `prod.keys` in the `keys` folder next to the program.
 - **[Full guide](docs/GUIDE.md)**: every option, file formats, settings and limitations.
 - **[Building from source](docs/GUIDE.md#building)**: Go, without a C compiler.
 - **[Changelog](CHANGELOG.md)**.
+- Developed with **[Ponytail](https://github.com/DietrichGebert/ponytail)**.
 
 ## License
 
