@@ -56,7 +56,12 @@ func (u *ui) writeRAReports(rows []raRow, now time.Time) {
 
 // raReportPath is a free name for the report of console in dir.
 func raReportPath(dir, console string, now time.Time) (string, error) {
-	base := "RetroAchievements - " + safeFileName(console) + " - " + now.Format("2006-01-02")
+	return reportPath(dir, "RetroAchievements - "+safeFileName(console)+" - "+now.Format("2006-01-02"))
+}
+
+// reportPath is a free name in dir for a report named base: base.html,
+// else "base (2).html" and so on, so a report is never written over.
+func reportPath(dir, base string) (string, error) {
 	for n := 1; n < 1000; n++ {
 		name := base + ".html"
 		if n > 1 {

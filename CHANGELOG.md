@@ -2,6 +2,11 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.21.0] - 2026-11-25
+
+### Added
+- **Check ▾ → Collection report (games on several consoles)…** in the ROMs tab lists the games in a folder of console folders as an HTML page, with a search field, a console filter and a filter for the games you have on more than one console. Arcade sets named by their short names (`sfa3.zip`) count by their titles from the arcade lists.
+
 ## [2.20.3] - 2026-11-24
 
 ### Fixed
@@ -275,6 +280,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.21.0]: https://github.com/tschertel/gameforge/releases/tag/v2.21.0
 [2.20.3]: https://github.com/tschertel/gameforge/releases/tag/v2.20.3
 [2.20.2]: https://github.com/tschertel/gameforge/releases/tag/v2.20.2
 [2.20.1]: https://github.com/tschertel/gameforge/releases/tag/v2.20.1

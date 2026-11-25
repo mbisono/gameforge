@@ -9,7 +9,9 @@
 
 ![A aba Nintendo Switch](docs/images/pt-BR/switch.png)
 
-Versão atual: **2.20.3**. [Download](#download) · [Guia completo](docs/GUIDE.pt-BR.md) · [Novidades](CHANGELOG.md)
+Versão atual: **2.21.0**. [Download](#download) · [Guia completo](docs/GUIDE.pt-BR.md) · [Novidades](CHANGELOG.md)
+
+> **Novo na 2.21: Relatório da coleção.** Aponte para a sua pasta `ROMS` e receba uma página HTML com todos os seus jogos, por console, com pesquisa e filtros. Ela mostra os jogos que você tem em mais de um console, como *LEGO Star Wars II* no PS2, PSP, GBA e Xbox, ou *Street Fighter Alpha 3* no CPS2 (`sfa3.zip`) e no PS1. Na aba ROMs: **Verificar ▾ → Relatório da coleção**.
 
 ## O que ele faz
 
@@ -40,6 +42,7 @@ Para PS1, PS2, PSP, Saturn, Sega CD, Dreamcast, GameCube, Wii, Xbox e outros:
 
 - **Comprime** ROMs em **7z**, um arquivo por jogo, e recomprime ZIPs de arcade.
 - **Renomeia** ROMs com os nomes do **No-Intro**, encontra **duplicados** e mantém **uma versão de cada jogo** (1G1R) pela sua ordem de regiões.
+- **Relatório da coleção** (novo): uma página HTML com os jogos das suas pastas de console, com campo de pesquisa e filtros, que mostra quais jogos você tem em mais de um console, inclusive sets de arcade.
 - **Verifica sets de arcade** para o FBNeo, os cores de MAME do RetroArch e o Flycast (NAOMI, Atomiswave), e diferencia as versões AES e MVS dos jogos de Neo Geo.
 - **Verifica no RetroAchievements**. Um clique no status de uma versão não suportada abre a lista das versões que o RetroAchievements aceita, e cada verificação pode gravar um relatório em HTML.
 - **Ferramentas** cortam ROMs de Nintendo DS, convertem ROMs de Nintendo 64 para `.z64` e arquivos `.smd` de Mega Drive para `.md`, e removem cabeçalhos de copiadora de SNES e PC Engine. **Verificar ▾ → Checksum do header** diz se ROMs de N64, SNES, Mega Drive e DS conferem com o checksum do cabeçalho.

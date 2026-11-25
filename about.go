@@ -71,8 +71,9 @@ import (
 // new "Include subfolders" option, 2.20.2 keeps collapsed Switch games
 // collapsed when the list is redrawn, 2.20.3 fixes what an audit found:
 // truncated NCZs, config saves, same-name outputs, panics, case-only
-// renames and permanent deletes on Windows.
-const appVersion = "2.20.3"
+// renames and permanent deletes on Windows, 2.21.0 writes a report of the
+// games in a folder of console folders.
+const appVersion = "2.21.0"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

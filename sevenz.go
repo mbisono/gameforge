@@ -228,6 +228,7 @@ var sevenZipConverter = &converter{
 		checkMenu.AddCommand(Lbl(T("check.dupes")), Command(inTab(func(t *convTab) { t.findDupes(u, false) })))
 		checkMenu.AddCommand(Lbl(T("check.dupes_mark")), Command(inTab(func(t *convTab) { t.markDupes(u) })))
 		checkMenu.AddCommand(Lbl(T("check.g1r")), Command(inTab(func(t *convTab) { t.oneGameOneROM(u) })))
+		checkMenu.AddCommand(Lbl(T("check.collection")), Command(u.collectionReport))
 		checkMenu.AddSeparator()
 		checkMenu.AddCommand(Lbl(T("check.crc")), Command(inTab(func(t *convTab) { t.checkHeaders(u) })))
 		checkMenu.AddSeparator()
