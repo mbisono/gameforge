@@ -72,8 +72,9 @@ import (
 // collapsed when the list is redrawn, 2.20.3 fixes what an audit found:
 // truncated NCZs, config saves, same-name outputs, panics, case-only
 // renames and permanent deletes on Windows, 2.21.0 writes a report of the
-// games in a folder of console folders.
-const appVersion = "2.21.0"
+// games in a folder of console folders, 2.21.1 shows arcade sets in the
+// ROMs tab by their titles.
+const appVersion = "2.21.1"
 
 // repoURL is the project's page, with the source code and the releases.
 const repoURL = "https://github.com/tschertel/gameforge"

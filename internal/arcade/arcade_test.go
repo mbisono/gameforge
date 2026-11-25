@@ -301,3 +301,18 @@ func TestDownloadMame(t *testing.T) {
 		t.Errorf("2003: %+v", l)
 	}
 }
+
+// TestSetByName: a set is found by its short name in any case, in the list
+// of the first emulator that has it.
+func TestSetByName(t *testing.T) {
+	db := &DB{Lists: map[string]*List{
+		"mame2003": {Sets: map[string]*Set{"sfa3": {Name: "sfa3", Title: "MAME 2003 title"}}},
+		"fbneo":    {Sets: map[string]*Set{"sfa3": {Name: "sfa3", Title: "Street Fighter Alpha 3"}}},
+	}}
+	if s := db.Set("SFA3"); s == nil || s.Title != "Street Fighter Alpha 3" {
+		t.Fatalf("got %+v", s)
+	}
+	if db.Set("nope") != nil || (*DB)(nil).Set("sfa3") != nil {
+		t.Fatal("found a set that is not there")
+	}
+}

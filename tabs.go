@@ -455,6 +455,19 @@ func stringOf(s fmt.Stringer) string {
 	return s.String()
 }
 
+// rowName is how the list shows a file: in the ROMs tab, an arcade set by
+// its title from the arcade lists, with the file name in brackets.
+func (t *convTab) rowName(u *ui, it *convItem) string {
+	name := filepath.Base(it.path)
+	if ext := extOf(name); t.conv.id != "7z" || (ext != ".zip" && ext != ".7z") {
+		return name
+	}
+	if s := u.arcadeLists().Set(strings.TrimSuffix(name, filepath.Ext(name))); s != nil && s.Title != "" {
+		return s.Title + " [" + name + "]"
+	}
+	return name
+}
+
 // refresh shows the list, keeping the scroll position, and updates the
 // summary and the button.
 func (t *convTab) refresh(u *ui) {
@@ -484,10 +497,10 @@ func (t *convTab) refresh(u *ui) {
 			mark = Image(checkImage(state))
 		}
 		if !markable(it) {
-			t.tree.Insert("", "end", Id(it.id), mark, Txt(filepath.Base(it.path)), values, Tags("unknown"))
+			t.tree.Insert("", "end", Id(it.id), mark, Txt(t.rowName(u, it)), values, Tags("unknown"))
 			continue
 		}
-		t.tree.Insert("", "end", Id(it.id), mark, Txt(filepath.Base(it.path)), values)
+		t.tree.Insert("", "end", Id(it.id), mark, Txt(t.rowName(u, it)), values)
 		if t.checked[it.path] {
 			if it.size > 0 {
 				size += it.size

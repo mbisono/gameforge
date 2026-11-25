@@ -2,6 +2,11 @@
 
 All notable changes to GameForge. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/): the minor number grows with new features, the patch number with small fixes.
 
+## [2.21.1] - 2026-11-25
+
+### Changed
+- The ROMs tab lists arcade sets by their titles from the downloaded arcade lists, with the file name in brackets: `Street Fighter Alpha 3 (USA 980904) [sfa3.zip]`.
+
 ## [2.21.0] - 2026-11-25
 
 ### Added
@@ -280,6 +285,7 @@ All notable changes to GameForge. The format follows [Keep a Changelog](https://
 
 nspmerge: merging Nintendo Switch base games, updates and DLCs, with NSZ compression.
 
+[2.21.1]: https://github.com/tschertel/gameforge/releases/tag/v2.21.1
 [2.21.0]: https://github.com/tschertel/gameforge/releases/tag/v2.21.0
 [2.20.3]: https://github.com/tschertel/gameforge/releases/tag/v2.20.3
 [2.20.2]: https://github.com/tschertel/gameforge/releases/tag/v2.20.2

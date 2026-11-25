@@ -142,6 +142,21 @@ func (db *DB) Oldest() time.Time {
 // Has reports whether the list of an emulator is there.
 func (db *DB) Has(id string) bool { return db != nil && db.Lists[id] != nil }
 
+// Set finds a set by its short name ("sfa3", any case) in the lists, the
+// emulators in the order of Emulators, or nil.
+func (db *DB) Set(name string) *Set {
+	if db == nil {
+		return nil
+	}
+	name = strings.ToLower(name)
+	for _, e := range Emulators() {
+		if l := db.Lists[e.ID]; l != nil && l.Sets[name] != nil {
+			return l.Sets[name]
+		}
+	}
+	return nil
+}
+
 // Load reads the cache file; the error wraps os.ErrNotExist if there is none.
 func Load(path string) (*DB, error) {
 	db := &DB{}
