@@ -13,6 +13,8 @@ Versão atual: **2.21.0**. [Download](#download) · [Guia completo](docs/GUIDE.p
 
 > **Novo na 2.21: Relatório da coleção.** Aponte para a sua pasta `ROMS` e receba uma página HTML com todos os seus jogos, por console, com pesquisa e filtros. Ela mostra os jogos que você tem em mais de um console, como *LEGO Star Wars II* no PS2, PSP, GBA e Xbox, ou *Street Fighter Alpha 3* no CPS2 (`sfa3.zip`) e no PS1. Na aba ROMs: **Verificar ▾ → Relatório da coleção**.
 
+![O relatório da coleção, com os jogos em mais de um console](docs/images/pt-BR/collection.png)
+
 ## O que ele faz
 
 ### Nintendo Switch
