@@ -1,6 +1,6 @@
 # Contributing to GameForge
 
-Bug reports and pull requests are welcome. GameForge is a hobby project with one maintainer, so answers can take a few days.
+Bug reports and pull requests are welcome. GameForge is a hobby project with one maintainer, so answers can take a few days. Taking part means following the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Reporting a bug
 
